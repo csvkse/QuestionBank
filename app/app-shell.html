@@ -109,51 +109,86 @@
 </head>
 <body class="surface-canvas text-slate-100 min-h-screen font-sans flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
 
-  <!-- 顶部导航条 (Surface 0 浮顶 + 磨砂) -->
-  <header class="border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md sticky top-0 z-40">
-    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+  <!-- 顶部导航条 (Surface 0 浮顶 + 磨砂 + 60px 单行流式解耦架构) -->
+  <header class="border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md sticky top-0 z-40 h-16">
+    <div class="max-w-6xl mx-auto px-4 h-full flex items-center justify-between gap-3">
       
-      <!-- Logo 与 题库切换器 -->
-      <div class="flex items-center space-x-3">
-        <div onclick="app.navigate('dashboard')" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center shadow-md shadow-indigo-600/20 text-white font-black text-xl cursor-pointer hover:opacity-95 transition">
-          <span id="header-deck-icon">⚡</span>
+      <!-- 左侧: 品牌身份与题库切换胶囊解耦 -->
+      <div class="flex items-center space-x-3 shrink-0">
+        <!-- Logo -->
+        <div onclick="app.navigate('dashboard')" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center shadow-md shadow-indigo-600/20 text-white cursor-pointer hover:opacity-95 transition" title="返回仪表盘">
+          <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
         </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <h1 onclick="app.navigate('dashboard')" class="font-bold text-base sm:text-lg tracking-wide text-white cursor-pointer hover:text-indigo-400 transition flex items-center gap-1.5">
-              <span id="header-deck-title">知识记忆工坊</span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-850 text-indigo-300 border border-slate-750 font-mono">v2.2 UI规范版</span>
-            </h1>
+        
+        <!-- 品牌名称 -->
+        <div class="hidden sm:block cursor-pointer" onclick="app.navigate('dashboard')">
+          <div class="font-bold text-sm text-white tracking-wide flex items-center gap-1.5">
+            <span>Knowledge Master</span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-850 text-indigo-300 border border-slate-750 font-mono">v2.3</span>
           </div>
-          <!-- 快捷切换题库下拉与管理入口 (热区解耦保持 >= 28px) -->
-          <div class="flex items-center gap-1.5 mt-0.5">
-            <select id="deck-selector" onchange="app.switchDeck(this.value)" class="bg-slate-900 text-xs text-indigo-300 font-medium rounded-lg px-2.5 py-1 border border-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer max-w-[140px] sm:max-w-none truncate hover:border-slate-700 transition">
+        </div>
+
+        <!-- 题库切换胶囊 (Pill Dropdown) & 管理按钮 -->
+        <div class="flex items-center gap-1.5 pl-1 sm:pl-2 sm:border-l sm:border-slate-800">
+          <div class="relative flex items-center">
+            <select id="deck-selector" onchange="app.switchDeck(this.value)" class="appearance-none bg-slate-900 text-xs text-slate-200 font-medium rounded-lg pl-2.5 pr-7 py-1.5 border border-slate-800 hover:border-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer max-w-[130px] sm:max-w-[170px] truncate transition" title="切换当前学习题库">
               <!-- 动态填充内置题库与自定义题库 -->
             </select>
-            <button onclick="app.showDeckManagerModal()" class="text-[11px] text-slate-300 hover:text-white flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-850 hover:bg-slate-800 border border-slate-750 transition" title="管理所有内置与自定义题库">
-              <span>⚙️ 题库管理</span>
-            </button>
-            <button onclick="app.showDeckStudioModal(null)" class="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 px-2 py-1 rounded-lg hover:bg-indigo-950/40 transition" title="新建或通过笔记导入新题库">
-              <span>➕ 导入/新建</span>
-            </button>
+            <div class="pointer-events-none absolute right-2 text-slate-400">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+            </div>
           </div>
+          
+          <button onclick="app.showDeckManagerModal()" class="text-slate-400 hover:text-white p-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 transition" title="管理所有题库">
+            <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
         </div>
       </div>
 
-      <!-- 右侧快捷功能 (触控热区解耦规范) -->
-      <div class="flex items-center space-x-2 sm:space-x-2.5 text-xs">
-        <button onclick="app.navigate('study')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-indigo-300 border border-slate-800 hover:border-indigo-500/40 transition font-medium">
-          <span>📖 知识精读</span>
+      <!-- 中间: 全局主视图分段路由 (Segmented Control) -->
+      <nav class="flex items-center p-1 rounded-xl bg-slate-900/90 border border-slate-800 text-xs">
+        <button id="nav-tab-dashboard" onclick="app.navigate('dashboard')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 text-white font-medium transition shadow-sm" title="进入主仪表盘">
+          <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+          <span>仪表盘</span>
         </button>
-        <button onclick="app.navigate('codex')" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 hover:border-slate-700 transition">
-          <span>📚 知识法典</span>
+        
+        <button id="nav-tab-study" onclick="app.navigate('study')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 font-medium transition" title="结构化知识精读与遮挡自测">
+          <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
+          <span>知识精读</span>
+        </button>
+
+        <button id="nav-tab-codex" onclick="app.navigate('codex')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 font-medium transition" title="题库概念档案与掌握全景">
+          <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          <span>知识法典</span>
           <span id="nav-mistake-badge" class="px-1.5 py-0.2 text-[10px] rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 hidden">0</span>
         </button>
-        <button onclick="app.showBackupModal()" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-slate-200 border border-slate-800 transition flex items-center gap-1">
-          <span>💾 存档</span>
+      </nav>
+
+      <!-- 右侧: 全局轻量状态与辅助操作 -->
+      <div class="flex items-center space-x-2 shrink-0 text-xs">
+        <button onclick="app.showBackupModal()" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-slate-200 border border-slate-800 transition flex items-center gap-1.5" title="备份与导出进度数据">
+          <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+          </svg>
+          <span class="hidden sm:inline">存档</span>
         </button>
-        <div class="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-amber-300 font-mono font-bold">
-          <span>🔥</span>
+
+        <div class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-amber-300 font-mono font-bold" title="连续学习天数">
+          <svg class="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
+          </svg>
           <span id="header-streak">0</span>
           <span class="text-[10px] text-slate-500 hidden sm:inline">连击</span>
         </div>
@@ -172,12 +207,12 @@
         <!-- 动态由 JS 填充 -->
       </div>
 
-      <!-- 核心指标统计卡片组 (Surface 1 阶梯 + 去除重边框) -->
+      <!-- 核心指标统计卡片组 (Surface 1 阶梯 + 70%~90% 中性色降噪) -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="surface-card rounded-2xl p-4 sm:p-5 transition hover:border-slate-700/70">
           <div class="text-xs text-slate-400 font-medium">知识点覆盖率</div>
           <div class="flex items-baseline gap-2 mt-1.5">
-            <span id="stat-coverage-rate" class="text-2xl font-bold tracking-tight text-indigo-400">0%</span>
+            <span id="stat-coverage-rate" class="text-2xl font-bold tracking-tight text-white font-mono">0%</span>
             <span id="stat-coverage-detail" class="text-xs text-slate-500 font-mono">(0/0词条)</span>
           </div>
           <div class="w-full bg-slate-850 h-1.5 rounded-full mt-2.5 overflow-hidden">
@@ -188,7 +223,7 @@
         <div class="surface-card rounded-2xl p-4 sm:p-5 transition hover:border-slate-700/70">
           <div class="text-xs text-slate-400 font-medium">今日到期复习 (艾宾浩斯)</div>
           <div class="flex items-baseline gap-2 mt-1.5">
-            <span id="stat-due-count" class="text-2xl font-bold tracking-tight text-amber-400">0</span>
+            <span id="stat-due-count" class="text-2xl font-bold tracking-tight text-white font-mono">0</span>
             <span class="text-xs text-slate-400">个需巩固</span>
           </div>
           <div class="text-xs text-slate-500 mt-2.5 flex items-center justify-between">
@@ -200,7 +235,7 @@
         <div class="surface-card rounded-2xl p-4 sm:p-5 transition hover:border-slate-700/70">
           <div class="text-xs text-slate-400 font-medium">综合答题正确率</div>
           <div class="flex items-baseline gap-2 mt-1.5">
-            <span id="stat-accuracy-rate" class="text-2xl font-bold tracking-tight text-emerald-400">100%</span>
+            <span id="stat-accuracy-rate" class="text-2xl font-bold tracking-tight text-white font-mono">100%</span>
             <span id="stat-accuracy-detail" class="text-xs text-slate-500 font-mono">(0/0)</span>
           </div>
           <div class="text-xs text-slate-500 mt-2.5">累计练习: <span id="stat-total-attempts" class="text-slate-300 font-mono">0</span> 次</div>
@@ -209,18 +244,22 @@
         <div class="surface-card rounded-2xl p-4 sm:p-5 transition hover:border-slate-700/70">
           <div class="text-xs text-slate-400 font-medium">已永久掌握 (Level ≥ 4)</div>
           <div class="flex items-baseline gap-2 mt-1.5">
-            <span id="stat-mastered-count" class="text-2xl font-bold tracking-tight text-indigo-300">0</span>
+            <span id="stat-mastered-count" class="text-2xl font-bold tracking-tight text-white font-mono">0</span>
             <span class="text-xs text-slate-400">个知识单元</span>
           </div>
           <div class="text-xs text-slate-500 mt-2.5">已跨越 7+ 天长效遗忘周期</div>
         </div>
       </div>
 
-      <!-- 游戏模式矩阵 (遵循色相克制：去除彩虹边框，采用统一 Surface 1 + 悬停微抬升) -->
+      <!-- 游戏模式矩阵 (单一 Action Card 闭环 + 单色矢量 SVG + 联动 Hero Ring) -->
       <div class="space-y-3.5">
         <div class="flex items-center justify-between">
           <h2 class="text-base font-semibold text-slate-200 flex items-center gap-2">
-            <span>🎮 模式选择</span>
+            <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="6" width="20" height="12" rx="2"/>
+              <path d="M6 12h4m-2-2v4m10-2h.01m-3 0h.01"/>
+            </svg>
+            <span>模式选择</span>
             <span class="text-xs text-slate-400 font-normal">基于当前知识图谱全自动派生</span>
           </h2>
           <span class="text-xs text-slate-500 font-mono">5 大通用实战模式</span>
@@ -228,107 +267,184 @@
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <!-- 模式 1: 每日艾宾浩斯复习 -->
-          <div onclick="app.startMode('DAILY_REVIEW')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
+          <div id="mode-card-review" onclick="app.startMode('DAILY_REVIEW')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start">
-                <span class="text-3xl">⏰</span>
-                <span id="mode-badge-review" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">今日到期: 0</span>
+                <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 group-hover:text-indigo-400 group-hover:border-indigo-500/30 transition">
+                  <svg class="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>
+                  </svg>
+                </div>
+                <div class="mode-badge-wrap flex items-center gap-1.5">
+                  <span id="mode-badge-review" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">今日到期: 0</span>
+                </div>
               </div>
               <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">每日艾宾浩斯复习</h3>
               <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">根据遗忘曲线自动调度。在记忆濒临衰退的临界点精准强化，把短期印象固化为长久突触。</p>
             </div>
-            <div class="mt-4 flex items-center text-xs text-slate-400 group-hover:text-indigo-400 font-medium transition">
-              <span>立即复习 &rarr;</span>
+            <div class="mt-4 flex items-center justify-between text-xs text-slate-400 group-hover:text-slate-200 transition font-medium">
+              <span>立即进入复习</span>
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-850 group-hover:bg-indigo-600 group-hover:text-white transition transform group-hover:translate-x-1">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+              </span>
             </div>
           </div>
 
           <!-- 模式 2: 错题弱点定点爆破 -->
-          <div onclick="app.startMode('WEAKNESS')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
+          <div id="mode-card-weakness" onclick="app.startMode('WEAKNESS')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start">
-                <span class="text-3xl">🎯</span>
-                <span id="mode-badge-weakness" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">错题待清: 0</span>
+                <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 group-hover:text-rose-400 group-hover:border-rose-500/30 transition">
+                  <svg class="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 3v2m0 14v2m-9-9h2m14 0h2"/>
+                  </svg>
+                </div>
+                <div class="mode-badge-wrap flex items-center gap-1.5">
+                  <span id="mode-badge-weakness" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">错题待清: 0</span>
+                </div>
               </div>
-              <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">弱点歼灭战 (Boss Rush)</h3>
+              <h3 class="text-base font-bold text-white mt-3 group-hover:text-rose-400 transition">弱点歼灭战 (Boss Rush)</h3>
               <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">定点筛选历史失误实体与薄弱分类，针对性高强度同胞选项辨析，彻底消灭思维盲区。</p>
             </div>
-            <div class="mt-4 flex items-center text-xs text-slate-400 group-hover:text-indigo-400 font-medium transition">
-              <span>清剿错题 &rarr;</span>
+            <div class="mt-4 flex items-center justify-between text-xs text-slate-400 group-hover:text-slate-200 transition font-medium">
+              <span>立即清剿错题</span>
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-850 group-hover:bg-rose-600 group-hover:text-white transition transform group-hover:translate-x-1">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+              </span>
             </div>
           </div>
 
           <!-- 模式 3: 循序渐进关卡战役 -->
-          <div onclick="app.startMode('CAMPAIGN')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
+          <div id="mode-card-campaign" onclick="app.startMode('CAMPAIGN')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start">
-                <span class="text-3xl">🏆</span>
-                <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">阶梯分层关卡</span>
+                <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 group-hover:text-amber-400 group-hover:border-amber-500/30 transition">
+                  <svg class="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z"/>
+                  </svg>
+                </div>
+                <div class="mode-badge-wrap flex items-center gap-1.5">
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">阶梯分层关卡</span>
+                </div>
               </div>
-              <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">分层阶梯战役</h3>
+              <h3 class="text-base font-bold text-white mt-3 group-hover:text-amber-400 transition">分层阶梯战役</h3>
               <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">遵循布鲁姆认知模型：由浅入深从 Layer 1 基础概念，阶梯推进到 Layer 3 进阶反常特例。</p>
             </div>
-            <div class="mt-4 flex items-center text-xs text-slate-400 group-hover:text-indigo-400 font-medium transition">
-              <span>开启战役 &rarr;</span>
+            <div class="mt-4 flex items-center justify-between text-xs text-slate-400 group-hover:text-slate-200 transition font-medium">
+              <span>立即开启战役</span>
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-850 group-hover:bg-amber-600 group-hover:text-white transition transform group-hover:translate-x-1">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+              </span>
             </div>
           </div>
 
           <!-- 模式 4: 极速生存模式 -->
-          <div onclick="app.startMode('SPEED_SPRINT')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
+          <div id="mode-card-speed" onclick="app.startMode('SPEED_SPRINT')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start">
-                <span class="text-3xl">⚡</span>
-                <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">3条命 · 限时</span>
+                <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 group-hover:text-emerald-400 group-hover:border-emerald-500/30 transition">
+                  <svg class="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                  </svg>
+                </div>
+                <div class="mode-badge-wrap flex items-center gap-1.5">
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">3条命 · 限时</span>
+                </div>
               </div>
-              <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">极速连击生存</h3>
+              <h3 class="text-base font-bold text-white mt-3 group-hover:text-emerald-400 transition">极速连击生存</h3>
               <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">每题倒计时 6 秒，连续答对累积超高 Combo，测试你对知识要点的下意识条件反射。</p>
             </div>
-            <div class="mt-4 flex items-center text-xs text-slate-400 group-hover:text-indigo-400 font-medium transition">
-              <span>挑战极限 &rarr;</span>
+            <div class="mt-4 flex items-center justify-between text-xs text-slate-400 group-hover:text-slate-200 transition font-medium">
+              <span>立即挑战极限</span>
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-850 group-hover:bg-emerald-600 group-hover:text-white transition transform group-hover:translate-x-1">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+              </span>
             </div>
           </div>
 
           <!-- 模式 5: 自由沙盒试炼 -->
-          <div onclick="app.startMode('FREE_LAB')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
+          <div id="mode-card-free" onclick="app.startMode('FREE_LAB')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start">
-                <span class="text-3xl">🧪</span>
-                <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">自定义筛选</span>
+                <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 group-hover:text-cyan-400 group-hover:border-cyan-500/30 transition">
+                  <svg class="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                  </svg>
+                </div>
+                <div class="mode-badge-wrap flex items-center gap-1.5">
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">自定义筛选</span>
+                </div>
               </div>
-              <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">自由沙盒试炼</h3>
+              <h3 class="text-base font-bold text-white mt-3 group-hover:text-cyan-400 transition">自由沙盒试炼</h3>
               <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">自由挑选当前知识图谱中的特定分类标签，聚焦重点章节，按需随心配置题目数量。</p>
             </div>
-            <div class="mt-4 flex items-center text-xs text-slate-400 group-hover:text-indigo-400 font-medium transition">
-              <span>自由定制 &rarr;</span>
+            <div class="mt-4 flex items-center justify-between text-xs text-slate-400 group-hover:text-slate-200 transition font-medium">
+              <span>立即自由定制</span>
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-850 group-hover:bg-cyan-600 group-hover:text-white transition transform group-hover:translate-x-1">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+              </span>
             </div>
           </div>
 
-          <!-- 快捷入口: 原始知识精读与学习 -->
-          <div onclick="app.navigate('study')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
+          <!-- 快捷入口: 原始知识精读与自测 -->
+          <div id="mode-card-study" onclick="app.navigate('study')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start">
-                <span class="text-3xl">📖</span>
-                <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">系统教材</span>
+                <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 group-hover:text-indigo-300 group-hover:border-indigo-500/30 transition">
+                  <svg class="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                  </svg>
+                </div>
+                <div class="mode-badge-wrap flex items-center gap-1.5">
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">系统教材</span>
+                </div>
               </div>
               <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">原始知识精读与自测</h3>
               <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">按分类与分层系统阅览所有规则要点与避坑陷阱，支持答案遮挡自测与原始大纲导出。</p>
             </div>
-            <div class="mt-4 flex items-center text-xs text-slate-400 group-hover:text-indigo-400 font-medium transition">
-              <span>进入精读 &rarr;</span>
+            <div class="mt-4 flex items-center justify-between text-xs text-slate-400 group-hover:text-slate-200 transition font-medium">
+              <span>立即进入精读</span>
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-850 group-hover:bg-indigo-600 group-hover:text-white transition transform group-hover:translate-x-1">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+              </span>
             </div>
           </div>
 
           <!-- 快捷入口: 知识图谱法典 -->
-          <div onclick="app.navigate('codex')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
+          <div id="mode-card-codex" onclick="app.navigate('codex')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start">
-                <span class="text-3xl">📊</span>
-                <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60">知识法典</span>
+                <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 group-hover:text-slate-100 group-hover:border-slate-600 transition">
+                  <svg class="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                  </svg>
+                </div>
+                <div class="mode-badge-wrap flex items-center gap-1.5">
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60">知识法典</span>
+                </div>
               </div>
               <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">知识图谱档案馆</h3>
               <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">浏览当前题库的所有概念条目、艾宾浩斯复习倒计时表、同胞干扰项关系与错题详情。</p>
             </div>
-            <div class="mt-4 flex items-center text-xs text-slate-400 group-hover:text-indigo-400 font-medium transition">
-              <span>查阅档案 &rarr;</span>
+            <div class="mt-4 flex items-center justify-between text-xs text-slate-400 group-hover:text-slate-200 transition font-medium">
+              <span>立即查阅档案</span>
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-850 group-hover:bg-slate-700 group-hover:text-white transition transform group-hover:translate-x-1">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+              </span>
             </div>
           </div>
         </div>
@@ -473,7 +589,10 @@
       <div class="flex items-center justify-between surface-card rounded-2xl p-4 sm:p-5">
         <div>
           <h2 class="text-lg font-bold text-white flex items-center gap-2">
-            <span>📚 知识图谱档案馆与错题簿</span>
+            <svg class="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+            <span>知识图谱档案馆与错题簿</span>
           </h2>
           <p class="text-xs text-slate-400 mt-0.5">查阅各概念的艾宾浩斯复习倒计时、同胞关系、练习日志与做题历史</p>
         </div>
@@ -486,9 +605,9 @@
       <div class="flex flex-wrap gap-2 items-center justify-between text-xs">
         <div class="flex flex-wrap gap-1.5" id="codex-filter-buttons">
           <button onclick="app.setCodexFilter('ALL')" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium shadow-sm">全部词条</button>
-          <button onclick="app.setCodexFilter('DUE')" class="px-3 py-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-750 transition">🟡 今日待复习</button>
-          <button onclick="app.setCodexFilter('MISTAKE')" class="px-3 py-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-750 transition">🔴 高频错题</button>
-          <button onclick="app.setCodexFilter('MASTERED')" class="px-3 py-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-750 transition">🟢 已永久巩固</button>
+          <button onclick="app.setCodexFilter('DUE')" class="px-3 py-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-750 transition flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span>今日待复习</button>
+          <button onclick="app.setCodexFilter('MISTAKE')" class="px-3 py-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-750 transition flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-400"></span>高频错题</button>
+          <button onclick="app.setCodexFilter('MASTERED')" class="px-3 py-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-750 transition flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>已永久巩固</button>
         </div>
         <div class="text-slate-400 font-mono">
           显示数量: <span id="codex-filtered-count" class="text-indigo-400 font-bold">0</span> 条
@@ -524,8 +643,12 @@
       <!-- 页面顶部横幅与控制栏 (Surface 1) -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 surface-card rounded-2xl p-5 shadow">
         <div>
-          <div class="flex items-center gap-2">
-            <span class="text-2xl" id="study-deck-icon">⚡</span>
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center shrink-0">
+              <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+              </svg>
+            </div>
             <h2 class="text-lg font-bold text-white flex items-center gap-2">
               <span id="study-deck-title">知识库精读与系统学习</span>
               <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-mono">教材视界</span>
@@ -540,12 +663,19 @@
         <div class="flex flex-wrap items-center gap-2">
           <!-- 遮挡模式切换开关 -->
           <button id="btn-toggle-mask" onclick="app.toggleAnswerMask()" class="btn-secondary px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
-            <span id="mask-status-icon">👁️</span>
+            <span id="mask-status-icon" class="flex items-center">
+              <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </span>
             <span id="mask-status-text">自测遮挡模式: 关</span>
           </button>
           <!-- 查看原始大纲 -->
           <button onclick="app.showRawMarkdownModal()" class="btn-secondary px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
-            <span>📋 查看原始大纲 (Markdown)</span>
+            <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            <span>查看原始大纲 (Markdown)</span>
           </button>
           <button onclick="app.navigate('dashboard')" class="btn-secondary px-3 py-1.5 rounded-lg text-xs transition">
             &larr; 返回主控台
@@ -556,11 +686,14 @@
       <!-- 搜索输入框与快捷控制 -->
       <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
         <div class="relative flex-1 max-w-xl">
-          <input type="text" id="study-search-input" oninput="app.filterStudyEntities()" placeholder="🔍 实时搜索概念、答案、解析或陷阱关键字..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 shadow-sm transition">
+          <input type="text" id="study-search-input" oninput="app.filterStudyEntities()" placeholder="实时搜索概念、答案、解析或陷阱关键字..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 shadow-sm transition">
         </div>
         <div class="flex items-center gap-2">
-          <button onclick="app.resetStudyFilters()" class="btn-secondary px-3 py-2 rounded-xl text-xs font-medium transition flex items-center gap-1">
-            <span>🔄 重置全部筛选</span>
+          <button onclick="app.resetStudyFilters()" class="btn-secondary px-3 py-2 rounded-xl text-xs font-medium transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <span>重置筛选</span>
           </button>
           <span class="text-xs text-slate-400 font-mono px-2" id="study-matched-count-badge">显示 0 / 0 词条</span>
         </div>
@@ -569,36 +702,36 @@
       <!-- 三维立体架构导航控制台: 分组 (Group) × 分类 (Category) × 层级 (Layer) (Surface 1) -->
       <div class="surface-card rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-md">
         
-        <!-- 维度 1: 📦 业务大组 (Groups) -->
+        <!-- 维度 1: 业务大组 (Groups) -->
         <div class="flex items-start sm:items-center gap-2.5 flex-col sm:flex-row">
           <div class="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 shrink-0 w-24">
             <span class="text-[10px] px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-400 font-mono font-bold">STEP 1</span>
-            <span>📦 业务分组:</span>
+            <span>业务分组:</span>
           </div>
           <div class="flex items-center gap-1.5 flex-wrap flex-1" id="study-group-filters">
             <!-- 动态渲染大组药丸 -->
           </div>
         </div>
 
-        <!-- 维度 2: 🏷️ 细分类别 (Categories) -->
+        <!-- 维度 2: 细分类别 (Categories) -->
         <div class="flex items-start sm:items-center gap-2.5 flex-col sm:flex-row pt-3 border-t border-slate-800/80">
           <div class="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 shrink-0 w-24">
             <span class="text-[10px] px-1 py-0.2 rounded bg-purple-500/20 text-purple-400 font-mono font-bold">STEP 2</span>
-            <span>🏷️ 细分类别:</span>
+            <span>细分类别:</span>
           </div>
           <div class="flex items-center gap-1.5 flex-wrap flex-1" id="study-category-filters">
             <!-- 动态渲染所选大组下的分类药丸 -->
           </div>
         </div>
 
-        <!-- 维度 3: 🪜 认知分层 (Layers / 难度阶梯) -->
+        <!-- 维度 3: 认知分层 (Layers / 难度阶梯) -->
         <div class="flex items-start sm:items-center gap-2.5 flex-col sm:flex-row pt-3 border-t border-slate-800/80">
           <div class="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 shrink-0 w-24">
             <span class="text-[10px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-400 font-mono font-bold">STEP 3</span>
-            <span>🪜 认知层级:</span>
+            <span>认知层级:</span>
           </div>
           <div class="flex items-center gap-1.5 flex-wrap flex-1" id="study-layer-filters">
-            <!-- 动态渲染层级药丸: [全部层级] [🌱 Layer 1: 基础认知] [🌿 Layer 2: 规律运用] [🔥 Layer 3: 陷阱与特例] -->
+            <!-- 动态渲染层级药丸 -->
           </div>
         </div>
 

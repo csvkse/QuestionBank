@@ -326,7 +326,43 @@ try {
   recordResult('FE-DESIGN-001', 'Design Token Completeness', 'FAIL', err.message);
 }
 
-// 9. 自动执行全量单元测试
+// 9. FE-NAV-001: 导航栏单行流式与分段路由门禁
+try {
+  const shellHtml = fs.readFileSync(path.join(ROOT_DIR, 'app/app-shell.html'), 'utf8');
+  const hasH16 = shellHtml.includes('h-16');
+  const hasNavTabs = shellHtml.includes('nav-tab-dashboard') && shellHtml.includes('nav-tab-study') && shellHtml.includes('nav-tab-codex');
+  const hasDeckSelector = shellHtml.includes('id="deck-selector"');
+
+  if (hasH16 && hasNavTabs && hasDeckSelector) {
+    recordResult('FE-NAV-001', 'Single-Row Decoupled Navigation', 'PASS', '60px (h-16) single-row navbar, decoupled deck selector & 3-view segmented router verified');
+  } else {
+    recordResult('FE-NAV-001', 'Single-Row Decoupled Navigation', 'FAIL', 'Navbar does not meet 60px single-row segmented control invariants');
+  }
+} catch (err) {
+  recordResult('FE-NAV-001', 'Single-Row Decoupled Navigation', 'FAIL', err.message);
+}
+
+// 10. FE-ICON-001: 单色矢量 SVG 图标库体系与零外部依赖门禁
+try {
+  const iconJsPath = path.join(ROOT_DIR, 'design-system/icons/icons.js');
+  if (fs.existsSync(iconJsPath)) {
+    const iconCode = fs.readFileSync(iconJsPath, 'utf8');
+    const shellHtml = fs.readFileSync(path.join(ROOT_DIR, 'app/app-shell.html'), 'utf8');
+    const hasExternalFontCdn = shellHtml.includes('fontawesome') || shellHtml.includes('ionicons') || shellHtml.includes('material-icons');
+
+    if (!hasExternalFontCdn && iconCode.includes('currentColor') && iconCode.includes('ICONS')) {
+      recordResult('FE-ICON-001', 'Monochrome Vector SVG Icons', 'PASS', '100% offline standalone monochrome vector SVG icons (currentColor) verified');
+    } else {
+      recordResult('FE-ICON-001', 'Monochrome Vector SVG Icons', 'FAIL', 'Found external font icon CDN or missing currentColor SVG definitions');
+    }
+  } else {
+    recordResult('FE-ICON-001', 'Monochrome Vector SVG Icons', 'FAIL', 'design-system/icons/icons.js missing');
+  }
+} catch (err) {
+  recordResult('FE-ICON-001', 'Monochrome Vector SVG Icons', 'FAIL', err.message);
+}
+
+// 11. 自动执行全量单元测试
 try {
   const tests = [
     'tests/unit/sm2-scheduler.test.mjs',

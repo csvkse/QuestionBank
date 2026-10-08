@@ -54,6 +54,7 @@ try {
     'platform/exporter/file-exporter.js',
     'design-system/components/modal.js',
     'design-system/components/pill.js',
+    'design-system/icons/icons.js',
     'features/arena/combo-effect.js',
     'features/arena/quiz-runner.js',
     'features/study-hub/matrix-console.js',

@@ -30,5 +30,22 @@ export class AppRouter {
     } else if (viewName === 'study') {
       this.app.renderStudyHub();
     }
+
+    this.updateNavTabs(viewName);
+  }
+
+  updateNavTabs(viewName) {
+    const navTabs = ['dashboard', 'study', 'codex'];
+    navTabs.forEach(tab => {
+      const btn = document.getElementById(`nav-tab-${tab}`);
+      if (!btn) return;
+      if (tab === viewName) {
+        btn.classList.add('bg-slate-800', 'text-white', 'shadow-sm');
+        btn.classList.remove('text-slate-400', 'hover:text-slate-200');
+      } else {
+        btn.classList.remove('bg-slate-800', 'text-white', 'shadow-sm');
+        btn.classList.add('text-slate-400', 'hover:text-slate-200');
+      }
+    });
   }
 }

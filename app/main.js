@@ -250,44 +250,84 @@ export class KnowledgeMasterApp {
     let desc = '';
     let actionBtnText = '';
     let targetMode = '';
+    let iconSvg = '';
     let colorClass = '';
 
     if (dueCount > 0) {
-      title = `⏰ 艾宾浩斯复习调度：今日有 ${dueCount} 个知识点到达巩固周期`;
+      iconSvg = `<svg class="w-5 h-5 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`;
+      title = `艾宾浩斯复习调度：今日有 ${dueCount} 个知识点到达巩固周期`;
       desc = `系统检测到知识点濒临遗忘临界值。启动【每日温故模式】，用时不到 2 分钟即可把短期记忆固化为长期突触。`;
-      actionBtnText = '立即进行艾宾浩斯复习 🚀';
+      actionBtnText = '立即进行艾宾浩斯复习';
       targetMode = 'daily';
-      colorClass = 'bg-slate-900/95 border-amber-500/40 text-amber-200';
+      colorClass = 'bg-slate-900/90 border-amber-500/40 text-slate-200';
     } else if (mistakeCount >= 2) {
-      title = `🎯 盲区诊断报告：历史沉淀了 ${mistakeCount} 个易混淆错题`;
+      iconSvg = `<svg class="w-5 h-5 text-rose-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 3v2m0 14v2m-9-9h2m14 0h2"/></svg>`;
+      title = `盲区诊断报告：历史沉淀了 ${mistakeCount} 个易混淆错题`;
       desc = `检测到同胞概念间存在答题失误。建议启动【弱点定点爆破模式】，对错题进行针对性同胞选项辨析。`;
-      actionBtnText = '开启弱点歼灭战 💥';
+      actionBtnText = '开启弱点歼灭战';
       targetMode = 'weakness';
-      colorClass = 'bg-slate-900/95 border-rose-500/40 text-rose-200';
+      colorClass = 'bg-slate-900/90 border-rose-500/40 text-slate-200';
     } else if (coverageRate < 70) {
-      title = `🏆 阶梯认知推荐：当前题库覆盖率为 ${coverageRate}%，建议继续开拓`;
+      iconSvg = `<svg class="w-5 h-5 text-indigo-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z"/></svg>`;
+      title = `阶梯认知推荐：当前题库覆盖率为 ${coverageRate}%，建议继续开拓`;
       desc = `推荐进入【分层阶梯战役模式】，依照布鲁姆认知模型由浅入深逐层挑战进阶要点。`;
-      actionBtnText = '继续闯关战役 ⚔️';
+      actionBtnText = '继续闯关战役';
       targetMode = 'ladder';
-      colorClass = 'bg-slate-900/95 border-indigo-500/40 text-indigo-200';
+      colorClass = 'bg-slate-900/90 border-indigo-500/40 text-slate-200';
     } else {
-      title = `⚡ 极限测速推荐：图谱基础稳固，挑战极速连击生存`;
+      iconSvg = `<svg class="w-5 h-5 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`;
+      title = `极限测速推荐：图谱基础稳固，挑战极速连击生存`;
       desc = `3 条命限时 6 秒抢答，检验对该领域知识的下意识条件反射与抗压反应。`;
-      actionBtnText = '挑战连击极限 ⚡';
+      actionBtnText = '挑战连击极限';
       targetMode = 'speed';
-      colorClass = 'bg-slate-900/95 border-emerald-500/40 text-emerald-200';
+      colorClass = 'bg-slate-900/90 border-emerald-500/40 text-slate-200';
     }
 
     banner.className = `surface-card rounded-2xl p-5 border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all shadow-md ${colorClass}`;
     banner.innerHTML = `
-      <div>
-        <div class="font-bold text-sm sm:text-base flex items-center gap-1.5">${title}</div>
-        <p class="text-xs opacity-85 mt-1 max-w-2xl leading-relaxed">${desc}</p>
+      <div class="flex items-start gap-3">
+        <div class="mt-0.5">${iconSvg}</div>
+        <div>
+          <div class="font-bold text-sm sm:text-base text-white flex items-center gap-2">${title}</div>
+          <p class="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">${desc}</p>
+        </div>
       </div>
-      <button onclick="app.startMode('${targetMode}')" class="shrink-0 px-4 py-2.5 rounded-xl bg-white text-slate-950 hover:bg-slate-100 text-xs font-bold shadow-md hover:shadow-lg transition active:scale-[0.98]">
-        ${actionBtnText}
+      <button onclick="app.startMode('${targetMode}')" class="btn-primary-cta shrink-0 px-5 py-2.5 rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition flex items-center gap-1.5 active:scale-[0.98]">
+        <span>${actionBtnText}</span>
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+        </svg>
       </button>
     `;
+
+    // 联动高亮对应推荐卡片 (Hero Ring 焦点闭环)
+    const cardIdMap = {
+      'daily': 'mode-card-review',
+      'weakness': 'mode-card-weakness',
+      'ladder': 'mode-card-campaign',
+      'speed': 'mode-card-speed'
+    };
+    Object.values(cardIdMap).forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.remove('ring-2', 'ring-indigo-500/60', 'shadow-indigo-500/20');
+        const badge = el.querySelector('.hero-rec-badge');
+        if (badge) badge.remove();
+      }
+    });
+
+    const activeCardId = cardIdMap[targetMode];
+    const recEl = activeCardId ? document.getElementById(activeCardId) : null;
+    if (recEl) {
+      recEl.classList.add('ring-2', 'ring-indigo-500/60', 'shadow-indigo-500/20');
+      const badgeWrap = recEl.querySelector('.mode-badge-wrap');
+      if (badgeWrap && !badgeWrap.querySelector('.hero-rec-badge')) {
+        const span = document.createElement('span');
+        span.className = 'hero-rec-badge text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/25 text-indigo-300 border border-indigo-500/40 font-semibold animate-pulse-subtle';
+        span.innerText = '★ 首选推荐';
+        badgeWrap.appendChild(span);
+      }
+    }
   }
 
   renderDeckCategoryBars() {
@@ -336,7 +376,11 @@ export class KnowledgeMasterApp {
     const maskText = document.getElementById('mask-status-text');
     const maskIcon = document.getElementById('mask-status-icon');
     if (maskText) maskText.innerText = this.isAnswerMasked ? '自测遮挡模式: 开' : '自测遮挡模式: 关';
-    if (maskIcon) maskIcon.innerText = this.isAnswerMasked ? '🙈' : '👁️';
+    if (maskIcon) {
+      maskIcon.innerHTML = this.isAnswerMasked
+        ? '<svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+        : '<svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    }
 
     const deckIcon = document.getElementById('study-deck-icon');
     const deckTitle = document.getElementById('study-deck-title');
@@ -385,16 +429,16 @@ export class KnowledgeMasterApp {
 
       if (card.attempts > 0) {
         if (card.level >= 4) {
-          statusBadge = '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">🟢 稳固掌握</span>';
+          statusBadge = '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>稳固掌握</span>';
         } else if (card.nextReviewAt && card.nextReviewAt <= endOfToday) {
           const daysOverdue = (endOfToday - card.nextReviewAt) / (1000 * 3600 * 24);
           if (daysOverdue > (card.stabilityDays || 1) * 2) {
-            statusBadge = '<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">🔴 记忆生锈</span>';
+            statusBadge = '<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>记忆生锈</span>';
           } else {
-            statusBadge = '<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">🟡 今日到期</span>';
+            statusBadge = '<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>今日到期</span>';
           }
         } else {
-          statusBadge = '<span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">🔵 巩固中</span>';
+          statusBadge = '<span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>巩固中</span>';
         }
 
         if (card.nextReviewAt) {

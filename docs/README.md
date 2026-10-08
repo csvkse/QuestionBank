@@ -4,6 +4,18 @@
 
 ---
 
+## 🚀 系统优化与版本演进专栏 (Optimizations Directory)
+
+> **优化专栏目录**：[`docs/optimizations/`](./optimizations/)  
+> 专门设立的版本演化记录与实现细节库，包含各版本的优化方案、解决痛点、指标对比与落地规范：
+> - 📑 [**版本总控与演进全景索引 (README.md)**](./optimizations/README.md)
+> - 🔹 [**v2.0 通用知识引擎优化记录**](./optimizations/v2.0_UNIVERSAL_ENGINE.md)（领域解耦、SM-2、同胞干扰项、5-3-10容量）
+> - 🔹 [**v2.1 前端物理架构与门禁记录**](./optimizations/v2.1_CORE2.1_ARCHITECTURE.md)（Core 2.1角色、零依赖构建、L0~L3门禁）
+> - 🔹 [**v2.2 设计令牌与表面层级记录**](./optimizations/v2.2_DESIGN_TOKENS_AND_SURFACES.md)（4层令牌、Surface 0~4、70%~90%中性色）
+> - 🔹 [**v2.3 导航/图标/焦点优化方案**](./optimizations/v2.3_NAVBAR_ICONS_INTERACTION.md)（单行导航解耦、单色矢量SVG、Hero Ring闭环）
+
+---
+
 ## 一、文档体系导航
 
 本系列调研与设计文档位于 `docs/` 目录下，涵盖了从理论调研到原型落地的完整闭环方案：
