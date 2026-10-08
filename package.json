@@ -1,0 +1,20 @@
+{
+  "name": "knowledge-arena",
+  "version": "2.1.0",
+  "description": "Universal Knowledge Gamification Engine following Enterprise Frontend Architecture Core 2.1",
+  "type": "module",
+  "scripts": {
+    "test": "node gates/run-gates.mjs",
+    "test:gates": "node gates/run-gates.mjs",
+    "test:fast": "node gates/run-gates.mjs --level=1",
+    "bundle": "node scripts/bundler.mjs"
+  },
+  "keywords": [
+    "gamification",
+    "ebbinghaus",
+    "knowledge-base",
+    "frontend-architecture"
+  ],
+  "author": "Antigravity",
+  "license": "MIT"
+}

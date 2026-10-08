@@ -1,0 +1,39 @@
+schemaVersion: 1
+
+gateSuite:
+  id: knowledge-arena-gates
+  version: 1.0.0
+
+thresholds:
+  fileLines:
+    warn: 300
+    error: 500
+  functionLines:
+    warn: 40
+    error: 80
+  cognitiveComplexity:
+    warn: 10
+    error: 15
+  categoryEntities:
+    minRequired: 4
+    warnThreshold: 4
+  deckCapacity:
+    maxCategories: 25
+    maxEntities: 500
+
+scanPaths:
+  include:
+    - "app/**/*.js"
+    - "features/**/*.js"
+    - "shared/**/*.js"
+    - "platform/**/*.js"
+    - "design-system/**/*.js"
+    - "gates/**/*.mjs"
+    - "scripts/**/*.mjs"
+    - "index.html"
+  exclude:
+    - "archive/**"
+    - "node_modules/**"
+    - "vendor/**"
+
+baselineFile: "gates/baseline.json"

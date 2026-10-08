@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-10-08T20:00:00Z",
+  "ratchetPolicy": "strictly-decreasing",
+  "toleratedDebts": {
+    "FE-QUALITY-001": [
+      {
+        "file": "index.html",
+        "lines": 3248,
+        "reason": "历史单体文件过渡期临时豁免，按三阶段规划逐步解耦至 app/features/shared/platform"
+      }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+schemaVersion: 1
+
+project:
+  id: KnowledgeArena.Web
+  bindingVersion: 1.0.0
+  conformance: transitional # transitional (迁移过渡期) -> conformant (完全合规)
+
+framework:
+  id: frontend-architecture-core
+  version: 2.1.0
+
+selectedProfiles:
+  uiFramework:
+    - lightweight-web@1.0.0
+  runtime:
+    - spa@1.1.0
+
+projectConventions:
+  designSystem:
+    version: 1.0.0
+    document: docs/04_UI_UX_AND_PREVIEW_PLAN.md
+
+projectDocuments:
+  architecture: docs/09_FRONTEND_ARCHITECTURE_AND_PHYSICAL_LAYOUT.md
+  gates: docs/10_QUALITY_GATES_AND_GOVERNANCE_SPEC.md
+  migrationPlan: docs/11_ARCHITECTURE_MIGRATION_AND_PREVIEW_PLAN.md
+
+implementation:
+  currentPhysicalModel: monolithic-single-html
+  targetLogicalModel: core-2.1-modular
+
+notes:
+  - "This binding references enterprise Frontend Architecture Core 2.1 specification."
+  - "Conformance is transitional while monolithic index.html is progressively migrated into app/features/shared/platform/design-system."

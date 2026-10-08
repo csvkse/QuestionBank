@@ -1,0 +1,1821 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VerbMaster · 英语动词形态记忆大乱斗</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.02); }
+    }
+    .animate-pulse-subtle { animation: pulse-subtle 2s infinite ease-in-out; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .shake-anim { animation: shake 0.35s ease-in-out; }
+    /* 自定义滚动条 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- 顶部导航 -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="app.navigate('dashboard')">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white font-black text-xl">
+          ⚡
+        </div>
+        <div>
+          <h1 class="font-bold text-lg tracking-wide text-white flex items-center gap-2">
+            VerbMaster
+            <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">动词形态工坊</span>
+          </h1>
+          <p class="text-xs text-slate-400">掌握现在分词/过去分词/三单/不规则变形</p>
+        </div>
+      </div>
+
+      <!-- 快捷统计与操作 -->
+      <div class="flex items-center space-x-3 text-sm">
+        <button onclick="app.navigate('codex')" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+          <span>📚 知识法典 & 错题本</span>
+          <span id="nav-mistake-badge" class="px-1.5 py-0.2 text-xs rounded-full bg-rose-500/30 text-rose-300 hidden">0</span>
+        </button>
+        <button onclick="app.showBackupModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1">
+          <span>💾 存档管理</span>
+        </button>
+        <div class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono">
+          <span>🔥</span>
+          <span id="header-streak">0</span>
+          <span class="text-xs text-amber-400/70">连击</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主容器 -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6">
+
+    <!-- 1. 仪表盘视图 (DASHBOARD) -->
+    <div id="view-dashboard" class="space-y-6">
+
+      <!-- 智能模式自适应推荐 Banner -->
+      <div id="smart-recommendation-banner" class="rounded-2xl p-5 border transition-all">
+        <!-- 动态由 JS 填充 -->
+      </div>
+
+      <!-- 核心指标统计卡片组 -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs text-slate-400 font-medium">知识点覆盖率</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span id="stat-coverage-rate" class="text-2xl font-black text-indigo-400">0%</span>
+            <span id="stat-coverage-detail" class="text-xs text-slate-500 font-mono">(0/0词)</span>
+          </div>
+          <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+            <div id="stat-coverage-bar" class="bg-indigo-500 h-full rounded-full transition-all" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs text-slate-400 font-medium">今日到期复习 (艾宾浩斯)</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span id="stat-due-count" class="text-2xl font-black text-amber-400">0</span>
+            <span class="text-xs text-slate-500">个需巩固</span>
+          </div>
+          <div class="text-xs text-slate-500 mt-2 flex items-center justify-between">
+            <span>记忆生锈: <b id="stat-rusty-count" class="text-rose-400 font-mono">0</b></span>
+            <button onclick="app.simulateDayPass(1)" title="模拟时间快进1天以测试复习调度" class="text-indigo-400 hover:underline text-[11px]">+1天测试</button>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs text-slate-400 font-medium">综合答题正确率</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span id="stat-accuracy-rate" class="text-2xl font-black text-emerald-400">100%</span>
+            <span id="stat-accuracy-detail" class="text-xs text-slate-500 font-mono">(0/0)</span>
+          </div>
+          <div class="text-xs text-slate-500 mt-2">累计练习: <span id="stat-total-attempts" class="text-slate-300 font-mono">0</span> 次</div>
+        </div>
+
+        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs text-slate-400 font-medium">已永久掌握 (Level ≥ 4)</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span id="stat-mastered-count" class="text-2xl font-black text-violet-400">0</span>
+            <span class="text-xs text-slate-500">个高频动词</span>
+          </div>
+          <div class="text-xs text-slate-500 mt-2">已跨越 7+ 天遗忘周期</div>
+        </div>
+      </div>
+
+      <!-- 游戏模式矩阵 -->
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-semibold text-slate-200 flex items-center gap-2">
+            <span>🎮 模式选择</span>
+            <span class="text-xs text-slate-400 font-normal">点击即刻进入对应训练</span>
+          </h2>
+          <span class="text-xs text-slate-500 font-mono">5 大实战模式</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- 模式 1: 每日艾宾浩斯复习 -->
+          <div onclick="app.startMode('DAILY_REVIEW')" class="group relative bg-slate-900 border border-slate-800 hover:border-amber-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-amber-500/10">
+            <div class="flex justify-between items-start">
+              <span class="text-3xl">⏰</span>
+              <span id="mode-badge-review" class="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium">今日到期: 0</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-amber-400 transition">每日艾宾浩斯复习</h3>
+            <p class="text-xs text-slate-400 mt-1">根据遗忘曲线自动调度。对抗艾宾浩斯遗忘衰减，把短期记忆锤炼为长期记忆。</p>
+            <div class="mt-4 flex items-center text-xs text-amber-400 font-medium">
+              <span>立即复习 &rarr;</span>
+            </div>
+          </div>
+
+          <!-- 模式 2: 错题弱点定点爆破 -->
+          <div onclick="app.startMode('WEAKNESS')" class="group relative bg-slate-900 border border-slate-800 hover:border-rose-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-rose-500/10">
+            <div class="flex justify-between items-start">
+              <span class="text-3xl">🎯</span>
+              <span id="mode-badge-weakness" class="text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-medium">错题待清: 0</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-rose-400 transition">弱点歼灭战 (Boss Rush)</h3>
+            <p class="text-xs text-slate-400 mt-1">定点筛选历史失误词汇与薄弱规则，专项高强度纠错，彻底消灭思维盲区。</p>
+            <div class="mt-4 flex items-center text-xs text-rose-400 font-medium">
+              <span>清剿错题 &rarr;</span>
+            </div>
+          </div>
+
+          <!-- 模式 3: 循序渐进闯关 -->
+          <div onclick="app.startMode('CAMPAIGN')" class="group relative bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-indigo-500/10">
+            <div class="flex justify-between items-start">
+              <span class="text-3xl">🏆</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium">10个阶梯关卡</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-indigo-400 transition">时态符文战役</h3>
+            <p class="text-xs text-slate-400 mt-1">从 -ing 规则、-ed 规律，到 -ic 变态特例与不规则 AAA~ABC 分类，逐级解锁进阶。</p>
+            <div class="mt-4 flex items-center text-xs text-indigo-400 font-medium">
+              <span>进入战役 &rarr;</span>
+            </div>
+          </div>
+
+          <!-- 模式 4: 极速生存模式 -->
+          <div onclick="app.startMode('SPEED_SPRINT')" class="group relative bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-emerald-500/10">
+            <div class="flex justify-between items-start">
+              <span class="text-3xl">⚡</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">3条命 · 限时</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-emerald-400 transition">极速连击生存</h3>
+            <p class="text-xs text-slate-400 mt-1">每题倒计时 6 秒，连续答对累积超高 Combo，测验你的语法直觉与闪电反应速度。</p>
+            <div class="mt-4 flex items-center text-xs text-emerald-400 font-medium">
+              <span>挑战极限 &rarr;</span>
+            </div>
+          </div>
+
+          <!-- 模式 5: 自由沙盒试炼 -->
+          <div onclick="app.startMode('FREE_LAB')" class="group relative bg-slate-900 border border-slate-800 hover:border-violet-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-violet-500/10">
+            <div class="flex justify-between items-start">
+              <span class="text-3xl">🧪</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 font-medium">自定义规则</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-violet-400 transition">自由沙盒试炼</h3>
+            <p class="text-xs text-slate-400 mt-1">自由挑选题库标签（如只练 -ic 变 k 特例、只练 ABB 阵营、或练习词性辨析），随心定制。</p>
+            <div class="mt-4 flex items-center text-xs text-violet-400 font-medium">
+              <span>自由定制 &rarr;</span>
+            </div>
+          </div>
+
+          <!-- 快捷入口: 知识库与错题档案 -->
+          <div onclick="app.navigate('codex')" class="group relative bg-slate-900/60 border border-slate-800 hover:border-cyan-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-cyan-500/10 flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start">
+                <span class="text-3xl">📖</span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">全语法宝典</span>
+              </div>
+              <h3 class="text-lg font-bold text-white mt-3 group-hover:text-cyan-400 transition">动词形态知识库</h3>
+              <p class="text-xs text-slate-400 mt-1">查看各知识点掌握雷达、错题归因明细表以及每道题的艾宾浩斯复习倒计时。</p>
+            </div>
+            <div class="mt-4 flex items-center text-xs text-cyan-400 font-medium">
+              <span>查阅知识库 &rarr;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 规则分类掌握度全景矩阵 -->
+      <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5">
+        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
+          <span>📊 各规则板块熟练度分布</span>
+        </h3>
+        <div id="rule-category-bars" class="space-y-3 text-xs">
+          <!-- 由 JS 填充各规则进度条 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 战斗答题竞技场视图 (ARENA) -->
+    <div id="view-arena" class="hidden space-y-6 max-w-2xl mx-auto">
+      <!-- 竞技场顶部状态栏 -->
+      <div class="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-xl px-4 py-3">
+        <button onclick="app.exitArena()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition">
+          <span>&larr; 退出练习</span>
+        </button>
+        <div class="flex items-center gap-3">
+          <div id="arena-hp-container" class="flex gap-1 text-base hidden">
+            <!-- HP 红心 -->
+          </div>
+          <div class="text-xs font-mono px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">
+            进度: <span id="arena-progress-text" class="text-indigo-400 font-bold">1 / 10</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1 text-xs font-bold text-amber-400 font-mono">
+          <span>🔥</span>
+          <span id="arena-combo-text">0 Combo</span>
+        </div>
+      </div>
+
+      <!-- 限时倒计时条 (极速模式显示) -->
+      <div id="arena-timer-bar-wrap" class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden hidden">
+        <div id="arena-timer-bar" class="bg-gradient-to-r from-emerald-500 to-amber-500 h-full w-full transition-all duration-100 ease-linear"></div>
+      </div>
+
+      <!-- 核心题目卡片 -->
+      <div id="arena-card" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl text-center relative overflow-hidden transition-all">
+        <!-- 题型/目标标记 -->
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-4 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30" id="arena-target-badge">
+          变现在分词 (-ing)
+        </div>
+
+        <!-- 单词原形大字 -->
+        <div class="space-y-1 my-3">
+          <div id="arena-base-word" class="text-4xl sm:text-5xl font-black text-white tracking-wide">
+            panic
+          </div>
+          <div class="flex items-center justify-center gap-2 text-slate-400 text-xs sm:text-sm">
+            <span id="arena-phonetic" class="font-mono">/ˈpænɪk/</span>
+            <span>•</span>
+            <span id="arena-translation">恐慌；惊慌</span>
+          </div>
+        </div>
+
+        <!-- 针对词性题目的特别句子展示 -->
+        <div id="arena-sentence-box" class="hidden my-4 p-3 rounded-xl bg-slate-800/70 border border-slate-700 text-sm text-slate-200 text-left font-serif">
+          <!-- 语境句子 -->
+        </div>
+
+        <!-- 四选一选项矩阵 -->
+        <div id="arena-options-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+          <!-- 动态渲染四个按键选项 -->
+        </div>
+
+        <!-- 快捷键引导提示 -->
+        <div class="mt-4 text-[11px] text-slate-500 font-mono">
+          键盘可按快捷键 <span class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">1</span> <span class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">2</span> <span class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">3</span> <span class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">4</span> 秒速作答
+        </div>
+      </div>
+
+      <!-- 答题后即时浮出的【规则溯源卡】 -->
+      <div id="arena-feedback-drawer" class="hidden bg-slate-900 border rounded-2xl p-5 shadow-lg transition-all animate-fadeIn">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-2">
+            <span id="feedback-icon" class="text-2xl">✨</span>
+            <div>
+              <h4 id="feedback-title" class="font-bold text-sm text-white">回答正确！</h4>
+              <p id="feedback-subtitle" class="text-xs text-slate-400 mt-0.5">连续答对 3 次 · 记忆稳定度提升至 4 天后复习</p>
+            </div>
+          </div>
+          <button id="btn-next-question" onclick="app.nextQuestion()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition flex items-center gap-1">
+            <span>下一题 (Enter)</span>
+            <span>&rarr;</span>
+          </button>
+        </div>
+
+        <!-- 规则深度解析 -->
+        <div class="mt-4 pt-3 border-t border-slate-800/80 text-xs space-y-2">
+          <div class="flex gap-2">
+            <span class="text-indigo-400 font-semibold shrink-0">【规则揭秘】:</span>
+            <span id="feedback-rule-exp" class="text-slate-300 leading-relaxed"></span>
+          </div>
+          <div id="feedback-pitfalls-box" class="flex gap-2 text-rose-300">
+            <span class="font-semibold shrink-0">【常见误区】:</span>
+            <span id="feedback-pitfalls" class="leading-relaxed font-mono"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 结算成绩单视图 (SUMMARY) -->
+    <div id="view-summary" class="hidden max-w-lg mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 text-center space-y-5">
+      <div class="text-5xl" id="summary-icon">🎉</div>
+      <div>
+        <h2 class="text-2xl font-black text-white" id="summary-title">试炼完成！</h2>
+        <p class="text-xs text-slate-400 mt-1" id="summary-subtitle">本次学习数据已成功记入本地艾宾浩斯记忆模型</p>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 text-center">
+        <div>
+          <div class="text-[11px] text-slate-400">正确率</div>
+          <div id="summary-acc" class="text-xl font-black text-emerald-400 mt-0.5">100%</div>
+        </div>
+        <div>
+          <div class="text-[11px] text-slate-400">答对/总题数</div>
+          <div id="summary-score" class="text-xl font-black text-white mt-0.5">10/10</div>
+        </div>
+        <div>
+          <div class="text-[11px] text-slate-400">最大连击</div>
+          <div id="summary-combo" class="text-xl font-black text-amber-400 mt-0.5">10</div>
+        </div>
+      </div>
+
+      <!-- 错题提示或恭喜 -->
+      <div id="summary-mistakes-list" class="text-xs text-left text-slate-300 space-y-1.5 p-3 rounded-lg bg-rose-950/20 border border-rose-900/30 hidden">
+        <div class="text-rose-400 font-bold mb-1">本次失误词条 (已记录至错题库)：</div>
+        <div id="summary-mistakes-items" class="space-y-1"></div>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button onclick="app.navigate('dashboard')" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition">
+          返回主界面
+        </button>
+        <button id="btn-replay" onclick="app.replayCurrentMode()" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition">
+          再练一局
+        </button>
+      </div>
+    </div>
+
+    <!-- 4. 知识法典与错题本视图 (CODEX) -->
+    <div id="view-codex" class="hidden space-y-5">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <span>📚 动词形态法典与错题档案馆</span>
+          </h2>
+          <p class="text-xs text-slate-400">实时查看每一个动词的艾宾浩斯复习倒计时、历史做题次数与易错陷阱</p>
+        </div>
+        <button onclick="app.navigate('dashboard')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
+          &larr; 返回主控台
+        </button>
+      </div>
+
+      <!-- 过滤器与统计快捷条 -->
+      <div class="flex flex-wrap gap-2 items-center justify-between text-xs">
+        <div class="flex flex-wrap gap-1.5" id="codex-filter-buttons">
+          <button onclick="app.setCodexFilter('ALL')" class="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-medium">全部词条</button>
+          <button onclick="app.setCodexFilter('DUE')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">🟡 今日待复习</button>
+          <button onclick="app.setCodexFilter('MISTAKE')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">🔴 高频错题</button>
+          <button onclick="app.setCodexFilter('IC_SPECIAL')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">⭐ -ic加k特例</button>
+          <button onclick="app.setCodexFilter('IRREGULAR')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">⚡ 不规则动词</button>
+          <button onclick="app.setCodexFilter('MASTERED')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">🟢 已永久巩固</button>
+        </div>
+        <div class="text-slate-400 font-mono">
+          显示数量: <span id="codex-filtered-count" class="text-indigo-400 font-bold">0</span> 条
+        </div>
+      </div>
+
+      <!-- 词条大表格 -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-800/70 text-slate-400 font-semibold border-b border-slate-800">
+              <tr>
+                <th class="py-3 px-4">动词原形</th>
+                <th class="py-3 px-3">现在分词 (-ing)</th>
+                <th class="py-3 px-3">过去式 / 过去分词</th>
+                <th class="py-3 px-3">分类/核心规则</th>
+                <th class="py-3 px-3">记忆状态</th>
+                <th class="py-3 px-3">做题记录 (对/错)</th>
+                <th class="py-3 px-3">下次复习时间</th>
+                <th class="py-3 px-3 text-right">专项操作</th>
+              </tr>
+            </thead>
+            <tbody id="codex-table-body" class="divide-y divide-slate-800/60">
+              <!-- JS 动态循环填充每一行 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 存档与备份管理弹窗 (MODAL) -->
+  <div id="modal-backup" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <span>💾 学习数据与存档管理</span>
+        </h3>
+        <button onclick="app.closeBackupModal()" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        所有学习日志、做题次数、艾宾浩斯复习倒计时均安全保存在浏览器本地。您可以随时导出 JSON 备份，或在其他设备一键恢复！
+      </p>
+
+      <div class="space-y-2 pt-2">
+        <button onclick="app.exportBackupJSON()" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center justify-center gap-2">
+          <span>📥 导出完整备份 (JSON)</span>
+        </button>
+
+        <label class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer border border-slate-700">
+          <span>📤 导入备份恢复文件</span>
+          <input type="file" id="backup-file-input" accept=".json" class="hidden" onchange="app.importBackupJSON(event)">
+        </label>
+
+        <button onclick="app.resetAllProgress()" class="w-full py-2.5 px-4 rounded-xl bg-rose-950/30 hover:bg-rose-900/40 text-rose-300 border border-rose-900/50 text-xs font-bold transition">
+          ⚠️ 清空所有本地记录并重置
+        </button>
+      </div>
+
+      <div class="pt-2 border-t border-slate-800 flex justify-between items-center text-[11px] text-slate-500">
+        <span>当前存储键: verbmaster_storage_v1</span>
+        <button onclick="app.closeBackupModal()" class="text-slate-400 hover:underline">关闭窗口</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 网页底部版权与说明 -->
+  <footer class="border-t border-slate-900 py-4 text-center text-xs text-slate-500">
+    <p>VerbMaster · 英语动词形态记忆游戏 · 本地优先无服务器架构 · 规则图谱全面覆盖</p>
+  </footer>
+
+  <!-- 核心逻辑脚本 -->
+  <script>
+    /**
+     * 1. 动词形态完整题库知识库 (全面映射用户所列全部规则与单词)
+     */
+    const VERB_KNOWLEDGE_BASE = [
+      // ====== 核心必考特例: -ic 结尾加 k ======
+      {
+        id: 'picnic', base: 'picnic', phonetic: '/ˈpɪknɪk/', translation: '野餐',
+        forms: { ing: 'picnicking', past: 'picnicked', past_participle: 'picnicked', third_singular: 'picnics' },
+        rules: { ing: 'RULE_IC_SPECIAL', past: 'RULE_IC_SPECIAL', s: 'RULE_S_GENERAL', type: 'NONE' },
+        explanation: '【必考特例】动词以 ic 结尾，变 -ing 或 -ed 时，必须先加 k，再加后缀！常用词极少：picnic, panic, frolic, mimic, traffic。',
+        distractors: { ing: ['picnicing', 'picniking', 'picniccing'], past: ['picniced', 'picniked', 'picnicced'] }
+      },
+      {
+        id: 'panic', base: 'panic', phonetic: '/ˈpænɪk/', translation: '惊慌；恐慌',
+        forms: { ing: 'panicking', past: 'panicked', past_participle: 'panicked', third_singular: 'panics' },
+        rules: { ing: 'RULE_IC_SPECIAL', past: 'RULE_IC_SPECIAL', s: 'RULE_S_GENERAL', type: 'NONE' },
+        explanation: '【必考特例】panic 以 ic 结尾，变 -ing/-ed 必须先加 k！变 panicking / panicked。',
+        distractors: { ing: ['panicing', 'panikking', 'paniccing'], past: ['paniced', 'panikted', 'panicced'] }
+      },
+      {
+        id: 'frolic', base: 'frolic', phonetic: '/ˈfrɒlɪk/', translation: '嬉戏；雀跃',
+        forms: { ing: 'frolicking', past: 'frolicked', past_participle: 'frolicked', third_singular: 'frolics' },
+        rules: { ing: 'RULE_IC_SPECIAL', past: 'RULE_IC_SPECIAL', s: 'RULE_S_GENERAL', type: 'NONE' },
+        explanation: '【必考特例】frolic 变 -ing / -ed 时先加 k，再加后缀 → frolicking / frolicked。',
+        distractors: { ing: ['frolicing', 'froliking', 'froliccing'], past: ['froliced', 'frolikted', 'frolicced'] }
+      },
+      {
+        id: 'mimic', base: 'mimic', phonetic: '/ˈmɪmɪk/', translation: '模仿；戏弄',
+        forms: { ing: 'mimicking', past: 'mimicked', past_participle: 'mimicked', third_singular: 'mimics' },
+        rules: { ing: 'RULE_IC_SPECIAL', past: 'RULE_IC_SPECIAL', s: 'RULE_S_GENERAL', type: 'NONE' },
+        explanation: '【必考特例】mimic 变 -ing / -ed 时先加 k → mimicking / mimicked。',
+        distractors: { ing: ['mimicing', 'mimikking', 'mimiccing'], past: ['mimiced', 'mimikted', 'mimicced'] }
+      },
+      {
+        id: 'traffic', base: 'traffic', phonetic: '/ˈtræfɪk/', translation: '非法交易；做买卖',
+        forms: { ing: 'trafficking', past: 'trafficked', past_participle: 'trafficked', third_singular: 'traffics' },
+        rules: { ing: 'RULE_IC_SPECIAL', past: 'RULE_IC_SPECIAL', s: 'RULE_S_GENERAL', type: 'NONE' },
+        explanation: '【必考特例】traffic (作动词表非法交易) 变 -ing / -ed 先加 k → trafficking / trafficked。',
+        distractors: { ing: ['trafficing', 'traffiking', 'trafficcing'], past: ['trafficed', 'traffikted', 'trafficced'] }
+      },
+
+      // ====== 现在分词/动名词: 四大拼写规则 ======
+      {
+        id: 'work', base: 'work', phonetic: '/wɜːk/', translation: '工作',
+        forms: { ing: 'working', past: 'worked', past_participle: 'worked', third_singular: 'works' },
+        rules: { ing: 'RULE_ING_GENERAL', past: 'RULE_ED_GENERAL', s: 'RULE_S_GENERAL', type: 'NONE' },
+        explanation: '【一般情况】直接在词尾加 -ing / -ed。',
+        distractors: { ing: ['workking', 'workeing', 'workin'], past: ['workt', 'workd', 'workked'] }
+      },
+      {
+        id: 'write', base: 'write', phonetic: '/raɪt/', translation: '书写；写作',
+        forms: { ing: 'writing', past: 'wrote', past_participle: 'written', third_singular: 'writes' },
+        rules: { ing: 'RULE_ING_SILENT_E', past: 'RULE_IRREG_ABC', s: 'RULE_S_GENERAL', type: 'ABC' },
+        explanation: '【去e加ing + 不规则ABC】以不发音 e 结尾，去 e + ing (writing)；不规则三态为 write → wrote → written。',
+        distractors: { ing: ['writeing', 'writting', 'writin'], past: ['writed', 'written', 'wroted'] }
+      },
+      {
+        id: 'run', base: 'run', phonetic: '/rʌn/', translation: '奔跑',
+        forms: { ing: 'running', past: 'ran', past_participle: 'run', third_singular: 'runs' },
+        rules: { ing: 'RULE_ING_CVC', past: 'RULE_IRREG_ABA', s: 'RULE_S_GENERAL', type: 'ABA' },
+        explanation: '【重读闭音节双写 + ABA型】辅+元+辅双写 n 变 running；三态为 run → ran → run (原形与过去分词同形)。',
+        distractors: { ing: ['runing', 'runneing', 'runnig'], past: ['runned', 'run', 'ron'] }
+      },
+      {
+        id: 'stop', base: 'stop', phonetic: '/stɒp/', translation: '停止',
+        forms: { ing: 'stopping', past: 'stopped', past_participle: 'stopped', third_singular: 'stops' },
+        rules: { ing: 'RULE_ING_CVC', past: 'RULE_ED_CVC', s: 'RULE_S_GENERAL', type: 'NONE' },
+        explanation: '【重读闭音节辅元辅】双写尾字母 p，变 stopping 和 stopped。',
+        distractors: { ing: ['stoping', 'stoppeing', 'stoppin'], past: ['stoped', 'stopt', 'stoppt'] }
+      },
+      {
+        id: 'lie', base: 'lie', phonetic: '/laɪ/', translation: '躺；说谎',
+        forms: { ing: 'lying', past: 'lay', past_participle: 'lain', third_singular: 'lies' },
+        rules: { ing: 'RULE_ING_IE', past: 'RULE_IRREG_ABC', s: 'RULE_S_GENERAL', type: 'ABC' },
+        explanation: '【ie变y加ing】以 ie 结尾，变 y + ing → lying。极其高频必考点！',
+        distractors: { ing: ['lieing', 'lyeing', 'liing'], past: ['lied', 'lain', 'layed'] }
+      },
+      {
+        id: 'die', base: 'die', phonetic: '/daɪ/', translation: '死亡',
+        forms: { ing: 'dying', past: 'died', past_participle: 'died', third_singular: 'dies' },
+        rules: { ing: 'RULE_ING_IE', past: 'RULE_ED_E', s: 'RULE_S_GENERAL', type: 'NONE' },
+        explanation: '【ie变y加ing】以 ie 结尾，变 y + ing → dying。变过去式直接 + d → died。',
+        distractors: { ing: ['dieing', 'dyeing', 'diing'], past: ['dyed', 'deid', 'dieded'] }
+      },
+
+      // ====== 规则过去式/分词 (-ed) 规则 ======
+      {
+        id: 'love', base: 'love', phonetic: '/lʌv/', translation: '爱；喜爱',
+        forms: { ing: 'loving', past: 'loved', past_participle: 'loved', third_singular: 'loves' },
+        rules: { ing: 'RULE_ING_SILENT_E', past: 'RULE_ED_E', s: 'RULE_S_GENERAL', type: 'NONE' },
+        explanation: '【以e结尾】直接加 d → loved；去 e + ing → loving。',
+        distractors: { past: ['loveed', 'lovd', 'lovved'], ing: ['loveing', 'lovving', 'lovin'] }
+      },
+      {
+        id: 'study', base: 'study', phonetic: '/ˈstʌdi/', translation: '学习；研究',
+        forms: { ing: 'studying', past: 'studied', past_participle: 'studied', third_singular: 'studies' },
+        rules: { ing: 'RULE_ING_GENERAL', past: 'RULE_ED_CONSONANT_Y', s: 'RULE_S_CONSONANT_Y', type: 'NONE' },
+        explanation: '【辅音+y结尾】变 y 为 i + ed (studied)；变三单为 studies；注意变 -ing 仍然直接 + ing (studying)！',
+        distractors: { past: ['studyed', 'studdied', 'studyied'], third_singular: ['studys', 'studyes', 'studdies'] }
+      },
+
+      // ====== 不规则动词: AAA 型 (三态同形) ======
+      {
+        id: 'cost', base: 'cost', phonetic: '/kɒst/', translation: '花费；耗费',
+        forms: { ing: 'costing', past: 'cost', past_participle: 'cost', third_singular: 'costs' },
+        rules: { past: 'RULE_IRREG_AAA', type: 'AAA', s: 'RULE_S_GENERAL' },
+        explanation: '【AAA型】cost → cost → cost，三态完全相同！',
+        distractors: { past: ['costed', 'costen', 'cast'] }
+      },
+      {
+        id: 'put', base: 'put', phonetic: '/pʊt/', translation: '放置',
+        forms: { ing: 'putting', past: 'put', past_participle: 'put', third_singular: 'puts' },
+        rules: { past: 'RULE_IRREG_AAA', ing: 'RULE_ING_CVC', type: 'AAA', s: 'RULE_S_GENERAL' },
+        explanation: '【AAA型】put → put → put。注意变 -ing 时双写 t → putting。',
+        distractors: { past: ['putted', 'putten', 'pat'] }
+      },
+      {
+        id: 'cut', base: 'cut', phonetic: '/kʌt/', translation: '剪；切',
+        forms: { ing: 'cutting', past: 'cut', past_participle: 'cut', third_singular: 'cuts' },
+        rules: { past: 'RULE_IRREG_AAA', ing: 'RULE_ING_CVC', type: 'AAA', s: 'RULE_S_GENERAL' },
+        explanation: '【AAA型】cut → cut → cut，三态同形。',
+        distractors: { past: ['cuted', 'cutted', 'cat'] }
+      },
+      {
+        id: 'hit', base: 'hit', phonetic: '/hɪt/', translation: '击打；击中',
+        forms: { ing: 'hitting', past: 'hit', past_participle: 'hit', third_singular: 'hits' },
+        rules: { past: 'RULE_IRREG_AAA', ing: 'RULE_ING_CVC', type: 'AAA', s: 'RULE_S_GENERAL' },
+        explanation: '【AAA型】hit → hit → hit，三态同形。',
+        distractors: { past: ['hitted', 'hited', 'hat'] }
+      },
+      {
+        id: 'let', base: 'let', phonetic: '/let/', translation: '允许；让',
+        forms: { ing: 'letting', past: 'let', past_participle: 'let', third_singular: 'lets' },
+        rules: { past: 'RULE_IRREG_AAA', ing: 'RULE_ING_CVC', type: 'AAA', s: 'RULE_S_GENERAL' },
+        explanation: '【AAA型】let → let → let，三态同形。',
+        distractors: { past: ['leted', 'letted', 'lat'] }
+      },
+      {
+        id: 'read', base: 'read', phonetic: '/riːd/', translation: '阅读',
+        forms: { ing: 'reading', past: 'read', past_participle: 'read', third_singular: 'reads' },
+        rules: { past: 'RULE_IRREG_AAA', type: 'AAA', s: 'RULE_S_GENERAL' },
+        explanation: '【AAA型特例】read → read → read 拼写完全同形，但过去式与分词读音变作 /red/ (与red同音)！',
+        distractors: { past: ['readed', 'red', 'rode'] }
+      },
+
+      // ====== 不规则动词: AAB 型 ======
+      {
+        id: 'beat', base: 'beat', phonetic: '/biːt/', translation: '击败；跳动',
+        forms: { ing: 'beating', past: 'beat', past_participle: 'beaten', third_singular: 'beats' },
+        rules: { past: 'RULE_IRREG_AAB', type: 'AAB', s: 'RULE_S_GENERAL' },
+        explanation: '【AAB型独树一帜】原形=过去式=beat，只有过去分词加 en 变 beaten！',
+        distractors: { past: ['beated', 'bet', 'beaten'], past_participle: ['beat', 'beated', 'beaton'] }
+      },
+
+      // ====== 不规则动词: ABA 型 ======
+      {
+        id: 'come', base: 'come', phonetic: '/kʌm/', translation: '来；到达',
+        forms: { ing: 'coming', past: 'came', past_participle: 'come', third_singular: 'comes' },
+        rules: { past: 'RULE_IRREG_ABA', type: 'ABA', s: 'RULE_S_GENERAL' },
+        explanation: '【ABA型】come → came → come，原形与过去分词一致。',
+        distractors: { past_participle: ['came', 'comed', 'comen'] }
+      },
+      {
+        id: 'become', base: 'become', phonetic: '/bɪˈkʌm/', translation: '变成；成为',
+        forms: { ing: 'becoming', past: 'became', past_participle: 'become', third_singular: 'becomes' },
+        rules: { past: 'RULE_IRREG_ABA', type: 'ABA', s: 'RULE_S_GENERAL' },
+        explanation: '【ABA型】become → became → become，类似 come。',
+        distractors: { past_participle: ['became', 'becomed', 'becomen'] }
+      },
+
+      // ====== 不规则动词: ABB 型 (最庞大核心阵营) ======
+      {
+        id: 'find', base: 'find', phonetic: '/faɪnd/', translation: '寻找；发现',
+        forms: { ing: 'finding', past: 'found', past_participle: 'found', third_singular: 'finds' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_GENERAL' },
+        explanation: '【ABB型】find → found → found。',
+        distractors: { past: ['finded', 'founden', 'fined'] }
+      },
+      {
+        id: 'leave', base: 'leave', phonetic: '/liːv/', translation: '离开；留下',
+        forms: { ing: 'leaving', past: 'left', past_participle: 'left', third_singular: 'leaves' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_GENERAL' },
+        explanation: '【ABB型】leave → left → left。',
+        distractors: { past: ['leaved', 'leaven', 'lift'] }
+      },
+      {
+        id: 'feel', base: 'feel', phonetic: '/fiːl/', translation: '感觉；摸',
+        forms: { ing: 'feeling', past: 'felt', past_participle: 'felt', third_singular: 'feels' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_GENERAL' },
+        explanation: '【ABB型】feel → felt → felt。',
+        distractors: { past: ['feeled', 'felten', 'feelt'] }
+      },
+      {
+        id: 'keep', base: 'keep', phonetic: '/kiːp/', translation: '保持；保存',
+        forms: { ing: 'keeping', past: 'kept', past_participle: 'kept', third_singular: 'keeps' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_GENERAL' },
+        explanation: '【ABB型】keep → kept → kept。',
+        distractors: { past: ['keeped', 'kepten', 'kepted'] }
+      },
+      {
+        id: 'sleep', base: 'sleep', phonetic: '/sliːp/', translation: '睡觉',
+        forms: { ing: 'sleeping', past: 'slept', past_participle: 'slept', third_singular: 'sleeps' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_GENERAL' },
+        explanation: '【ABB型】sleep → slept → slept。',
+        distractors: { past: ['sleeped', 'slepten', 'slipt'] }
+      },
+      {
+        id: 'sweep', base: 'sweep', phonetic: '/swiːp/', translation: '打扫；席卷',
+        forms: { ing: 'sweeping', past: 'swept', past_participle: 'swept', third_singular: 'sweeps' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_GENERAL' },
+        explanation: '【ABB型】sweep → swept → swept。',
+        distractors: { past: ['sweeped', 'swepten', 'swipt'] }
+      },
+      {
+        id: 'build', base: 'build', phonetic: '/bɪld/', translation: '建造；建筑',
+        forms: { ing: 'building', past: 'built', past_participle: 'built', third_singular: 'builds' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_GENERAL' },
+        explanation: '【ABB型】build → built → built (d 变为 t)。',
+        distractors: { past: ['builded', 'builten', 'bild'] }
+      },
+      {
+        id: 'lend', base: 'lend', phonetic: '/lend/', translation: '借出',
+        forms: { ing: 'lending', past: 'lent', past_participle: 'lent', third_singular: 'lends' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_GENERAL' },
+        explanation: '【ABB型】lend → lent → lent (d 变为 t)。',
+        distractors: { past: ['lended', 'lenten', 'land'] }
+      },
+      {
+        id: 'send', base: 'send', phonetic: '/send/', translation: '发送；派遣',
+        forms: { ing: 'sending', past: 'sent', past_participle: 'sent', third_singular: 'sends' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_GENERAL' },
+        explanation: '【ABB型】send → sent → sent (d 变为 t)。',
+        distractors: { past: ['sended', 'senten', 'sand'] }
+      },
+      {
+        id: 'spend', base: 'spend', phonetic: '/spend/', translation: '花费；度过',
+        forms: { ing: 'spending', past: 'spent', past_participle: 'spent', third_singular: 'spends' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_GENERAL' },
+        explanation: '【ABB型】spend → spent → spent (d 变为 t)。',
+        distractors: { past: ['spended', 'spenten', 'spand'] }
+      },
+      {
+        id: 'lose', base: 'lose', phonetic: '/luːz/', translation: '失去；输掉',
+        forms: { ing: 'losing', past: 'lost', past_participle: 'lost', third_singular: 'loses' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_GENERAL' },
+        explanation: '【ABB型】lose → lost → lost。注意变 -ing 时去 e → losing。',
+        distractors: { past: ['losed', 'loosed', 'losten'] }
+      },
+      {
+        id: 'teach', base: 'teach', phonetic: '/tiːtʃ/', translation: '教学；讲授',
+        forms: { ing: 'teaching', past: 'taught', past_participle: 'taught', third_singular: 'teaches' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_ES' },
+        explanation: '【ABB型】teach → taught → taught；变三单以 ch 结尾加 es → teaches。',
+        distractors: { past: ['teached', 'thought', 'tought'] }
+      },
+      {
+        id: 'catch', base: 'catch', phonetic: '/kætʃ/', translation: '抓住；赶上',
+        forms: { ing: 'catching', past: 'caught', past_participle: 'caught', third_singular: 'catches' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_ES' },
+        explanation: '【ABB型】catch → caught → caught；三单以 ch 结尾加 es → catches。',
+        distractors: { past: ['catched', 'cought', 'cot'] }
+      },
+      {
+        id: 'bring', base: 'bring', phonetic: '/brɪŋ/', translation: '带来',
+        forms: { ing: 'bringing', past: 'brought', past_participle: 'brought', third_singular: 'brings' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_GENERAL' },
+        explanation: '【ABB型】bring → brought → brought。',
+        distractors: { past: ['bringed', 'bought', 'brang'] }
+      },
+      {
+        id: 'buy', base: 'buy', phonetic: '/baɪ/', translation: '购买',
+        forms: { ing: 'buying', past: 'bought', past_participle: 'bought', third_singular: 'buys' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_GENERAL' },
+        explanation: '【ABB型】buy → bought → bought。',
+        distractors: { past: ['buyed', 'brought', 'bout'] }
+      },
+      {
+        id: 'think', base: 'think', phonetic: '/θɪŋk/', translation: '思考；认为',
+        forms: { ing: 'thinking', past: 'thought', past_participle: 'thought', third_singular: 'thinks' },
+        rules: { past: 'RULE_IRREG_ABB', type: 'ABB', s: 'RULE_S_GENERAL' },
+        explanation: '【ABB型】think → thought → thought。',
+        distractors: { past: ['thinked', 'taught', 'thunk'] }
+      },
+
+      // ====== 不规则动词: ABC 型 (三态皆不同) ======
+      {
+        id: 'go', base: 'go', phonetic: '/ɡəʊ/', translation: '去；走',
+        forms: { ing: 'going', past: 'went', past_participle: 'gone', third_singular: 'goes' },
+        rules: { past: 'RULE_IRREG_ABC', type: 'ABC', s: 'RULE_S_ES' },
+        explanation: '【ABC型 + 三单加es】go → went → gone；第三人称单数以 o 结尾加 es → goes。',
+        distractors: { past: ['goed', 'gone', 'wented'], past_participle: ['went', 'goed', 'goen'] }
+      },
+      {
+        id: 'do', base: 'do', phonetic: '/duː/', translation: '做；干',
+        forms: { ing: 'doing', past: 'did', past_participle: 'done', third_singular: 'does' },
+        rules: { past: 'RULE_IRREG_ABC', type: 'ABC', s: 'RULE_S_ES' },
+        explanation: '【ABC型 + 三单加es】do → did → done；第三人称单数以 o 结尾加 es → does。',
+        distractors: { past: ['doed', 'done', 'didded'] }
+      },
+      {
+        id: 'see', base: 'see', phonetic: '/siː/', translation: '看见',
+        forms: { ing: 'seeing', past: 'saw', past_participle: 'seen', third_singular: 'sees' },
+        rules: { past: 'RULE_IRREG_ABC', type: 'ABC', s: 'RULE_S_GENERAL' },
+        explanation: '【ABC型】see → saw → seen。',
+        distractors: { past: ['seed', 'seen', 'so'] }
+      },
+      {
+        id: 'eat', base: 'eat', phonetic: '/iːt/', translation: '吃',
+        forms: { ing: 'eating', past: 'ate', past_participle: 'eaten', third_singular: 'eats' },
+        rules: { past: 'RULE_IRREG_ABC', type: 'ABC', s: 'RULE_S_GENERAL' },
+        explanation: '【ABC型】eat → ate → eaten。',
+        distractors: { past: ['eated', 'eaten', 'eat'] }
+      },
+      {
+        id: 'fall', base: 'fall', phonetic: '/fɔːl/', translation: '落下；跌倒',
+        forms: { ing: 'falling', past: 'fell', past_participle: 'fallen', third_singular: 'falls' },
+        rules: { past: 'RULE_IRREG_ABC', type: 'ABC', s: 'RULE_S_GENERAL' },
+        explanation: '【ABC型】fall → fell → fallen。',
+        distractors: { past: ['falled', 'fallen', 'feeled'] }
+      },
+      {
+        id: 'take', base: 'take', phonetic: '/teɪk/', translation: '带走；花费',
+        forms: { ing: 'taking', past: 'took', past_participle: 'taken', third_singular: 'takes' },
+        rules: { past: 'RULE_IRREG_ABC', type: 'ABC', s: 'RULE_S_GENERAL' },
+        explanation: '【ABC型】take → took → taken。',
+        distractors: { past: ['taked', 'taken', 'toke'] }
+      },
+      {
+        id: 'give', base: 'give', phonetic: '/ɡɪv/', translation: '给；赋予',
+        forms: { ing: 'giving', past: 'gave', past_participle: 'given', third_singular: 'gives' },
+        rules: { past: 'RULE_IRREG_ABC', type: 'ABC', s: 'RULE_S_GENERAL' },
+        explanation: '【ABC型】give → gave → given。',
+        distractors: { past: ['gived', 'given', 'gove'] }
+      },
+      {
+        id: 'drive', base: 'drive', phonetic: '/draɪv/', translation: '驾驶',
+        forms: { ing: 'driving', past: 'drove', past_participle: 'driven', third_singular: 'drives' },
+        rules: { past: 'RULE_IRREG_ABC', type: 'ABC', s: 'RULE_S_GENERAL' },
+        explanation: '【ABC型】drive → drove → driven。',
+        distractors: { past: ['drived', 'driven', 'drave'] }
+      },
+      {
+        id: 'speak', base: 'speak', phonetic: '/spiːk/', translation: '说；讲话',
+        forms: { ing: 'speaking', past: 'spoke', past_participle: 'spoken', third_singular: 'speaks' },
+        rules: { past: 'RULE_IRREG_ABC', type: 'ABC', s: 'RULE_S_GENERAL' },
+        explanation: '【ABC型】speak → spoke → spoken。',
+        distractors: { past: ['speaked', 'spoken', 'spake'] }
+      },
+      {
+        id: 'break', base: 'break', phonetic: '/breɪk/', translation: '打碎；破坏',
+        forms: { ing: 'breaking', past: 'broke', past_participle: 'broken', third_singular: 'breaks' },
+        rules: { past: 'RULE_IRREG_ABC', type: 'ABC', s: 'RULE_S_GENERAL' },
+        explanation: '【ABC型】break → broke → broken。',
+        distractors: { past: ['breaked', 'broken', 'braked'] }
+      },
+      {
+        id: 'choose', base: 'choose', phonetic: '/tʃuːz/', translation: '选择',
+        forms: { ing: 'choosing', past: 'chose', past_participle: 'chosen', third_singular: 'chooses' },
+        rules: { past: 'RULE_IRREG_ABC', type: 'ABC', s: 'RULE_S_GENERAL' },
+        explanation: '【ABC型】choose → chose → chosen。',
+        distractors: { past: ['choosed', 'chosen', 'chused'] }
+      },
+      {
+        id: 'forget', base: 'forget', phonetic: '/fəˈɡet/', translation: '忘记',
+        forms: { ing: 'forgetting', past: 'forgot', past_participle: 'forgotten', third_singular: 'forgets' },
+        rules: { past: 'RULE_IRREG_ABC', ing: 'RULE_ING_CVC', type: 'ABC', s: 'RULE_S_GENERAL' },
+        explanation: '【ABC型】forget → forgot → forgotten。变 -ing 时双写 t → forgetting。',
+        distractors: { past: ['forgetted', 'forgotten', 'forgat'] }
+      },
+
+      // ====== 第三人称单数核心规约与特例 ======
+      {
+        id: 'pass', base: 'pass', phonetic: '/pɑːs/', translation: '通过；传递',
+        forms: { ing: 'passing', past: 'passed', past_participle: 'passed', third_singular: 'passes' },
+        rules: { s: 'RULE_S_ES' },
+        explanation: '【三单以 s 结尾加 es】pass 结尾为 s，第三人称单数加 es → passes。',
+        distractors: { third_singular: ['passs', 'passis', 'passed'] }
+      },
+      {
+        id: 'watch', base: 'watch', phonetic: '/wɒtʃ/', translation: '观看；看守',
+        forms: { ing: 'watching', past: 'watched', past_participle: 'watched', third_singular: 'watches' },
+        rules: { s: 'RULE_S_ES' },
+        explanation: '【三单以 ch 结尾加 es】watch 以 ch 结尾，第三人称单数加 es → watches。',
+        distractors: { third_singular: ['watchs', 'watchies', 'watched'] }
+      },
+      {
+        id: 'be', base: 'be', phonetic: '/biː/', translation: '是',
+        forms: { ing: 'being', past: 'was/were', past_participle: 'been', third_singular: 'is' },
+        rules: { s: 'RULE_S_IRREG' },
+        explanation: '【真正不规则三单 (仅2个之一)】be 的第三人称单数现在时完全不规则，直接变为 is！',
+        distractors: { third_singular: ['bes', 'bees', 'are'] }
+      },
+      {
+        id: 'have', base: 'have', phonetic: '/hæv/', translation: '拥有；有',
+        forms: { ing: 'having', past: 'had', past_participle: 'had', third_singular: 'has' },
+        rules: { s: 'RULE_S_IRREG' },
+        explanation: '【真正不规则三单 (仅2个之二)】have 的第三人称单数不加 s，而是变为 has！',
+        distractors: { third_singular: ['haves', 'havs', 'had'] }
+      }
+    ];
+
+    /**
+     * 2. 词性概念辨析专属题目库 (区分现在分词/过去分词 vs 动名词)
+     */
+    const SYNTAX_ROLE_QUESTIONS = [
+      {
+        id: 'role_1', base: 'run',
+        sentence: 'Look at the <b class="text-amber-400 underline">running</b> boy! He is so fast.',
+        highlight_word: 'running',
+        question: '句中的 "running" 充当什么语法词性与功能？',
+        correct: '形容词词性 (现在分词，作定语修饰 boy)',
+        options: [
+          '形容词词性 (现在分词，作定语修饰 boy)',
+          '名词词性 (动名词，充当宾语)',
+          '名词词性 (动名词，充当主语)',
+          '副词词性 (修饰整个句子)'
+        ],
+        explanation: '【现在分词=形容词词性】此处 running 修饰名词 boy，说明正在跑的动作特征，属于分词作定语。'
+      },
+      {
+        id: 'role_2', base: 'swim',
+        sentence: '<b class="text-amber-400 underline">Swimming</b> is my favorite summer sport.',
+        highlight_word: 'Swimming',
+        question: '句首的 "Swimming" 充当什么语法词性与功能？',
+        correct: '名词词性 (动名词，充当主语)',
+        options: [
+          '名词词性 (动名词，充当主语)',
+          '形容词词性 (现在分词，作状语)',
+          '形容词词性 (现在分词，作表语)',
+          '动词谓语'
+        ],
+        explanation: '【动名词=名词词性】句中的 Swimming 位于句首作整个句子的主语，具有名词属性，因而称为动名词。'
+      },
+      {
+        id: 'role_3', base: 'break',
+        sentence: 'Be careful with the <b class="text-amber-400 underline">broken</b> glass on the floor.',
+        highlight_word: 'broken',
+        question: '句中的 "broken" 属于什么语法词性？',
+        correct: '形容词词性 (过去分词，表被动与完成)',
+        options: [
+          '形容词词性 (过去分词，表被动与完成)',
+          '名词词性 (动名词)',
+          '谓语过去式',
+          '副词词性'
+        ],
+        explanation: '【过去分词=形容词词性】broken glass 中，broken 修饰 glass，表“被破碎的”，充当形容词性定语。'
+      },
+      {
+        id: 'role_4', base: 'read',
+        sentence: 'She spends two hours <b class="text-amber-400 underline">reading</b> books every night.',
+        highlight_word: 'reading',
+        question: '句中的 "reading" 属于什么语法性质？',
+        correct: '名词词性 (动名词，spend time in doing sth)',
+        options: [
+          '名词词性 (动名词，spend time in doing sth)',
+          '形容词词性 (现在分词作后置定语)',
+          '谓语动词进行时',
+          '过去分词'
+        ],
+        explanation: '【动名词短语】spend time in reading，实际上是介词 in 后的动名词形式，充当介词宾语，具有名词词性。'
+      }
+    ];
+
+    /**
+     * 3. 声音合成引擎 (Web Audio API - 零外部资源依赖)
+     */
+    class SoundFxEngine {
+      constructor() {
+        this.ctx = null;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+      }
+      playCorrect(combo = 1) {
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        // 连击越高，音高基础频率越高
+        const baseFreq = 523.25 * (1 + Math.min(combo * 0.05, 0.8)); // C5 基础
+        osc.frequency.setValueAtTime(baseFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.33, now + 0.12);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+        osc.start(now);
+        osc.stop(now + 0.26);
+      }
+      playError() {
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.linearRampToValueAtTime(80, now + 0.25);
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+        osc.start(now);
+        osc.stop(now + 0.31);
+      }
+    }
+
+    /**
+     * 4. 应用程序主状态与逻辑管理
+     */
+    class VerbMasterApp {
+      constructor() {
+        this.storageKey = 'verbmaster_storage_v1';
+        this.sound = new SoundFxEngine();
+        this.loadState();
+
+        this.currentMode = null;
+        this.quizQueue = [];
+        this.currentIndex = 0;
+        this.currentQuestion = null;
+        this.sessionCorrect = 0;
+        this.sessionCombo = 0;
+        this.maxComboInSession = 0;
+        this.lives = 3;
+        this.timerInterval = null;
+        this.timeLeft = 6;
+        this.currentFilter = 'ALL';
+
+        this.initKeyboardEvents();
+        this.renderDashboard();
+      }
+
+      // 本地数据加载与持久化
+      loadState() {
+        const raw = localStorage.getItem(this.storageKey);
+        if (raw) {
+          try {
+            this.state = JSON.parse(raw);
+          } catch(e) {
+            console.error(e);
+            this.state = this.getInitialState();
+          }
+        } else {
+          this.state = this.getInitialState();
+          this.saveState();
+        }
+      }
+
+      saveState() {
+        localStorage.setItem(this.storageKey, JSON.stringify(this.state));
+      }
+
+      getInitialState() {
+        return {
+          version: '1.0.0',
+          simulatedDateOffsetDays: 0, // 用于模拟快进天数
+          streak: 0,
+          totalAttempts: 0,
+          totalCorrect: 0,
+          // 每个单词的艾宾浩斯记忆模型卡片
+          cards: {},
+          // 做题不可篡改流水日志 (最近 500 条)
+          logs: []
+        };
+      }
+
+      getCurrentDate() {
+        const d = new Date();
+        d.setDate(d.getDate() + (this.state.simulatedDateOffsetDays || 0));
+        return d;
+      }
+
+      getEndOfTodayTimestamp() {
+        const d = this.getCurrentDate();
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).getTime();
+      }
+
+      // 获取或初始化单词记忆卡
+      getWordCard(wordId) {
+        if (!this.state.cards[wordId]) {
+          this.state.cards[wordId] = {
+            wordId: wordId,
+            level: 0, // 0~6
+            stabilityDays: 1,
+            attempts: 0,
+            correct: 0,
+            wrong: 0,
+            lastPracticedAt: null,
+            nextReviewAt: null
+          };
+        }
+        return this.state.cards[wordId];
+      }
+
+      // 模拟时间快进天数 (方便用户测试艾宾浩斯复习调度)
+      simulateDayPass(days) {
+        this.state.simulatedDateOffsetDays = (this.state.simulatedDateOffsetDays || 0) + days;
+        this.saveState();
+        this.renderDashboard();
+        alert(`⏰ 已模拟快进 ${days} 天！当前模拟时间为：${this.getCurrentDate().toLocaleDateString('zh-CN')}。\n请注意今日待复习数字的变化！`);
+      }
+
+      // 计算艾宾浩斯调度数据
+      calcSpacedRepetitionMetrics() {
+        const endOfToday = this.getEndOfTodayTimestamp();
+        let dueCount = 0;
+        let rustyCount = 0;
+        let masteredCount = 0;
+        const dueWords = [];
+        const mistakeWords = [];
+
+        for (const verb of VERB_KNOWLEDGE_BASE) {
+          const card = this.state.cards[verb.id];
+          if (!card || card.attempts === 0) continue;
+
+          if (card.level >= 4) {
+            masteredCount++;
+          }
+
+          if (card.nextReviewAt && card.nextReviewAt <= endOfToday) {
+            dueCount++;
+            dueWords.push(verb);
+            const daysOverdue = (endOfToday - card.nextReviewAt) / (1000 * 3600 * 24);
+            if (daysOverdue > card.stabilityDays * 2) {
+              rustyCount++;
+            }
+          }
+
+          if (card.wrong > 0 && (card.wrong / card.attempts > 0.3 || card.level <= 1)) {
+            mistakeWords.push(verb);
+          }
+        }
+
+        return { dueCount, rustyCount, masteredCount, dueWords, mistakeWords };
+      }
+
+      // 键盘事件监听 (1, 2, 3, 4 秒选作答)
+      initKeyboardEvents() {
+        window.addEventListener('keydown', (e) => {
+          // 如果弹窗打开中，不拦截
+          if (!document.getElementById('modal-backup').classList.contains('hidden')) return;
+
+          // 在答题竞技场
+          if (!document.getElementById('view-arena').classList.contains('hidden')) {
+            const feedbackOpen = !document.getElementById('arena-feedback-drawer').classList.contains('hidden');
+            if (feedbackOpen) {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.nextQuestion();
+              }
+              return;
+            }
+
+            if (['1', '2', '3', '4'].includes(e.key)) {
+              const idx = parseInt(e.key) - 1;
+              const buttons = document.querySelectorAll('#arena-options-grid button');
+              if (buttons[idx]) buttons[idx].click();
+            }
+          }
+        });
+      }
+
+      // 界面切换调度
+      navigate(viewName) {
+        clearInterval(this.timerInterval);
+        ['dashboard', 'arena', 'summary', 'codex'].forEach(v => {
+          const el = document.getElementById(`view-${v}`);
+          if (el) el.classList.add('hidden');
+        });
+        document.getElementById(`view-${viewName}`).classList.remove('hidden');
+
+        if (viewName === 'dashboard') {
+          this.renderDashboard();
+        } else if (viewName === 'codex') {
+          this.renderCodex();
+        }
+      }
+
+      // 渲染主控台与智能推荐
+      renderDashboard() {
+        const totalWords = VERB_KNOWLEDGE_BASE.length;
+        const practicedWordsCount = Object.values(this.state.cards).filter(c => c.attempts > 0).length;
+        const coverageRate = Math.round((practicedWordsCount / totalWords) * 100);
+
+        const { dueCount, rustyCount, masteredCount, dueWords, mistakeWords } = this.calcSpacedRepetitionMetrics();
+        const totalAcc = this.state.totalAttempts > 0 
+          ? Math.round((this.state.totalCorrect / this.state.totalAttempts) * 100) 
+          : 100;
+
+        // 更新顶部与统计卡
+        document.getElementById('header-streak').innerText = this.state.streak || 0;
+        document.getElementById('stat-coverage-rate').innerText = `${coverageRate}%`;
+        document.getElementById('stat-coverage-detail').innerText = `(${practicedWordsCount}/${totalWords}词)`;
+        document.getElementById('stat-coverage-bar').style.width = `${coverageRate}%`;
+
+        document.getElementById('stat-due-count').innerText = dueCount;
+        document.getElementById('stat-rusty-count').innerText = rustyCount;
+        document.getElementById('stat-accuracy-rate').innerText = `${totalAcc}%`;
+        document.getElementById('stat-accuracy-detail').innerText = `(${this.state.totalCorrect}/${this.state.totalAttempts})`;
+        document.getElementById('stat-total-attempts').innerText = this.state.totalAttempts;
+        document.getElementById('stat-mastered-count').innerText = masteredCount;
+
+        document.getElementById('mode-badge-review').innerText = `今日到期: ${dueCount}`;
+        document.getElementById('mode-badge-weakness').innerText = `错题待清: ${mistakeWords.length}`;
+
+        // 导航错题徽章
+        const navMistakeBadge = document.getElementById('nav-mistake-badge');
+        if (mistakeWords.length > 0) {
+          navMistakeBadge.classList.remove('hidden');
+          navMistakeBadge.innerText = mistakeWords.length;
+        } else {
+          navMistakeBadge.classList.add('hidden');
+        }
+
+        // 智能模式推荐决策引擎
+        this.renderSmartBanner(dueCount, mistakeWords.length, coverageRate);
+
+        // 渲染规则覆盖条
+        this.renderRuleCategoryBars();
+      }
+
+      // 智能推荐算法与 Banner 渲染
+      renderSmartBanner(dueCount, mistakeCount, coverageRate) {
+        const banner = document.getElementById('smart-recommendation-banner');
+        let title = '';
+        let desc = '';
+        let actionBtnText = '';
+        let targetMode = '';
+        let colorClass = '';
+
+        if (dueCount > 0) {
+          title = `⏰ 艾宾浩斯遗忘警报：今日有 ${dueCount} 个动词到达记忆临界点！`;
+          desc = `人类记忆每到第 1/2/4/7 天会剧烈衰减。系统建议立即开启【每日温故模式】，只需 2 分钟即可把遗忘拉回巩固区！`;
+          actionBtnText = '立即进行艾宾浩斯复习 🚀';
+          targetMode = 'DAILY_REVIEW';
+          colorClass = 'bg-amber-950/30 border-amber-500/40 text-amber-200';
+        } else if (mistakeCount >= 3) {
+          title = `🎯 诊断报告：历史积累了 ${mistakeCount} 个易混淆顽疾错题！`;
+          desc = `检测到在 -ic 变 k 特例、辅音双写或 ABB 阵营存在失误。建议启动【弱点定点爆破模式】，逐个击破！`;
+          actionBtnText = '开启弱点歼灭战 💥';
+          targetMode = 'WEAKNESS';
+          colorClass = 'bg-rose-950/30 border-rose-500/40 text-rose-200';
+        } else if (coverageRate < 70) {
+          title = `🏆 战役探索推荐：题库覆盖率为 ${coverageRate}%，继续开拓新规则！`;
+          desc = `建议进入【时态符文战役模式】，按照由浅入深的阶梯关卡，系统掌握动词变异大厦！`;
+          actionBtnText = '继续闯关战役 ⚔️';
+          targetMode = 'CAMPAIGN';
+          colorClass = 'bg-indigo-950/30 border-indigo-500/40 text-indigo-200';
+        } else {
+          title = `⚡ 巅峰测速推荐：基础已非常稳固！挑战极速连击生存！`;
+          desc = `3 条命限时 6 秒抢答，测试你对动词时态与形态的下意识条件反射直觉！`;
+          actionBtnText = '进入极速生存模式 ⚡';
+          targetMode = 'SPEED_SPRINT';
+          colorClass = 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200';
+        }
+
+        banner.className = `rounded-2xl p-5 border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${colorClass}`;
+        banner.innerHTML = `
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded-md bg-white/10 text-xs font-mono font-bold tracking-wider uppercase">智能向导推荐</span>
+              <h3 class="font-bold text-sm sm:text-base text-white">${title}</h3>
+            </div>
+            <p class="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">${desc}</p>
+          </div>
+          <button onclick="app.startMode('${targetMode}')" class="shrink-0 px-4 py-2.5 rounded-xl bg-white text-slate-950 hover:bg-slate-100 text-xs font-black shadow-lg transition">
+            ${actionBtnText}
+          </button>
+        `;
+      }
+
+      // 渲染规则分类柱状条
+      renderRuleCategoryBars() {
+        const container = document.getElementById('rule-category-bars');
+        const categories = [
+          { name: '⭐ 核心必考特例 (-ic 加 k 规则: picnic/panic/mimic等)', filter: v => v.rules.ing === 'RULE_IC_SPECIAL' },
+          { name: '🌀 现在分词四规律 (双写CVC / 不发音e / ie变y)', filter: v => ['RULE_ING_CVC', 'RULE_ING_SILENT_E', 'RULE_ING_IE'].includes(v.rules.ing) },
+          { name: '🛡️ 规则过去式四变化 (+ed / +d / 双写 / 辅音+y变ied)', filter: v => ['RULE_ED_GENERAL', 'RULE_ED_E', 'RULE_ED_CVC', 'RULE_ED_CONSONANT_Y'].includes(v.rules.past) },
+          { name: '⚡ 不规则五大阵营 (AAA / AAB / ABA / ABB / ABC)', filter: v => ['AAA', 'AAB', 'ABA', 'ABB', 'ABC'].includes(v.rules.type) },
+          { name: '🔥 第三人称单数真不规则 (be/is, have/has & es)', filter: v => v.rules.s === 'RULE_S_IRREG' || v.rules.s === 'RULE_S_ES' },
+        ];
+
+        let html = '';
+        categories.forEach(cat => {
+          const list = VERB_KNOWLEDGE_BASE.filter(cat.filter);
+          const total = list.length;
+          let practiced = 0;
+          let correctTotal = 0;
+          let attemptTotal = 0;
+
+          list.forEach(item => {
+            const card = this.state.cards[item.id];
+            if (card && card.attempts > 0) {
+              practiced++;
+              correctTotal += card.correct;
+              attemptTotal += card.attempts;
+            }
+          });
+
+          const pct = Math.round((practiced / total) * 100);
+          const acc = attemptTotal > 0 ? Math.round((correctTotal / attemptTotal) * 100) : 0;
+
+          html += `
+            <div>
+              <div class="flex justify-between items-center text-slate-300 mb-1">
+                <span class="font-medium">${cat.name}</span>
+                <span class="font-mono text-slate-400">覆盖: <b class="text-white">${practiced}/${total}</b> (${pct}%) | 准确率: <b class="${acc >= 80 ? 'text-emerald-400' : 'text-amber-400'}">${acc}%</b></span>
+              </div>
+              <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-indigo-500 to-violet-500 h-full rounded-full transition-all" style="width: ${pct}%"></div>
+              </div>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      }
+
+      // 生成一道题目
+      generateQuestion(verb) {
+        // 如果是词性辨析模式特殊题目
+        if (verb.sentence) {
+          return {
+            type: 'ROLE',
+            baseWord: verb.base,
+            translation: '词性概念深度辨析',
+            phonetic: '',
+            targetText: '词性功能判决',
+            sentence: verb.sentence,
+            correctAnswer: verb.correct,
+            options: [...verb.options].sort(() => Math.random() - 0.5),
+            explanation: verb.explanation,
+            pitfalls: '牢记：分词具有形容词性，动名词具有名词性！'
+          };
+        }
+
+        // 确定该词要考查的形态 (若为不规则重点考 past 或 past_participle；若为-ic特例考 ing 或 past)
+        const targetOptions = [];
+        if (verb.rules.ing) targetOptions.push('ing');
+        if (verb.rules.past) targetOptions.push('past');
+        if (verb.rules.past_participle && verb.forms.past_participle !== verb.forms.past) targetOptions.push('past_participle');
+        if (verb.rules.s) targetOptions.push('third_singular');
+
+        const targetAspect = targetOptions[Math.floor(Math.random() * targetOptions.length)] || 'ing';
+        const correctAnswer = verb.forms[targetAspect];
+
+        let targetText = '';
+        if (targetAspect === 'ing') targetText = '现在分词 / 动名词 (-ing)';
+        else if (targetAspect === 'past') targetText = '过去式 (-ed / 不规则)';
+        else if (targetAspect === 'past_participle') targetText = '过去分词 (Past Participle)';
+        else if (targetAspect === 'third_singular') targetText = '第三人称单数 (s / es)';
+
+        // 收集干扰项 (优先预设干扰项，其次动态混淆生成)
+        const distractors = [];
+        if (verb.distractors && verb.distractors[targetAspect]) {
+          distractors.push(...verb.distractors[targetAspect]);
+        }
+        // 如果还不够 3 个，动态从其他词条借用或变异补充
+        while (distractors.length < 3) {
+          const rand = VERB_KNOWLEDGE_BASE[Math.floor(Math.random() * VERB_KNOWLEDGE_BASE.length)];
+          if (rand.forms[targetAspect] && rand.forms[targetAspect] !== correctAnswer && !distractors.includes(rand.forms[targetAspect])) {
+            distractors.push(rand.forms[targetAspect]);
+          } else {
+            distractors.push(correctAnswer + 's');
+          }
+        }
+
+        const options = [correctAnswer, ...distractors.slice(0, 3)].sort(() => Math.random() - 0.5);
+
+        return {
+          type: 'INFLECTION',
+          verbId: verb.id,
+          baseWord: verb.base,
+          phonetic: verb.phonetic,
+          translation: verb.translation,
+          targetAspect: targetAspect,
+          targetText: targetText,
+          correctAnswer: correctAnswer,
+          options: options,
+          explanation: verb.explanation,
+          pitfalls: verb.distractors && verb.distractors[targetAspect] ? `经典易混陷阱：${verb.distractors[targetAspect].join(', ')}` : '注意拼写规则与特殊变态！'
+        };
+      }
+
+      // 启动模式
+      startMode(modeName) {
+        this.currentMode = modeName;
+        this.quizQueue = [];
+        this.currentIndex = 0;
+        this.sessionCorrect = 0;
+        this.sessionCombo = 0;
+        this.maxComboInSession = 0;
+        this.lives = 3;
+
+        const { dueWords, mistakeWords } = this.calcSpacedRepetitionMetrics();
+
+        if (modeName === 'DAILY_REVIEW') {
+          let pool = dueWords.length > 0 ? dueWords : VERB_KNOWLEDGE_BASE.slice(0, 10);
+          this.quizQueue = [...pool].sort(() => Math.random() - 0.5).slice(0, 15);
+        } else if (modeName === 'WEAKNESS') {
+          let pool = mistakeWords.length > 0 ? mistakeWords : VERB_KNOWLEDGE_BASE.filter(v => v.rules.ing === 'RULE_IC_SPECIAL');
+          this.quizQueue = [...pool].sort(() => Math.random() - 0.5).slice(0, 10);
+        } else if (modeName === 'CAMPAIGN') {
+          // 混合闯关
+          this.quizQueue = [...VERB_KNOWLEDGE_BASE].sort(() => Math.random() - 0.5).slice(0, 10);
+        } else if (modeName === 'SPEED_SPRINT') {
+          this.quizQueue = [...VERB_KNOWLEDGE_BASE].sort(() => Math.random() - 0.5).slice(0, 25);
+        } else if (modeName === 'FREE_LAB') {
+          // 混合加入词性题和特殊变k题
+          const mixed = [...VERB_KNOWLEDGE_BASE, ...SYNTAX_ROLE_QUESTIONS];
+          this.quizQueue = mixed.sort(() => Math.random() - 0.5).slice(0, 12);
+        }
+
+        this.navigate('arena');
+        this.renderArenaHeader();
+        this.loadCurrentQuestion();
+      }
+
+      exitArena() {
+        if (confirm('确定退出当前试炼吗？已作答进度已自动存档。')) {
+          clearInterval(this.timerInterval);
+          this.navigate('dashboard');
+        }
+      }
+
+      renderArenaHeader() {
+        const hpContainer = document.getElementById('arena-hp-container');
+        const timerWrap = document.getElementById('arena-timer-bar-wrap');
+
+        if (this.currentMode === 'SPEED_SPRINT') {
+          hpContainer.classList.remove('hidden');
+          timerWrap.classList.remove('hidden');
+          this.renderHearts();
+        } else {
+          hpContainer.classList.add('hidden');
+          timerWrap.classList.add('hidden');
+        }
+
+        document.getElementById('arena-combo-text').innerText = `${this.sessionCombo} Combo`;
+      }
+
+      renderHearts() {
+        const hpContainer = document.getElementById('arena-hp-container');
+        let hearts = '';
+        for (let i = 0; i < 3; i++) {
+          hearts += i < this.lives ? '❤️' : '🖤';
+        }
+        hpContainer.innerHTML = hearts;
+      }
+
+      // 加载当前题目
+      loadCurrentQuestion() {
+        clearInterval(this.timerInterval);
+        document.getElementById('arena-feedback-drawer').classList.add('hidden');
+
+        if (this.currentIndex >= this.quizQueue.length || (this.currentMode === 'SPEED_SPRINT' && this.lives <= 0)) {
+          this.finishQuizSession();
+          return;
+        }
+
+        const rawItem = this.quizQueue[this.currentIndex];
+        this.currentQuestion = this.generateQuestion(rawItem);
+
+        // 更新UI
+        document.getElementById('arena-progress-text').innerText = `${this.currentIndex + 1} / ${this.quizQueue.length}`;
+        document.getElementById('arena-target-badge').innerText = `⚡ ${this.currentQuestion.targetText}`;
+        document.getElementById('arena-base-word').innerText = this.currentQuestion.baseWord;
+        document.getElementById('arena-phonetic').innerText = this.currentQuestion.phonetic || '';
+        document.getElementById('arena-translation').innerText = this.currentQuestion.translation;
+
+        const sentenceBox = document.getElementById('arena-sentence-box');
+        if (this.currentQuestion.sentence) {
+          sentenceBox.classList.remove('hidden');
+          sentenceBox.innerHTML = this.currentQuestion.sentence;
+        } else {
+          sentenceBox.classList.add('hidden');
+        }
+
+        // 渲染 4 个选项
+        const grid = document.getElementById('arena-options-grid');
+        grid.innerHTML = '';
+        this.currentQuestion.options.forEach((opt, idx) => {
+          const btn = document.createElement('button');
+          btn.className = 'w-full text-left p-3.5 sm:p-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 hover:border-indigo-500 text-slate-100 text-sm font-semibold transition flex items-center justify-between group active:scale-[0.98]';
+          btn.innerHTML = `
+            <div class="flex items-center gap-3">
+              <span class="w-6 h-6 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-xs font-mono text-slate-400 group-hover:text-indigo-400 group-hover:border-indigo-500/50 transition">
+                ${idx + 1}
+              </span>
+              <span class="font-mono text-base">${opt}</span>
+            </div>
+          `;
+          btn.onclick = () => this.handleAnswer(opt, btn);
+          grid.appendChild(btn);
+        });
+
+        // 极速模式倒计时
+        if (this.currentMode === 'SPEED_SPRINT') {
+          this.timeLeft = 6;
+          const bar = document.getElementById('arena-timer-bar');
+          bar.style.width = '100%';
+          this.timerInterval = setInterval(() => {
+            this.timeLeft -= 0.1;
+            const pct = Math.max(0, (this.timeLeft / 6) * 100);
+            bar.style.width = `${pct}%`;
+            if (this.timeLeft <= 0) {
+              clearInterval(this.timerInterval);
+              this.handleTimeout();
+            }
+          }, 100);
+        }
+      }
+
+      // 处理超时
+      handleTimeout() {
+        this.handleAnswer('TIMEOUT', null);
+      }
+
+      // 处理用户答题
+      handleAnswer(userChoice, targetBtn) {
+        clearInterval(this.timerInterval);
+        const q = this.currentQuestion;
+        const isCorrect = (userChoice === q.correctAnswer);
+
+        // 禁用所有选项按钮
+        const buttons = document.querySelectorAll('#arena-options-grid button');
+        buttons.forEach(b => {
+          b.disabled = true;
+          const optText = b.querySelector('.font-mono').innerText.trim();
+          if (optText === q.correctAnswer) {
+            b.classList.remove('bg-slate-800/80', 'border-slate-700');
+            b.classList.add('bg-emerald-950/60', 'border-emerald-500', 'text-emerald-200');
+          } else if (b === targetBtn && !isCorrect) {
+            b.classList.remove('bg-slate-800/80', 'border-slate-700');
+            b.classList.add('bg-rose-950/60', 'border-rose-500', 'text-rose-200');
+          }
+        });
+
+        // 记录统计和声音
+        if (isCorrect) {
+          this.sound.playCorrect(this.sessionCombo + 1);
+          this.sessionCorrect++;
+          this.sessionCombo++;
+          this.state.streak++;
+          if (this.sessionCombo > this.maxComboInSession) this.maxComboInSession = this.sessionCombo;
+        } else {
+          this.sound.playError();
+          this.sessionCombo = 0;
+          this.state.streak = 0;
+          document.getElementById('arena-card').classList.add('shake-anim');
+          setTimeout(() => document.getElementById('arena-card').classList.remove('shake-anim'), 400);
+
+          if (this.currentMode === 'SPEED_SPRINT') {
+            this.lives--;
+            this.renderHearts();
+          }
+        }
+
+        this.state.totalAttempts++;
+        if (isCorrect) this.state.totalCorrect++;
+        document.getElementById('arena-combo-text').innerText = `${this.sessionCombo} Combo`;
+        document.getElementById('header-streak').innerText = this.state.streak;
+
+        // 更新艾宾浩斯记忆模型
+        if (q.verbId) {
+          this.updateWordMemoryState(q.verbId, isCorrect);
+        }
+
+        // 保存日志
+        this.state.logs.unshift({
+          timestamp: Date.now(),
+          wordId: q.verbId || q.baseWord,
+          isCorrect: isCorrect,
+          userChoice: userChoice,
+          correctAnswer: q.correctAnswer,
+          mode: this.currentMode
+        });
+        if (this.state.logs.length > 500) this.state.logs.pop();
+        this.saveState();
+
+        // 弹出规则溯源卡
+        this.showFeedbackDrawer(isCorrect);
+      }
+
+      // 更新单词记忆模型
+      updateWordMemoryState(wordId, isCorrect) {
+        const card = this.getWordCard(wordId);
+        card.attempts++;
+        const now = this.getCurrentDate().getTime();
+        card.lastPracticedAt = now;
+
+        const scheduleDays = [1, 2, 4, 7, 15, 30];
+
+        if (isCorrect) {
+          card.correct++;
+          if (card.level < 6) card.level++;
+        } else {
+          card.wrong++;
+          // 答错严重降级
+          card.level = 1;
+        }
+
+        const intervalDays = scheduleDays[Math.min(card.level, scheduleDays.length - 1)];
+        card.stabilityDays = intervalDays;
+        card.nextReviewAt = now + (intervalDays * 24 * 3600 * 1000);
+      }
+
+      // 显示解析与下一题按钮
+      showFeedbackDrawer(isCorrect) {
+        const drawer = document.getElementById('arena-feedback-drawer');
+        const icon = document.getElementById('feedback-icon');
+        const title = document.getElementById('feedback-title');
+        const sub = document.getElementById('feedback-subtitle');
+        const ruleExp = document.getElementById('feedback-rule-exp');
+        const pitfalls = document.getElementById('feedback-pitfalls');
+
+        drawer.classList.remove('hidden');
+        if (isCorrect) {
+          drawer.className = 'bg-slate-900 border border-emerald-500/40 rounded-2xl p-5 shadow-lg';
+          icon.innerText = '✨';
+          title.className = 'font-bold text-sm text-emerald-400';
+          title.innerText = '回答正确！';
+          sub.innerText = `命中目标形态！当前已连续答对 ${this.sessionCombo} 题。`;
+        } else {
+          drawer.className = 'bg-slate-900 border border-rose-500/40 rounded-2xl p-5 shadow-lg';
+          icon.innerText = '⚠️';
+          title.className = 'font-bold text-sm text-rose-400';
+          title.innerText = `失误！正确答案为：${this.currentQuestion.correctAnswer}`;
+          sub.innerText = '已将该词条自动归入错题档案，下次复习周期已重置。';
+        }
+
+        ruleExp.innerText = this.currentQuestion.explanation;
+        pitfalls.innerText = this.currentQuestion.pitfalls;
+      }
+
+      nextQuestion() {
+        this.currentIndex++;
+        this.loadCurrentQuestion();
+      }
+
+      // 试炼结束结算
+      finishQuizSession() {
+        clearInterval(this.timerInterval);
+        this.navigate('summary');
+
+        const totalQ = this.currentIndex;
+        const acc = totalQ > 0 ? Math.round((this.sessionCorrect / totalQ) * 100) : 0;
+
+        document.getElementById('summary-score').innerText = `${this.sessionCorrect} / ${totalQ}`;
+        document.getElementById('summary-acc').innerText = `${acc}%`;
+        document.getElementById('summary-combo').innerText = this.maxComboInSession;
+
+        const icon = document.getElementById('summary-icon');
+        const title = document.getElementById('summary-title');
+        const sub = document.getElementById('summary-subtitle');
+
+        if (acc >= 90) {
+          icon.innerText = '👑';
+          title.innerText = '宗师级表现！完美过关！';
+          sub.innerText = '你的动词时态与形态记忆固若金汤，已成功强化至长效突触记忆。';
+        } else if (acc >= 70) {
+          icon.innerText = '🎉';
+          title.innerText = '通关成功！良好熟练度！';
+          sub.innerText = '绝大多数规则均已掌握，少量易混淆词汇已安排在后续复习节点。';
+        } else {
+          icon.innerText = '🧗';
+          title.innerText = '继续加油！还需多加巩固！';
+          sub.innerText = '检测到部分易错陷阱，错题已经入库，建议多使用【弱点歼灭模式】针对性练习。';
+        }
+      }
+
+      replayCurrentMode() {
+        this.startMode(this.currentMode || 'CAMPAIGN');
+      }
+
+      // 渲染知识法典与错题本 (CODEX)
+      setCodexFilter(filter) {
+        this.currentFilter = filter;
+        const buttons = document.querySelectorAll('#codex-filter-buttons button');
+        buttons.forEach(b => {
+          b.className = 'px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300';
+        });
+        event.target.className = 'px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-medium';
+        this.renderCodex();
+      }
+
+      renderCodex() {
+        const tbody = document.getElementById('codex-table-body');
+        const endOfToday = this.getEndOfTodayTimestamp();
+
+        let list = VERB_KNOWLEDGE_BASE.filter(verb => {
+          const card = this.state.cards[verb.id];
+          if (this.currentFilter === 'DUE') {
+            return card && card.nextReviewAt && card.nextReviewAt <= endOfToday;
+          }
+          if (this.currentFilter === 'MISTAKE') {
+            return card && card.wrong > 0;
+          }
+          if (this.currentFilter === 'IC_SPECIAL') {
+            return verb.rules.ing === 'RULE_IC_SPECIAL';
+          }
+          if (this.currentFilter === 'IRREGULAR') {
+            return ['AAA', 'AAB', 'ABA', 'ABB', 'ABC'].includes(verb.rules.type);
+          }
+          if (this.currentFilter === 'MASTERED') {
+            return card && card.level >= 4;
+          }
+          return true;
+        });
+
+        document.getElementById('codex-filtered-count').innerText = list.length;
+        let html = '';
+
+        list.forEach(verb => {
+          const card = this.state.cards[verb.id] || { level: 0, attempts: 0, correct: 0, wrong: 0 };
+          let statusBadge = '<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400">未学习</span>';
+          let reviewTimeText = '—';
+
+          if (card.attempts > 0) {
+            if (card.level >= 4) {
+              statusBadge = '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">🟢 稳固掌握</span>';
+            } else if (card.nextReviewAt && card.nextReviewAt <= endOfToday) {
+              const daysOverdue = (endOfToday - card.nextReviewAt) / (1000 * 3600 * 24);
+              if (daysOverdue > card.stabilityDays * 2) {
+                statusBadge = '<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">🔴 记忆生锈</span>';
+              } else {
+                statusBadge = '<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">🟡 今日到期</span>';
+              }
+            } else {
+              statusBadge = '<span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">🔵 巩固中</span>';
+            }
+
+            if (card.nextReviewAt) {
+              const d = new Date(card.nextReviewAt);
+              reviewTimeText = `${d.getMonth() + 1}月${d.getDate()}日`;
+            }
+          }
+
+          let typeBadge = '';
+          if (verb.rules.type && verb.rules.type !== 'NONE') {
+            typeBadge = `<span class="px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 border border-violet-500/30 text-[10px] font-mono mr-1">${verb.rules.type}型</span>`;
+          }
+          if (verb.rules.ing === 'RULE_IC_SPECIAL') {
+            typeBadge += `<span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-mono">ic变k特例</span>`;
+          }
+
+          html += `
+            <tr class="hover:bg-slate-800/40 transition">
+              <td class="py-3 px-4 font-bold text-white">
+                ${verb.base}
+                <div class="text-[11px] text-slate-400 font-normal">${verb.translation}</div>
+              </td>
+              <td class="py-3 px-3 font-mono text-indigo-300">${verb.forms.ing}</td>
+              <td class="py-3 px-3 font-mono text-slate-200">
+                ${verb.forms.past} / <span class="text-slate-400">${verb.forms.past_participle}</span>
+              </td>
+              <td class="py-3 px-3">${typeBadge || '<span class="text-slate-500">常规规则</span>'}</td>
+              <td class="py-3 px-3">${statusBadge}</td>
+              <td class="py-3 px-3 font-mono">
+                <span class="text-emerald-400">${card.correct}</span> / <span class="text-rose-400">${card.wrong}</span>
+              </td>
+              <td class="py-3 px-3 font-mono text-slate-400">${reviewTimeText}</td>
+              <td class="py-3 px-3 text-right">
+                <button onclick="app.drillSingleWord('${verb.id}')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition text-[11px]">
+                  单独突击
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+
+        tbody.innerHTML = html;
+      }
+
+      drillSingleWord(wordId) {
+        const verb = VERB_KNOWLEDGE_BASE.find(v => v.id === wordId);
+        if (!verb) return;
+        this.currentMode = 'SINGLE_DRILL';
+        this.quizQueue = [verb];
+        this.currentIndex = 0;
+        this.sessionCorrect = 0;
+        this.sessionCombo = 0;
+        this.maxComboInSession = 0;
+        this.navigate('arena');
+        this.renderArenaHeader();
+        this.loadCurrentQuestion();
+      }
+
+      // 备份与存档管理弹窗
+      showBackupModal() {
+        document.getElementById('modal-backup').classList.remove('hidden');
+      }
+
+      closeBackupModal() {
+        document.getElementById('modal-backup').classList.add('hidden');
+      }
+
+      exportBackupJSON() {
+        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(this.state, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute('href', dataStr);
+        const dateStr = new Date().toISOString().slice(0, 10);
+        downloadAnchor.setAttribute('download', `verbmaster_backup_${dateStr}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+      }
+
+      importBackupJSON(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const imported = JSON.parse(e.target.result);
+            if (imported.cards && imported.logs) {
+              this.state = imported;
+              this.saveState();
+              alert('✅ 学习存档成功恢复！');
+              this.closeBackupModal();
+              this.renderDashboard();
+            } else {
+              alert('❌ 备份文件格式不兼容！');
+            }
+          } catch(err) {
+            alert('❌ 读取 JSON 文件失败：' + err.message);
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      resetAllProgress() {
+        if (confirm('⚠️ 警告：确定清空全部做题记录、记忆卡片与历史连击吗？此操作不可逆！')) {
+          this.state = this.getInitialState();
+          this.saveState();
+          this.closeBackupModal();
+          this.renderDashboard();
+          alert('数据已重置为全新状态。');
+        }
+      }
+    }
+
+    // 初始化应用
+    const app = new VerbMasterApp();
+  </script>
+</body>
+</html>
