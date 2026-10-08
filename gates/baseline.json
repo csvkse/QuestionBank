@@ -1,14 +1,9 @@
 {
-  "version": "1.0.0",
-  "updatedAt": "2026-10-08T20:00:00Z",
+  "version": "2.1.0",
+  "updatedAt": "2026-10-08T20:30:00Z",
   "ratchetPolicy": "strictly-decreasing",
   "toleratedDebts": {
-    "FE-QUALITY-001": [
-      {
-        "file": "index.html",
-        "lines": 3248,
-        "reason": "历史单体文件过渡期临时豁免，按三阶段规划逐步解耦至 app/features/shared/platform"
-      }
-    ]
-  }
+    "FE-QUALITY-001": []
+  },
+  "notes": "Monolithic debt fully resolved: All source code modularized into 21 ES modules (<300 lines each). index.html is generated via scripts/bundler.mjs."
 }

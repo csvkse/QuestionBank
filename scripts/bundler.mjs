@@ -1,49 +1,114 @@
 #!/usr/bin/env node
 
 /**
- * Knowledge Arena Zero-Dependency Bundler (scripts/bundler.mjs)
- * Dual-Mode Delivery Pipeline: Packages modular sources into standalone index.html
+ * Knowledge Arena Zero-Dependency Standalone Bundler
+ * Compiles Core 2.1 modular source files into standalone index.html
  */
 
 import fs from 'fs';
 import path from 'path';
 
 const ROOT_DIR = process.cwd();
-const DIST_FILE = path.join(ROOT_DIR, 'index.html');
 const PREVIEW_FILE = 'C:/Users/hlr/.gemini/antigravity/brain/637abdd2-f3fc-4287-ba7a-76db36116844/universal_knowledge_preview.html';
 
-console.log('\n📦 [Bundler] Starting Zero-Dependency Standalone Build Pipeline...');
+console.log('\n' + '='.repeat(68));
+console.log('📦  KNOWLEDGE ARENA STANDALONE ZERO-DEP BUNDLER (v2.1)');
+console.log('='.repeat(68));
 const startTime = Date.now();
 
 try {
-  if (!fs.existsSync(DIST_FILE)) {
-    throw new Error('Source index.html does not exist');
+  // 1. 读取 app-shell.html
+  const shellPath = path.join(ROOT_DIR, 'app/app-shell.html');
+  if (!fs.existsSync(shellPath)) {
+    throw new Error('app/app-shell.html not found');
   }
+  let shellHtml = fs.readFileSync(shellPath, 'utf8');
 
-  const content = fs.readFileSync(DIST_FILE, 'utf8');
-  
-  // 1. 验证 AST / Script 语法合规
-  const scriptMatch = content.match(/<script>([\s\S]*?)<\/script>/);
-  if (!scriptMatch) {
-    throw new Error('No embedded script block found in distribution template');
+  // 2. 依次读取模块文件 (拓扑依赖序)
+  const modules = [
+    'shared/builtin-decks.js',
+    'shared/sm2-scheduler.js',
+    'shared/distractor-sampler.js',
+    'shared/markdown-ast.js',
+    'shared/deck-validator.js',
+    'platform/audio/web-audio-synth.js',
+    'platform/storage/local-storage-adapter.js',
+    'platform/exporter/file-exporter.js',
+    'design-system/components/modal.js',
+    'design-system/components/pill.js',
+    'features/arena/combo-effect.js',
+    'features/arena/quiz-runner.js',
+    'features/study-hub/matrix-console.js',
+    'features/study-hub/tree-renderer.js',
+    'features/deck-studio/visual-editor.js',
+    'features/deck-studio/markdown-editor.js',
+    'features/deck-manager/deck-crud.js',
+    'features/review-board/timeline-board.js',
+    'features/review-board/radar-chart.js',
+    'app/router.js',
+    'app/main.js'
+  ];
+
+  let bundleJs = '/**\n * Bundled Standalone Runtime for Knowledge Arena\n * Generated automatically by scripts/bundler.mjs\n */\n\n(function() {\n  "use strict";\n\n';
+
+  modules.forEach(modPath => {
+    const fullPath = path.join(ROOT_DIR, modPath);
+    let code = fs.readFileSync(fullPath, 'utf8');
+
+    // 剥离 import 语句
+    code = code.replace(/^\s*import\s+.*?;?\s*$/gm, '');
+    code = code.replace(/^\s*import\s*\{[\s\S]*?\}\s*from\s*['"].*?['"];?\s*$/gm, '');
+
+    // 转换 export 声明
+    code = code.replace(/^\s*export\s+const\s+/gm, 'const ');
+    code = code.replace(/^\s*export\s+let\s+/gm, 'let ');
+    code = code.replace(/^\s*export\s+function\s+/gm, 'function ');
+    code = code.replace(/^\s*export\s+class\s+/gm, 'class ');
+    code = code.replace(/^\s*export\s*\{[\s\S]*?\};?\s*$/gm, '');
+    code = code.replace(/^\s*export\s+default\s+/gm, 'const defaultExport = ');
+
+    bundleJs += `  // --- Module: ${modPath} ---\n`;
+    bundleJs += code.trim() + '\n\n';
+  });
+
+  // 注入启动引导
+  bundleJs += `
+  // --- Bootstrap Entry ---
+  const app = new KnowledgeMasterApp();
+  window.app = app;
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    app.init();
+  } else {
+    window.addEventListener('DOMContentLoaded', () => app.init());
   }
+})();
+`;
 
-  // 语法验证
-  new Function(scriptMatch[1]);
+  // 3. 语法验证
+  new Function(bundleJs);
 
-  // 2. 同步至预览镜像文件
+  // 4. 合成最终单文件
+  const scriptTag = `  <!-- 核心逻辑脚本 (由工程化打包器自动化编译) -->\n  <script>\n${bundleJs}  </script>\n`;
+  const finalHtml = shellHtml.replace('<!-- INJECT_SCRIPTS -->', scriptTag);
+
+  const outputPath = path.join(ROOT_DIR, 'index.html');
+  fs.writeFileSync(outputPath, finalHtml, 'utf8');
+
+  // 5. 同步至预览镜像
   if (fs.existsSync(path.dirname(PREVIEW_FILE))) {
-    fs.copyFileSync(DIST_FILE, PREVIEW_FILE);
+    fs.writeFileSync(PREVIEW_FILE, finalHtml, 'utf8');
   }
 
   const elapsed = Date.now() - startTime;
-  const stat = fs.statSync(DIST_FILE);
+  const stat = fs.statSync(outputPath);
 
-  console.log(`✅ [Bundler] Build Succeeded in ${elapsed}ms!`);
-  console.log(`   产物路径 : ${DIST_FILE}`);
-  console.log(`   文件体积 : ${(stat.size / 1024).toFixed(1)} KB`);
-  console.log(`   运行模式 : 100% 纯本地离线单文件 · 零服务器依赖 · 双击即开\n`);
+  console.log(`✅  Bundle Compiled Successfully in ${elapsed}ms!`);
+  console.log(`    Output Asset : ${outputPath}`);
+  console.log(`    Bundle Size  : ${(stat.size / 1024).toFixed(1)} KB`);
+  console.log(`    Modules Count: ${modules.length} modules packaged`);
+  console.log('='.repeat(68) + '\n');
 } catch (err) {
-  console.error(`❌ [Bundler] Build Failed: ${err.message}\n`);
+  console.error('\n❌  Bundle Compilation FAILED:', err.message);
   process.exit(1);
 }

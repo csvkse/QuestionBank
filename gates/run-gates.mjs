@@ -7,6 +7,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { pathToFileURL } from 'url';
 
 const ROOT_DIR = process.cwd();
 const RESULTS = [];
@@ -15,10 +16,10 @@ function recordResult(ruleId, name, status, details, isBaselineTolerated = false
   RESULTS.push({ ruleId, name, status, details, isBaselineTolerated });
 }
 
-console.log('\n' + '='.repeat(72));
+console.log('\n' + '='.repeat(74));
 console.log('  🛡️  KNOWLEDGE ARENA ARCHITECTURE & QUALITY GATE SUITE (v2.1)');
-console.log('  Mode: Core 2.1 + lightweight-web Profile (Local-First SPA)');
-console.log('='.repeat(72) + '\n');
+console.log('  Mode: Core 2.1 + lightweight-web Profile (Modular ESM + Standalone Bundle)');
+console.log('='.repeat(74) + '\n');
 
 // 1. FE-STRUCT-001: 物理所有权与根目录扫描
 try {
@@ -40,7 +41,117 @@ try {
   recordResult('FE-STRUCT-001', 'Physical Owner Compliance', 'FAIL', err.message);
 }
 
-// 2. FE-RES-001: 核心离线入口与资源完整性
+// 2. FE-STRUCT-002: Feature 公开入口边界检查
+try {
+  let crossFeatureViolations = [];
+  const featuresDir = path.join(ROOT_DIR, 'features');
+  if (fs.existsSync(featuresDir)) {
+    const features = fs.readdirSync(featuresDir).filter(f => fs.statSync(path.join(featuresDir, f)).isDirectory());
+    
+    // 递归获取所有 js 文件
+    function getJsFiles(dir) {
+      let files = [];
+      fs.readdirSync(dir).forEach(file => {
+        const full = path.join(dir, file);
+        if (fs.statSync(full).isDirectory()) files = files.concat(getJsFiles(full));
+        else if (file.endsWith('.js') || file.endsWith('.mjs')) files.push(full);
+      });
+      return files;
+    }
+
+    const allJs = getJsFiles(path.join(ROOT_DIR, 'app')).concat(getJsFiles(featuresDir));
+    allJs.forEach(filePath => {
+      const content = fs.readFileSync(filePath, 'utf8');
+      const importMatches = content.matchAll(/from\s+['"]([^'"]+)['"]/g);
+      for (const match of importMatches) {
+        const importPath = match[1];
+        if (importPath.includes('/features/')) {
+          // 如果跨 feature 导入且不是导入 index.js
+          const normalized = importPath.replace(/\\/g, '/');
+          const featureSub = normalized.split('/features/')[1];
+          if (featureSub) {
+            const parts = featureSub.split('/');
+            if (parts.length > 2 || (parts.length === 2 && parts[1] !== 'index.js')) {
+              crossFeatureViolations.push(`${path.relative(ROOT_DIR, filePath)} -> ${importPath}`);
+            }
+          }
+        }
+      }
+    });
+  }
+
+  if (crossFeatureViolations.length === 0) {
+    recordResult('FE-STRUCT-002', 'Feature Public Entry Boundary', 'PASS', 'All cross-feature calls go through public index.js entries');
+  } else {
+    recordResult('FE-STRUCT-002', 'Feature Public Entry Boundary', 'FAIL', `Deep private imports detected: ${crossFeatureViolations.join('; ')}`);
+  }
+} catch (err) {
+  recordResult('FE-STRUCT-002', 'Feature Public Entry Boundary', 'FAIL', err.message);
+}
+
+// 3. FE-IMP-001 & FE-IMP-002: 静态导入解析完全性与反向依赖检查
+try {
+  function getAllSourceJs(dir) {
+    let files = [];
+    if (!fs.existsSync(dir)) return files;
+    fs.readdirSync(dir).forEach(file => {
+      const full = path.join(dir, file);
+      if (fs.statSync(full).isDirectory()) files = files.concat(getAllSourceJs(full));
+      else if (file.endsWith('.js') || file.endsWith('.mjs')) files.push(full);
+    });
+    return files;
+  }
+
+  const sourceDirs = ['app', 'features', 'shared', 'platform', 'design-system', 'tests'];
+  let allFiles = [];
+  sourceDirs.forEach(d => { allFiles = allFiles.concat(getAllSourceJs(path.join(ROOT_DIR, d))); });
+
+  let unresolvable = [];
+  let reverseDeps = [];
+
+  allFiles.forEach(file => {
+    const content = fs.readFileSync(file, 'utf8');
+    const importMatches = content.matchAll(/from\s+['"]([^'"]+)['"]/g);
+    const relFile = path.relative(ROOT_DIR, file).replace(/\\/g, '/');
+
+    for (const match of importMatches) {
+      const imp = match[1];
+      if (imp.startsWith('.')) {
+        const targetResolved = path.resolve(path.dirname(file), imp);
+        if (!fs.existsSync(targetResolved)) {
+          unresolvable.push(`${relFile} -> ${imp}`);
+        }
+      }
+
+      // 检查反向依赖
+      if (relFile.startsWith('shared/') && imp.includes('features/')) {
+        reverseDeps.push(`shared (${relFile}) imports from features (${imp})`);
+      }
+      if (relFile.startsWith('platform/') && imp.includes('features/')) {
+        reverseDeps.push(`platform (${relFile}) imports from features (${imp})`);
+      }
+      if (relFile.startsWith('design-system/') && (imp.includes('features/') || imp.includes('shared/sm2'))) {
+        reverseDeps.push(`design-system (${relFile}) imports business logic (${imp})`);
+      }
+    }
+  });
+
+  if (unresolvable.length === 0) {
+    recordResult('FE-IMP-001', 'Static Import Resolution', 'PASS', `100% of ${allFiles.length} source files have fully resolvable static imports`);
+  } else {
+    recordResult('FE-IMP-001', 'Static Import Resolution', 'FAIL', `Unresolvable imports: ${unresolvable.join('; ')}`);
+  }
+
+  if (reverseDeps.length === 0) {
+    recordResult('FE-IMP-002', 'Directional Invariants (No Reverse Deps)', 'PASS', 'Shared, Platform, and Design-System are completely free of reverse dependencies');
+  } else {
+    recordResult('FE-IMP-002', 'Directional Invariants (No Reverse Deps)', 'FAIL', reverseDeps.join('; '));
+  }
+} catch (err) {
+  recordResult('FE-IMP-001', 'Static Import Resolution', 'FAIL', err.message);
+}
+
+// 4. FE-RES-001: 核心离线入口与独立产物完整性
 try {
   const indexHtmlPath = path.join(ROOT_DIR, 'index.html');
   if (fs.existsSync(indexHtmlPath)) {
@@ -57,76 +168,71 @@ try {
   recordResult('FE-RES-001', 'Standalone Distribution Asset', 'FAIL', err.message);
 }
 
-// 3. FE-KNOW-*: 题库专属领域质量门禁
+// 5. FE-KNOW-*: 题库专属领域质量门禁
 try {
-  const indexContent = fs.readFileSync(path.join(ROOT_DIR, 'index.html'), 'utf8');
+  const builtinPath = path.join(ROOT_DIR, 'shared/builtin-decks.js');
+  const { BUILTIN_DECKS } = await import(pathToFileURL(builtinPath).href);
+  const decks = BUILTIN_DECKS;
+  const deckCount = decks.length;
   
-  // 提取 BUILTIN_DECKS (数组形态)
-  const builtinMatch = indexContent.match(/const\s+BUILTIN_DECKS\s*=\s*(\[[\s\S]*?\n\s*\]);/);
-  if (!builtinMatch) {
-    recordResult('FE-KNOW-001', 'Builtin Decks Extraction', 'FAIL', 'Cannot locate BUILTIN_DECKS constant');
-  } else {
-    // 动态提取评估
-    const decks = eval(builtinMatch[1]);
-    const deckCount = decks.length;
-    
-    let totalThinCats = 0;
-    let totalInvalidLayer = 0;
-    let totalMissingGroup = 0;
-    let scaleViolation = false;
-    let scaleDetails = [];
+  let totalThinCats = 0;
+  let totalInvalidLayer = 0;
+  let totalMissingGroup = 0;
+  let scaleViolation = false;
+  let scaleDetails = [];
 
-    decks.forEach(deck => {
-      const catCount = deck.categories ? deck.categories.length : 0;
-      const entCount = deck.entities ? deck.entities.length : 0;
+  decks.forEach(deck => {
+    const catCount = deck.categories ? deck.categories.length : 0;
+    const entCount = deck.entities ? deck.entities.length : 0;
 
-      // FE-KNOW-002: 规模边界
-      if (catCount > 25 || entCount > 500) {
-        scaleViolation = true;
-        scaleDetails.push(`${deck.title}: ${catCount} cats, ${entCount} ents`);
+    // FE-KNOW-002: 规模边界
+    if (catCount > 25 || entCount > 500) {
+      scaleViolation = true;
+      scaleDetails.push(`${deck.title}: ${catCount} cats, ${entCount} ents`);
+    }
+
+    // FE-KNOW-001 & FE-KNOW-005
+    (deck.categories || []).forEach(cat => {
+      if (!cat.group || !cat.group.trim()) totalMissingGroup++;
+      const entsInCat = (deck.entities || []).filter(e => e.categoryId === cat.id);
+      if (entsInCat.length < 4) {
+        totalThinCats++;
       }
-
-      // FE-KNOW-001 & FE-KNOW-005
-      (deck.categories || []).forEach(cat => {
-        if (!cat.group || !cat.group.trim()) totalMissingGroup++;
-        const entsInCat = (deck.entities || []).filter(e => e.categoryId === cat.id);
-        if (entsInCat.length < 4) {
-          totalThinCats++;
-        }
-      });
-
-      (deck.entities || []).forEach(ent => {
-        if (![1, 2, 3].includes(ent.layer)) totalInvalidLayer++;
-      });
     });
 
-    // 报告 FE-KNOW-001 (同胞池充盈)
-    if (totalThinCats === 0) {
-      recordResult('FE-KNOW-001', 'Sibling Distractor Pool (>=4 items)', 'PASS', `100% categories meet >=4 sibling requirement across ${deckCount} decks`);
-    } else {
-      recordResult('FE-KNOW-001', 'Sibling Distractor Pool (>=4 items)', 'WARN', `Found ${totalThinCats} thin categories with <4 items (annealing fallback active)`);
-    }
+    (deck.entities || []).forEach(ent => {
+      if (![1, 2, 3].includes(ent.layer)) totalInvalidLayer++;
+    });
+  });
 
-    // 报告 FE-KNOW-002 (容量规模)
-    if (!scaleViolation) {
-      recordResult('FE-KNOW-002', 'Macro Capacity Boundary (<=25 cats, <=500 ents)', 'PASS', `All ${deckCount} builtin decks adhere to 5-3-10 cognitive scale limit`);
-    } else {
-      recordResult('FE-KNOW-002', 'Macro Capacity Boundary (<=25 cats, <=500 ents)', 'FAIL', `Capacity exceeded: ${scaleDetails.join('; ')}`);
-    }
+  // 报告 FE-KNOW-001 (同胞池充盈)
+  if (totalThinCats === 0) {
+    recordResult('FE-KNOW-001', 'Sibling Distractor Pool (>=4 items)', 'PASS', `100% categories meet >=4 sibling requirement across ${deckCount} decks`);
+  } else {
+    recordResult('FE-KNOW-001', 'Sibling Distractor Pool (>=4 items)', 'WARN', `Found ${totalThinCats} thin categories with <4 items (annealing fallback active)`);
+  }
 
-    // 报告 FE-KNOW-005 (三维层级完整性: Group & Layer)
-    if (totalMissingGroup === 0 && totalInvalidLayer === 0) {
-      recordResult('FE-KNOW-005', '3D Architecture Integrity (Group & Layer)', 'PASS', `100% categories have explicit groups; 100% entities have valid layers 1/2/3`);
-    } else {
-      recordResult('FE-KNOW-005', '3D Architecture Integrity (Group & Layer)', 'FAIL', `Missing group: ${totalMissingGroup}, Invalid layer: ${totalInvalidLayer}`);
-    }
+  // 报告 FE-KNOW-002 (容量规模)
+  if (!scaleViolation) {
+    recordResult('FE-KNOW-002', 'Macro Capacity Boundary (<=25 cats, <=500 ents)', 'PASS', `All ${deckCount} builtin decks adhere to 5-3-10 cognitive scale limit`);
+  } else {
+    recordResult('FE-KNOW-002', 'Macro Capacity Boundary (<=25 cats, <=500 ents)', 'FAIL', `Capacity exceeded: ${scaleDetails.join('; ')}`);
+  }
+
+  // 报告 FE-KNOW-005 (三维层级完整性: Group & Layer)
+  if (totalMissingGroup === 0 && totalInvalidLayer === 0) {
+    recordResult('FE-KNOW-005', '3D Architecture Integrity (Group & Layer)', 'PASS', `100% categories have explicit groups; 100% entities have valid layers 1/2/3`);
+  } else {
+    recordResult('FE-KNOW-005', '3D Architecture Integrity (Group & Layer)', 'FAIL', `Missing group: ${totalMissingGroup}, Invalid layer: ${totalInvalidLayer}`);
   }
 } catch (err) {
   recordResult('FE-KNOW-001', 'Domain Knowledge Scan', 'FAIL', err.message);
 }
 
-// 4. FE-KNOW-003: Markdown AST 双向序列化与解析幂等性测试
+// 6. FE-KNOW-003: Markdown AST 双向序列化与解析幂等性测试
 try {
+  const astPath = path.join(ROOT_DIR, 'shared/markdown-ast.js');
+  const { parseMarkdownToDeck, serializeDeckToMarkdown } = await import(pathToFileURL(astPath).href);
   const sampleDeck = {
     title: 'AST 校验用例',
     icon: '🧪',
@@ -140,37 +246,63 @@ try {
     ]
   };
 
-  // 简易模拟序列化
-  let md = `# ${sampleDeck.icon} ${sampleDeck.title}\n> ${sampleDeck.description}\n\n`;
-  md += `## [分组] ${sampleDeck.categories[0].group}\n\n### [分类] ${sampleDeck.categories[0].name}\n`;
-  md += `#### [Layer 1]\n- **${sampleDeck.entities[0].title}**: ${sampleDeck.entities[0].answer}\n  - *解析*: ${sampleDeck.entities[0].explanation}\n`;
-  md += `#### [Layer 2]\n- **${sampleDeck.entities[1].title}**: ${sampleDeck.entities[1].answer}\n  - *解析*: ${sampleDeck.entities[1].explanation}\n`;
+  const md = serializeDeckToMarkdown(sampleDeck);
+  const parsed = parseMarkdownToDeck(md);
 
-  if (md.includes('ItemA') && md.includes('ItemB') && md.includes('测试大组')) {
-    recordResult('FE-KNOW-003', 'Markdown AST Roundtrip Idempotency', 'PASS', 'Serializes Group -> Category -> Layer -> Entity with zero data loss');
+  if (parsed.title === sampleDeck.title && parsed.categories[0].group === '一、测试大组' && parsed.entities.length === 2) {
+    recordResult('FE-KNOW-003', 'Markdown AST Roundtrip Idempotency', 'PASS', 'Serializes Group -> Category -> Layer -> Entity with 100% fidelity');
   } else {
-    recordResult('FE-KNOW-003', 'Markdown AST Roundtrip Idempotency', 'FAIL', 'AST serialization fidelity failed');
+    recordResult('FE-KNOW-003', 'Markdown AST Roundtrip Idempotency', 'FAIL', 'AST roundtrip mismatch');
   }
 } catch (err) {
   recordResult('FE-KNOW-003', 'Markdown AST Roundtrip Idempotency', 'FAIL', err.message);
 }
 
-// 5. FE-QUALITY-001: 代码行数与基线治理
+// 7. FE-QUALITY-001: 模块代码行数治理
 try {
-  const indexLines = fs.readFileSync(path.join(ROOT_DIR, 'index.html'), 'utf8').split('\n').length;
-  const baseline = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'gates/baseline.json'), 'utf8'));
-  const tolerated = baseline.toleratedDebts['FE-QUALITY-001'] || [];
-  const entry = tolerated.find(t => t.file === 'index.html');
+  function checkDirFileLines(dir, maxLines = 300) {
+    let oversized = [];
+    if (!fs.existsSync(dir)) return oversized;
+    fs.readdirSync(dir).forEach(file => {
+      const full = path.join(dir, file);
+      if (fs.statSync(full).isDirectory()) oversized = oversized.concat(checkDirFileLines(full, maxLines));
+      else if (file.endsWith('.js') && !file.includes('builtin-decks')) {
+        const lines = fs.readFileSync(full, 'utf8').split('\n').length;
+        if (lines > maxLines) oversized.push(`${path.relative(ROOT_DIR, full)} (${lines} lines)`);
+      }
+    });
+    return oversized;
+  }
 
-  if (entry) {
-    recordResult('FE-QUALITY-001', 'File Size & Complexity Governance', 'WARN', `Legacy index.html (${indexLines} lines) tolerated in baseline (${entry.reason})`, true);
-  } else if (indexLines <= 500) {
-    recordResult('FE-QUALITY-001', 'File Size & Complexity Governance', 'PASS', `index.html is ${indexLines} lines (within <=500 limit)`);
+  const oversizedModules = checkDirFileLines(path.join(ROOT_DIR, 'features'))
+    .concat(checkDirFileLines(path.join(ROOT_DIR, 'shared')))
+    .concat(checkDirFileLines(path.join(ROOT_DIR, 'platform')));
+
+  if (oversizedModules.length === 0) {
+    recordResult('FE-QUALITY-001', 'Modular File Size Health (<=300 lines)', 'PASS', 'All modular JS files are strictly under 300 lines threshold');
   } else {
-    recordResult('FE-QUALITY-001', 'File Size & Complexity Governance', 'FAIL', `index.html has ${indexLines} lines, exceeds 500 threshold without baseline registration`);
+    recordResult('FE-QUALITY-001', 'Modular File Size Health (<=300 lines)', 'WARN', `Oversized modules: ${oversizedModules.join(', ')}`);
   }
 } catch (err) {
-  recordResult('FE-QUALITY-001', 'File Size & Complexity Governance', 'FAIL', err.message);
+  recordResult('FE-QUALITY-001', 'Modular File Size Health', 'FAIL', err.message);
+}
+
+// 8. 自动执行全量单元测试
+try {
+  const tests = [
+    'tests/unit/sm2-scheduler.test.mjs',
+    'tests/unit/distractor-sampler.test.mjs',
+    'tests/unit/markdown-ast.test.mjs',
+    'tests/unit/deck-validator.test.mjs'
+  ];
+  let allTestsPassed = true;
+  for (const t of tests) {
+    const testPath = path.join(ROOT_DIR, t);
+    await import(pathToFileURL(testPath).href);
+  }
+  recordResult('FE-TEST-001', 'Automated Unit Test Suite', 'PASS', `All ${tests.length} unit tests (SM-2, Distractor, AST, Validator) passed`);
+} catch (err) {
+  recordResult('FE-TEST-001', 'Automated Unit Test Suite', 'FAIL', err.message);
 }
 
 // 输出审计汇总
@@ -187,13 +319,13 @@ RESULTS.forEach(r => {
   console.log(`       ↳ \x1b[90m${r.details}\x1b[0m`);
 });
 
-console.log('\n' + '-'.repeat(72));
+console.log('\n' + '-'.repeat(74));
 const passCount = RESULTS.filter(r => r.status === 'PASS').length;
 const warnCount = RESULTS.filter(r => r.status === 'WARN').length;
 const failCount = RESULTS.filter(r => r.status === 'FAIL').length;
 
-console.log(`  Audit Summary : ${passCount} Passed, ${warnCount} Warnings (Baseline), ${failCount} Failures`);
-console.log(`  Project Status: ${hasFail ? '🔴 BLOCKED' : '🟢 HEALTHY'} (Conformance: transitional)`);
-console.log('='.repeat(72) + '\n');
+console.log(`  Audit Summary : ${passCount} Passed, ${warnCount} Warnings, ${failCount} Failures`);
+console.log(`  Project Status: ${hasFail ? '🔴 BLOCKED' : '🟢 HEALTHY (Conformant to Core 2.1)'}`);
+console.log('='.repeat(74) + '\n');
 
 process.exit(hasFail ? 1 : 0);

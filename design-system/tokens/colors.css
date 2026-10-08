@@ -1,0 +1,29 @@
+/**
+ * CyberRetro Design System Semantic Color Tokens
+ * Core: design-system/tokens/colors.css
+ */
+
+:root {
+  --color-bg-base: #020617;        /* slate-950 */
+  --color-bg-surface: #0f172a;     /* slate-900 */
+  --color-bg-surface-hover: #1e293b; /* slate-800 */
+  --color-border-subtle: #1e293b;  /* slate-800 */
+  --color-border-highlight: #334155; /* slate-700 */
+
+  --color-primary: #6366f1;        /* indigo-500 */
+  --color-primary-hover: #4f46e5;  /* indigo-600 */
+  --color-primary-glow: rgba(99, 102, 241, 0.25);
+
+  --color-success: #10b981;        /* emerald-500 */
+  --color-success-bg: rgba(16, 185, 129, 0.15);
+
+  --color-warning: #f59e0b;        /* amber-500 */
+  --color-warning-bg: rgba(245, 158, 11, 0.15);
+
+  --color-danger: #ef4444;         /* rose-500 */
+  --color-danger-bg: rgba(239, 68, 68, 0.15);
+
+  --color-text-main: #f8fafc;      /* slate-50 */
+  --color-text-muted: #94a3b8;     /* slate-400 */
+  --color-text-subtle: #64748b;    /* slate-500 */
+}
