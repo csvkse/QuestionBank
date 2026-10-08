@@ -24,6 +24,24 @@ try {
   }
   let shellHtml = fs.readFileSync(shellPath, 'utf8');
 
+  // 1.5. 读取并打包设计令牌 (Design Tokens: colors, typography, elevation, spacing)
+  const tokensDir = path.join(ROOT_DIR, 'design-system/tokens');
+  let bundleTokensCss = '';
+  let tokenCount = 0;
+  if (fs.existsSync(tokensDir)) {
+    const tokenFiles = ['colors.css', 'typography.css', 'elevation.css', 'spacing.css'];
+    tokenFiles.forEach(file => {
+      const tokenPath = path.join(tokensDir, file);
+      if (fs.existsSync(tokenPath)) {
+        bundleTokensCss += `/* --- Token: ${file} --- */\n` + fs.readFileSync(tokenPath, 'utf8').trim() + '\n\n';
+        tokenCount++;
+      }
+    });
+  }
+
+  const tokensTag = `  <!-- 核心设计令牌 (由工程化打包器从 design-system/tokens 自动化提取注入) -->\n  <style id="design-tokens">\n${bundleTokensCss}  </style>\n`;
+  shellHtml = shellHtml.replace('<!-- INJECT_TOKENS -->', tokensTag);
+
   // 2. 依次读取模块文件 (拓扑依赖序)
   const modules = [
     'shared/builtin-decks.js',

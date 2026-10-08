@@ -17,12 +17,17 @@
               500: '#6366f1',
               600: '#4f46e5',
               700: '#4338ca',
+            },
+            slate: {
+              850: '#111c33',
+              925: '#070d19',
             }
           }
         }
       }
     }
   </script>
+<!-- INJECT_TOKENS -->
   <style>
     @keyframes pulse-subtle {
       0%, 100% { opacity: 1; transform: scale(1); }
@@ -35,125 +40,185 @@
       40%, 80% { transform: translateX(6px); }
     }
     .shake-anim { animation: shake 0.35s ease-in-out; }
-    /* 自定义滚动条 */
+    
+    /* 自定义优雅滚动条 */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #0f172a; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    ::-webkit-scrollbar-track { background: var(--surface-canvas, #020617); }
+    ::-webkit-scrollbar-thumb { background: var(--border-default, #1e293b); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-strong, #334155); }
+
+    /* 设计令牌标准表面与操作阶梯 (Surface & Action Hierarchy) */
+    .surface-canvas { background-color: var(--surface-canvas, #020617); }
+    .surface-card {
+      background-color: var(--surface-card, #0b1120);
+      border: 1px solid var(--border-subtle, rgba(51, 65, 85, 0.45));
+    }
+    .surface-inset {
+      background-color: var(--surface-inset, #111c33);
+      border: 1px solid var(--border-subtle, rgba(51, 65, 85, 0.45));
+    }
+    .surface-raised {
+      background-color: var(--surface-raised, #1e293b);
+      border: 1px solid var(--border-strong, #334155);
+    }
+    .surface-overlay {
+      background-color: var(--surface-overlay, #0e1726);
+      border: 1px solid var(--border-default, #1e293b);
+    }
+
+    /* 视觉焦点唯一律：唯一实色主焦点 CTA */
+    .btn-primary-cta {
+      background-color: var(--action-primary-bg, #4f46e5);
+      color: #ffffff;
+      box-shadow: 0 4px 16px -2px var(--action-primary-glow, rgba(99, 102, 241, 0.35));
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .btn-primary-cta:hover {
+      background-color: var(--action-primary-hover, #4338ca);
+      transform: translateY(-1px);
+    }
+    .btn-primary-cta:active {
+      transform: translateY(0);
+    }
+
+    /* 次级弱底操作按钮 */
+    .btn-secondary {
+      background-color: var(--action-secondary-bg, #1e293b);
+      color: var(--action-secondary-text, #e2e8f0);
+      border: 1px solid var(--border-default, #1e293b);
+      transition: all 0.15s ease;
+    }
+    .btn-secondary:hover {
+      background-color: var(--action-secondary-hover, #334155);
+      color: #ffffff;
+    }
+
+    /* 幽灵边框按钮 */
+    .btn-ghost {
+      background-color: transparent;
+      color: var(--text-secondary, #94a3b8);
+      border: 1px solid var(--border-subtle, rgba(51, 65, 85, 0.45));
+      transition: all 0.15s ease;
+    }
+    .btn-ghost:hover {
+      background-color: var(--action-ghost-hover, rgba(255, 255, 255, 0.06));
+      color: var(--text-primary, #f8fafc);
+      border-color: var(--border-strong, #334155);
+    }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+<body class="surface-canvas text-slate-100 min-h-screen font-sans flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
 
-  <!-- 顶部导航条 -->
-  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
+  <!-- 顶部导航条 (Surface 0 浮顶 + 磨砂) -->
+  <header class="border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md sticky top-0 z-40">
     <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
       
       <!-- Logo 与 题库切换器 -->
       <div class="flex items-center space-x-3">
-        <div onclick="app.navigate('dashboard')" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white font-black text-xl cursor-pointer">
+        <div onclick="app.navigate('dashboard')" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center shadow-md shadow-indigo-600/20 text-white font-black text-xl cursor-pointer hover:opacity-95 transition">
           <span id="header-deck-icon">⚡</span>
         </div>
         <div>
           <div class="flex items-center gap-2">
             <h1 onclick="app.navigate('dashboard')" class="font-bold text-base sm:text-lg tracking-wide text-white cursor-pointer hover:text-indigo-400 transition flex items-center gap-1.5">
               <span id="header-deck-title">知识记忆工坊</span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">v2.0 通用版</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-850 text-indigo-300 border border-slate-750 font-mono">v2.2 UI规范版</span>
             </h1>
           </div>
-          <!-- 快捷切换题库下拉与管理入口 -->
+          <!-- 快捷切换题库下拉与管理入口 (热区解耦保持 >= 28px) -->
           <div class="flex items-center gap-1.5 mt-0.5">
-            <select id="deck-selector" onchange="app.switchDeck(this.value)" class="bg-slate-800 text-xs text-indigo-300 font-medium rounded px-2 py-0.5 border border-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer max-w-[140px] sm:max-w-none truncate">
+            <select id="deck-selector" onchange="app.switchDeck(this.value)" class="bg-slate-900 text-xs text-indigo-300 font-medium rounded-lg px-2.5 py-1 border border-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer max-w-[140px] sm:max-w-none truncate hover:border-slate-700 transition">
               <!-- 动态填充内置题库与自定义题库 -->
             </select>
-            <button onclick="app.showDeckManagerModal()" class="text-[11px] text-slate-300 hover:text-indigo-300 flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 border border-slate-700 transition" title="管理所有内置与自定义题库">
+            <button onclick="app.showDeckManagerModal()" class="text-[11px] text-slate-300 hover:text-white flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-850 hover:bg-slate-800 border border-slate-750 transition" title="管理所有内置与自定义题库">
               <span>⚙️ 题库管理</span>
             </button>
-            <button onclick="app.showDeckStudioModal(null)" class="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 px-1.5 py-0.5 transition" title="新建或通过笔记导入新题库">
+            <button onclick="app.showDeckStudioModal(null)" class="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 px-2 py-1 rounded-lg hover:bg-indigo-950/40 transition" title="新建或通过笔记导入新题库">
               <span>➕ 导入/新建</span>
             </button>
           </div>
         </div>
       </div>
 
-      <!-- 右侧快捷功能 -->
-      <div class="flex items-center space-x-2 sm:space-x-3 text-xs">
-        <button onclick="app.navigate('study')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 transition font-medium">
-          <span>📖 知识精读与学习</span>
+      <!-- 右侧快捷功能 (触控热区解耦规范) -->
+      <div class="flex items-center space-x-2 sm:space-x-2.5 text-xs">
+        <button onclick="app.navigate('study')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-indigo-300 border border-slate-800 hover:border-indigo-500/40 transition font-medium">
+          <span>📖 知识精读</span>
         </button>
-        <button onclick="app.navigate('codex')" class="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
-          <span>📚 知识图谱 & 错题本</span>
-          <span id="nav-mistake-badge" class="px-1.5 py-0.2 text-[10px] rounded-full bg-rose-500/30 text-rose-300 hidden">0</span>
+        <button onclick="app.navigate('codex')" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 hover:border-slate-700 transition">
+          <span>📚 知识法典</span>
+          <span id="nav-mistake-badge" class="px-1.5 py-0.2 text-[10px] rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 hidden">0</span>
         </button>
-        <button onclick="app.showBackupModal()" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1">
+        <button onclick="app.showBackupModal()" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-slate-200 border border-slate-800 transition flex items-center gap-1">
           <span>💾 存档</span>
         </button>
-        <div class="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono font-bold">
+        <div class="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-amber-300 font-mono font-bold">
           <span>🔥</span>
           <span id="header-streak">0</span>
-          <span class="text-[10px] text-amber-400/70 hidden sm:inline">连击</span>
+          <span class="text-[10px] text-slate-500 hidden sm:inline">连击</span>
         </div>
       </div>
     </div>
   </header>
 
-  <!-- 主容器 -->
-  <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6">
+  <!-- 主容器 (遵循 8-Point 间距步进) -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-6">
 
     <!-- 1. 仪表盘视图 (DASHBOARD) -->
     <div id="view-dashboard" class="space-y-6">
 
-      <!-- 智能模式自适应推荐 Banner -->
+      <!-- 智能模式自适应推荐 Banner (遵循 Rule of One: 唯一英雄主CTA) -->
       <div id="smart-recommendation-banner" class="rounded-2xl p-5 border transition-all">
         <!-- 动态由 JS 填充 -->
       </div>
 
-      <!-- 核心指标统计卡片组 -->
+      <!-- 核心指标统计卡片组 (Surface 1 阶梯 + 去除重边框) -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+        <div class="surface-card rounded-2xl p-4 sm:p-5 transition hover:border-slate-700/70">
           <div class="text-xs text-slate-400 font-medium">知识点覆盖率</div>
-          <div class="flex items-baseline gap-2 mt-1">
-            <span id="stat-coverage-rate" class="text-2xl font-black text-indigo-400">0%</span>
+          <div class="flex items-baseline gap-2 mt-1.5">
+            <span id="stat-coverage-rate" class="text-2xl font-bold tracking-tight text-indigo-400">0%</span>
             <span id="stat-coverage-detail" class="text-xs text-slate-500 font-mono">(0/0词条)</span>
           </div>
-          <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+          <div class="w-full bg-slate-850 h-1.5 rounded-full mt-2.5 overflow-hidden">
             <div id="stat-coverage-bar" class="bg-indigo-500 h-full rounded-full transition-all" style="width: 0%"></div>
           </div>
         </div>
 
-        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+        <div class="surface-card rounded-2xl p-4 sm:p-5 transition hover:border-slate-700/70">
           <div class="text-xs text-slate-400 font-medium">今日到期复习 (艾宾浩斯)</div>
-          <div class="flex items-baseline gap-2 mt-1">
-            <span id="stat-due-count" class="text-2xl font-black text-amber-400">0</span>
-            <span class="text-xs text-slate-500">个需巩固</span>
+          <div class="flex items-baseline gap-2 mt-1.5">
+            <span id="stat-due-count" class="text-2xl font-bold tracking-tight text-amber-400">0</span>
+            <span class="text-xs text-slate-400">个需巩固</span>
           </div>
-          <div class="text-xs text-slate-500 mt-2 flex items-center justify-between">
+          <div class="text-xs text-slate-500 mt-2.5 flex items-center justify-between">
             <span>记忆生锈: <b id="stat-rusty-count" class="text-rose-400 font-mono">0</b></span>
-            <button onclick="app.simulateDayPass(1)" title="模拟时间快进1天以测试复习调度" class="text-indigo-400 hover:underline text-[11px]">+1天测试</button>
+            <button onclick="app.simulateDayPass(1)" title="模拟时间快进1天以测试复习调度" class="text-indigo-400 hover:underline text-[11px] font-medium">+1天测试</button>
           </div>
         </div>
 
-        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+        <div class="surface-card rounded-2xl p-4 sm:p-5 transition hover:border-slate-700/70">
           <div class="text-xs text-slate-400 font-medium">综合答题正确率</div>
-          <div class="flex items-baseline gap-2 mt-1">
-            <span id="stat-accuracy-rate" class="text-2xl font-black text-emerald-400">100%</span>
+          <div class="flex items-baseline gap-2 mt-1.5">
+            <span id="stat-accuracy-rate" class="text-2xl font-bold tracking-tight text-emerald-400">100%</span>
             <span id="stat-accuracy-detail" class="text-xs text-slate-500 font-mono">(0/0)</span>
           </div>
-          <div class="text-xs text-slate-500 mt-2">累计练习: <span id="stat-total-attempts" class="text-slate-300 font-mono">0</span> 次</div>
+          <div class="text-xs text-slate-500 mt-2.5">累计练习: <span id="stat-total-attempts" class="text-slate-300 font-mono">0</span> 次</div>
         </div>
 
-        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+        <div class="surface-card rounded-2xl p-4 sm:p-5 transition hover:border-slate-700/70">
           <div class="text-xs text-slate-400 font-medium">已永久掌握 (Level ≥ 4)</div>
-          <div class="flex items-baseline gap-2 mt-1">
-            <span id="stat-mastered-count" class="text-2xl font-black text-violet-400">0</span>
-            <span class="text-xs text-slate-500">个知识单元</span>
+          <div class="flex items-baseline gap-2 mt-1.5">
+            <span id="stat-mastered-count" class="text-2xl font-bold tracking-tight text-indigo-300">0</span>
+            <span class="text-xs text-slate-400">个知识单元</span>
           </div>
-          <div class="text-xs text-slate-500 mt-2">已跨越 7+ 天长效遗忘周期</div>
+          <div class="text-xs text-slate-500 mt-2.5">已跨越 7+ 天长效遗忘周期</div>
         </div>
       </div>
 
-      <!-- 游戏模式矩阵 -->
-      <div>
-        <div class="flex items-center justify-between mb-3">
+      <!-- 游戏模式矩阵 (遵循色相克制：去除彩虹边框，采用统一 Surface 1 + 悬停微抬升) -->
+      <div class="space-y-3.5">
+        <div class="flex items-center justify-between">
           <h2 class="text-base font-semibold text-slate-200 flex items-center gap-2">
             <span>🎮 模式选择</span>
             <span class="text-xs text-slate-400 font-normal">基于当前知识图谱全自动派生</span>
@@ -163,105 +228,115 @@
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <!-- 模式 1: 每日艾宾浩斯复习 -->
-          <div onclick="app.startMode('DAILY_REVIEW')" class="group relative bg-slate-900 border border-slate-800 hover:border-amber-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-amber-500/10">
-            <div class="flex justify-between items-start">
-              <span class="text-3xl">⏰</span>
-              <span id="mode-badge-review" class="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium">今日到期: 0</span>
+          <div onclick="app.startMode('DAILY_REVIEW')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start">
+                <span class="text-3xl">⏰</span>
+                <span id="mode-badge-review" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">今日到期: 0</span>
+              </div>
+              <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">每日艾宾浩斯复习</h3>
+              <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">根据遗忘曲线自动调度。在记忆濒临衰退的临界点精准强化，把短期印象固化为长久突触。</p>
             </div>
-            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-amber-400 transition">每日艾宾浩斯复习</h3>
-            <p class="text-xs text-slate-400 mt-1">根据遗忘曲线自动调度。在记忆濒临衰退的临界点精准强化，把短期印象固化为长久突触。</p>
-            <div class="mt-4 flex items-center text-xs text-amber-400 font-medium">
+            <div class="mt-4 flex items-center text-xs text-slate-400 group-hover:text-indigo-400 font-medium transition">
               <span>立即复习 &rarr;</span>
             </div>
           </div>
 
           <!-- 模式 2: 错题弱点定点爆破 -->
-          <div onclick="app.startMode('WEAKNESS')" class="group relative bg-slate-900 border border-slate-800 hover:border-rose-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-rose-500/10">
-            <div class="flex justify-between items-start">
-              <span class="text-3xl">🎯</span>
-              <span id="mode-badge-weakness" class="text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-medium">错题待清: 0</span>
+          <div onclick="app.startMode('WEAKNESS')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start">
+                <span class="text-3xl">🎯</span>
+                <span id="mode-badge-weakness" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">错题待清: 0</span>
+              </div>
+              <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">弱点歼灭战 (Boss Rush)</h3>
+              <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">定点筛选历史失误实体与薄弱分类，针对性高强度同胞选项辨析，彻底消灭思维盲区。</p>
             </div>
-            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-rose-400 transition">弱点歼灭战 (Boss Rush)</h3>
-            <p class="text-xs text-slate-400 mt-1">定点筛选历史失误实体与薄弱分类，针对性高强度同胞选项辨析，彻底消灭思维盲区。</p>
-            <div class="mt-4 flex items-center text-xs text-rose-400 font-medium">
+            <div class="mt-4 flex items-center text-xs text-slate-400 group-hover:text-indigo-400 font-medium transition">
               <span>清剿错题 &rarr;</span>
             </div>
           </div>
 
           <!-- 模式 3: 循序渐进关卡战役 -->
-          <div onclick="app.startMode('CAMPAIGN')" class="group relative bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-indigo-500/10">
-            <div class="flex justify-between items-start">
-              <span class="text-3xl">🏆</span>
-              <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium">阶梯分层关卡</span>
+          <div onclick="app.startMode('CAMPAIGN')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start">
+                <span class="text-3xl">🏆</span>
+                <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">阶梯分层关卡</span>
+              </div>
+              <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">分层阶梯战役</h3>
+              <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">遵循布鲁姆认知模型：由浅入深从 Layer 1 基础概念，阶梯推进到 Layer 3 进阶反常特例。</p>
             </div>
-            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-indigo-400 transition">分层阶梯战役</h3>
-            <p class="text-xs text-slate-400 mt-1">遵循布鲁姆认知模型：由浅入深从 Layer 1 基础概念，阶梯推进到 Layer 3 进阶反常特例。</p>
-            <div class="mt-4 flex items-center text-xs text-indigo-400 font-medium">
+            <div class="mt-4 flex items-center text-xs text-slate-400 group-hover:text-indigo-400 font-medium transition">
               <span>开启战役 &rarr;</span>
             </div>
           </div>
 
           <!-- 模式 4: 极速生存模式 -->
-          <div onclick="app.startMode('SPEED_SPRINT')" class="group relative bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-emerald-500/10">
-            <div class="flex justify-between items-start">
-              <span class="text-3xl">⚡</span>
-              <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">3条命 · 限时</span>
+          <div onclick="app.startMode('SPEED_SPRINT')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start">
+                <span class="text-3xl">⚡</span>
+                <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">3条命 · 限时</span>
+              </div>
+              <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">极速连击生存</h3>
+              <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">每题倒计时 6 秒，连续答对累积超高 Combo，测试你对知识要点的下意识条件反射。</p>
             </div>
-            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-emerald-400 transition">极速连击生存</h3>
-            <p class="text-xs text-slate-400 mt-1">每题倒计时 6 秒，连续答对累积超高 Combo，测试你对知识要点的下意识条件反射。</p>
-            <div class="mt-4 flex items-center text-xs text-emerald-400 font-medium">
+            <div class="mt-4 flex items-center text-xs text-slate-400 group-hover:text-indigo-400 font-medium transition">
               <span>挑战极限 &rarr;</span>
             </div>
           </div>
 
           <!-- 模式 5: 自由沙盒试炼 -->
-          <div onclick="app.startMode('FREE_LAB')" class="group relative bg-slate-900 border border-slate-800 hover:border-violet-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-violet-500/10">
-            <div class="flex justify-between items-start">
-              <span class="text-3xl">🧪</span>
-              <span class="text-xs px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 font-medium">自定义筛选</span>
+          <div onclick="app.startMode('FREE_LAB')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start">
+                <span class="text-3xl">🧪</span>
+                <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">自定义筛选</span>
+              </div>
+              <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">自由沙盒试炼</h3>
+              <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">自由挑选当前知识图谱中的特定分类标签，聚焦重点章节，按需随心配置题目数量。</p>
             </div>
-            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-violet-400 transition">自由沙盒试炼</h3>
-            <p class="text-xs text-slate-400 mt-1">自由挑选当前知识图谱中的特定分类标签，聚焦重点章节，按需随心配置题目数量。</p>
-            <div class="mt-4 flex items-center text-xs text-violet-400 font-medium">
+            <div class="mt-4 flex items-center text-xs text-slate-400 group-hover:text-indigo-400 font-medium transition">
               <span>自由定制 &rarr;</span>
             </div>
           </div>
 
           <!-- 快捷入口: 原始知识精读与学习 -->
-          <div onclick="app.navigate('study')" class="group relative bg-slate-900/60 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-indigo-500/10 flex flex-col justify-between">
+          <div onclick="app.navigate('study')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start">
                 <span class="text-3xl">📖</span>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">系统教材</span>
+                <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">系统教材</span>
               </div>
-              <h3 class="text-lg font-bold text-white mt-3 group-hover:text-indigo-400 transition">原始知识精读与自测</h3>
-              <p class="text-xs text-slate-400 mt-1">按分类与分层系统阅览所有规则要点与避坑陷阱，支持答案遮挡自测与原始大纲导出。</p>
+              <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">原始知识精读与自测</h3>
+              <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">按分类与分层系统阅览所有规则要点与避坑陷阱，支持答案遮挡自测与原始大纲导出。</p>
             </div>
-            <div class="mt-4 flex items-center text-xs text-indigo-400 font-medium">
+            <div class="mt-4 flex items-center text-xs text-slate-400 group-hover:text-indigo-400 font-medium transition">
               <span>进入精读 &rarr;</span>
             </div>
           </div>
 
           <!-- 快捷入口: 知识图谱法典 -->
-          <div onclick="app.navigate('codex')" class="group relative bg-slate-900/60 border border-slate-800 hover:border-cyan-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-cyan-500/10 flex flex-col justify-between">
+          <div onclick="app.navigate('codex')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
             <div>
               <div class="flex justify-between items-start">
                 <span class="text-3xl">📊</span>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">知识法典</span>
+                <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60">知识法典</span>
               </div>
-              <h3 class="text-lg font-bold text-white mt-3 group-hover:text-cyan-400 transition">知识图谱档案馆</h3>
-              <p class="text-xs text-slate-400 mt-1">浏览当前题库的所有概念条目、艾宾浩斯复习倒计时表、同胞干扰项关系与错题详情。</p>
+              <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">知识图谱档案馆</h3>
+              <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">浏览当前题库的所有概念条目、艾宾浩斯复习倒计时表、同胞干扰项关系与错题详情。</p>
             </div>
-            <div class="mt-4 flex items-center text-xs text-cyan-400 font-medium">
+            <div class="mt-4 flex items-center text-xs text-slate-400 group-hover:text-indigo-400 font-medium transition">
               <span>查阅档案 &rarr;</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 分类图谱掌握度全景矩阵 -->
-      <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5">
-        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
+      <!-- 分类图谱掌握度全景矩阵 (Surface 1) -->
+      <div class="surface-card rounded-2xl p-5">
+        <h3 class="text-sm font-bold text-slate-200 mb-3.5 flex items-center gap-2">
           <span>📊 各分类板块熟练度全景</span>
         </h3>
         <div id="deck-category-bars" class="space-y-3 text-xs">
@@ -272,8 +347,8 @@
 
     <!-- 2. 战斗答题竞技场视图 (ARENA) -->
     <div id="view-arena" class="hidden space-y-6 max-w-2xl mx-auto">
-      <!-- 竞技场顶部状态栏 -->
-      <div class="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-xl px-4 py-3">
+      <!-- 竞技场顶部状态栏 (Surface 1) -->
+      <div class="flex items-center justify-between surface-card rounded-xl px-4 py-3">
         <button onclick="app.exitArena()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition">
           <span>&larr; 退出练习</span>
         </button>
@@ -281,7 +356,7 @@
           <div id="arena-hp-container" class="flex gap-1 text-base hidden">
             <!-- HP 红心 -->
           </div>
-          <div class="text-xs font-mono px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">
+          <div class="text-xs font-mono px-2 py-1 rounded bg-slate-850 text-slate-300 border border-slate-750">
             进度: <span id="arena-progress-text" class="text-indigo-400 font-bold">1 / 10</span>
           </div>
         </div>
@@ -292,20 +367,20 @@
       </div>
 
       <!-- 限时倒计时条 (极速模式显示) -->
-      <div id="arena-timer-bar-wrap" class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden hidden">
+      <div id="arena-timer-bar-wrap" class="w-full bg-slate-850 h-1.5 rounded-full overflow-hidden hidden">
         <div id="arena-timer-bar" class="bg-gradient-to-r from-emerald-500 to-amber-500 h-full w-full transition-all duration-100 ease-linear"></div>
       </div>
 
-      <!-- 核心题目卡片 -->
-      <div id="arena-card" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl text-center relative overflow-hidden transition-all">
+      <!-- 核心题目卡片 (Surface 1 + 明确视觉高程) -->
+      <div id="arena-card" class="surface-card rounded-2xl p-6 sm:p-8 shadow-xl text-center relative overflow-hidden transition-all">
         <!-- 分类/层级标记 -->
-        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-3 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30" id="arena-target-badge">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-3 bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-mono" id="arena-target-badge">
           分类: 客户端错误 · Layer 2
         </div>
 
-        <!-- 考核概念大字 -->
+        <!-- 考核概念大字 (字阶 3xl / 4xl) -->
         <div class="space-y-1 my-3">
-          <div id="arena-base-word" class="text-3xl sm:text-4xl font-black text-white tracking-wide">
+          <div id="arena-base-word" class="text-3xl sm:text-4xl font-extrabold text-white tracking-wide">
             401 Unauthorized
           </div>
           <div class="flex items-center justify-center gap-2 text-slate-400 text-xs sm:text-sm">
@@ -315,7 +390,7 @@
         </div>
 
         <!-- 针对概念的特别问题提示语 -->
-        <div id="arena-prompt-text" class="my-3 text-xs sm:text-sm text-indigo-300/90 font-medium">
+        <div id="arena-prompt-text" class="my-3 text-xs sm:text-sm text-indigo-300 font-medium">
           请选择最准确的含义或目标对应项：
         </div>
 
@@ -326,21 +401,21 @@
 
         <!-- 快捷键引导提示 -->
         <div class="mt-4 text-[11px] text-slate-500 font-mono">
-          键盘可按数字键 <span class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">1</span> <span class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">2</span> <span class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">3</span> <span class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">4</span> 秒速作答
+          键盘可按数字键 <span class="px-1.5 py-0.5 rounded bg-slate-850 text-slate-300 border border-slate-750">1</span> <span class="px-1.5 py-0.5 rounded bg-slate-850 text-slate-300 border border-slate-750">2</span> <span class="px-1.5 py-0.5 rounded bg-slate-850 text-slate-300 border border-slate-750">3</span> <span class="px-1.5 py-0.5 rounded bg-slate-850 text-slate-300 border border-slate-750">4</span> 秒速作答
         </div>
       </div>
 
-      <!-- 答题后即时浮出的【规则溯源卡】 -->
-      <div id="arena-feedback-drawer" class="hidden bg-slate-900 border rounded-2xl p-5 shadow-lg transition-all">
+      <!-- 答题后即时浮出的【规则溯源卡】(Surface 4 浮层) -->
+      <div id="arena-feedback-drawer" class="hidden surface-overlay rounded-2xl p-5 shadow-2xl transition-all border border-slate-800">
         <div class="flex items-start justify-between">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2.5">
             <span id="feedback-icon" class="text-2xl">✨</span>
             <div>
               <h4 id="feedback-title" class="font-bold text-sm text-white">回答正确！</h4>
               <p id="feedback-subtitle" class="text-xs text-slate-400 mt-0.5">连续答对 · 记忆稳定度持续提升</p>
             </div>
           </div>
-          <button id="btn-next-question" onclick="app.nextQuestion()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition flex items-center gap-1">
+          <button id="btn-next-question" onclick="app.nextQuestion()" class="btn-primary-cta px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-md">
             <span>下一题 (Enter)</span>
             <span>&rarr;</span>
           </button>
@@ -361,33 +436,33 @@
     </div>
 
     <!-- 3. 结算成绩单视图 (SUMMARY) -->
-    <div id="view-summary" class="hidden max-w-lg mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 text-center space-y-5">
+    <div id="view-summary" class="hidden max-w-lg mx-auto surface-card rounded-2xl p-6 sm:p-8 text-center space-y-5 shadow-xl">
       <div class="text-5xl" id="summary-icon">🎉</div>
       <div>
         <h2 class="text-2xl font-black text-white" id="summary-title">试炼完成！</h2>
         <p class="text-xs text-slate-400 mt-1" id="summary-subtitle">本次学习数据已成功记入该知识库的艾宾浩斯模型</p>
       </div>
 
-      <div class="grid grid-cols-3 gap-3 p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 text-center">
+      <div class="grid grid-cols-3 gap-3 p-4 rounded-xl surface-inset text-center">
         <div>
           <div class="text-[11px] text-slate-400">正确率</div>
-          <div id="summary-acc" class="text-xl font-black text-emerald-400 mt-0.5">100%</div>
+          <div id="summary-acc" class="text-xl font-bold text-emerald-400 mt-0.5">100%</div>
         </div>
         <div>
           <div class="text-[11px] text-slate-400">答对/总题数</div>
-          <div id="summary-score" class="text-xl font-black text-white mt-0.5">10/10</div>
+          <div id="summary-score" class="text-xl font-bold text-white mt-0.5">10/10</div>
         </div>
         <div>
           <div class="text-[11px] text-slate-400">最大连击</div>
-          <div id="summary-combo" class="text-xl font-black text-amber-400 mt-0.5">10</div>
+          <div id="summary-combo" class="text-xl font-bold text-amber-400 mt-0.5">10</div>
         </div>
       </div>
 
       <div class="flex gap-3 pt-2">
-        <button onclick="app.navigate('dashboard')" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition">
+        <button onclick="app.navigate('dashboard')" class="btn-secondary flex-1 py-2.5 rounded-xl text-xs font-bold transition">
           返回主界面
         </button>
-        <button onclick="app.replayCurrentMode()" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition">
+        <button onclick="app.replayCurrentMode()" class="btn-primary-cta flex-1 py-2.5 rounded-xl text-xs font-bold transition">
           再练一局
         </button>
       </div>
@@ -395,14 +470,14 @@
 
     <!-- 4. 知识图谱法典与错题本视图 (CODEX) -->
     <div id="view-codex" class="hidden space-y-5">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between surface-card rounded-2xl p-4 sm:p-5">
         <div>
           <h2 class="text-lg font-bold text-white flex items-center gap-2">
             <span>📚 知识图谱档案馆与错题簿</span>
           </h2>
-          <p class="text-xs text-slate-400">查阅各概念的艾宾浩斯复习倒计时、同胞关系、练习日志与做题历史</p>
+          <p class="text-xs text-slate-400 mt-0.5">查阅各概念的艾宾浩斯复习倒计时、同胞关系、练习日志与做题历史</p>
         </div>
-        <button onclick="app.navigate('dashboard')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
+        <button onclick="app.navigate('dashboard')" class="btn-secondary text-xs px-3 py-1.5 rounded-lg transition">
           &larr; 返回主控台
         </button>
       </div>
@@ -410,21 +485,21 @@
       <!-- 过滤器与统计快捷条 -->
       <div class="flex flex-wrap gap-2 items-center justify-between text-xs">
         <div class="flex flex-wrap gap-1.5" id="codex-filter-buttons">
-          <button onclick="app.setCodexFilter('ALL')" class="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-medium">全部词条</button>
-          <button onclick="app.setCodexFilter('DUE')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">🟡 今日待复习</button>
-          <button onclick="app.setCodexFilter('MISTAKE')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">🔴 高频错题</button>
-          <button onclick="app.setCodexFilter('MASTERED')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">🟢 已永久巩固</button>
+          <button onclick="app.setCodexFilter('ALL')" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium shadow-sm">全部词条</button>
+          <button onclick="app.setCodexFilter('DUE')" class="px-3 py-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-750 transition">🟡 今日待复习</button>
+          <button onclick="app.setCodexFilter('MISTAKE')" class="px-3 py-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-750 transition">🔴 高频错题</button>
+          <button onclick="app.setCodexFilter('MASTERED')" class="px-3 py-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-750 transition">🟢 已永久巩固</button>
         </div>
         <div class="text-slate-400 font-mono">
           显示数量: <span id="codex-filtered-count" class="text-indigo-400 font-bold">0</span> 条
         </div>
       </div>
 
-      <!-- 词条大表格 -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow">
+      <!-- 词条大表格 (Surface 1) -->
+      <div class="surface-card rounded-2xl overflow-hidden shadow">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs text-slate-300">
-            <thead class="bg-slate-800/70 text-slate-400 font-semibold border-b border-slate-800">
+            <thead class="bg-slate-850/80 text-slate-400 font-semibold border-b border-slate-800">
               <tr>
                 <th class="py-3 px-4">知识概念 (Entity)</th>
                 <th class="py-3 px-3">核心答案 / 特征</th>
@@ -446,14 +521,14 @@
 
     <!-- 5. 原始知识点精读与自测学习页面 (STUDY HUB) -->
     <div id="view-study" class="hidden space-y-6">
-      <!-- 页面顶部横幅与控制栏 -->
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow">
+      <!-- 页面顶部横幅与控制栏 (Surface 1) -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 surface-card rounded-2xl p-5 shadow">
         <div>
           <div class="flex items-center gap-2">
             <span class="text-2xl" id="study-deck-icon">⚡</span>
             <h2 class="text-lg font-bold text-white flex items-center gap-2">
               <span id="study-deck-title">知识库精读与系统学习</span>
-              <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">教材视界</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-mono">教材视界</span>
             </h2>
           </div>
           <p class="text-xs text-slate-400 mt-1 max-w-xl" id="study-deck-desc">
@@ -464,15 +539,15 @@
         <!-- 顶部操作按钮组 -->
         <div class="flex flex-wrap items-center gap-2">
           <!-- 遮挡模式切换开关 -->
-          <button id="btn-toggle-mask" onclick="app.toggleAnswerMask()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs flex items-center gap-1.5 transition">
+          <button id="btn-toggle-mask" onclick="app.toggleAnswerMask()" class="btn-secondary px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
             <span id="mask-status-icon">👁️</span>
             <span id="mask-status-text">自测遮挡模式: 关</span>
           </button>
           <!-- 查看原始大纲 -->
-          <button onclick="app.showRawMarkdownModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs flex items-center gap-1.5 transition">
+          <button onclick="app.showRawMarkdownModal()" class="btn-secondary px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
             <span>📋 查看原始大纲 (Markdown)</span>
           </button>
-          <button onclick="app.navigate('dashboard')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs transition">
+          <button onclick="app.navigate('dashboard')" class="btn-secondary px-3 py-1.5 rounded-lg text-xs transition">
             &larr; 返回主控台
           </button>
         </div>
@@ -481,18 +556,18 @@
       <!-- 搜索输入框与快捷控制 -->
       <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
         <div class="relative flex-1 max-w-xl">
-          <input type="text" id="study-search-input" oninput="app.filterStudyEntities()" placeholder="🔍 实时搜索概念、答案、解析或陷阱关键字..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 shadow-sm">
+          <input type="text" id="study-search-input" oninput="app.filterStudyEntities()" placeholder="🔍 实时搜索概念、答案、解析或陷阱关键字..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 shadow-sm transition">
         </div>
         <div class="flex items-center gap-2">
-          <button onclick="app.resetStudyFilters()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition flex items-center gap-1">
+          <button onclick="app.resetStudyFilters()" class="btn-secondary px-3 py-2 rounded-xl text-xs font-medium transition flex items-center gap-1">
             <span>🔄 重置全部筛选</span>
           </button>
           <span class="text-xs text-slate-400 font-mono px-2" id="study-matched-count-badge">显示 0 / 0 词条</span>
         </div>
       </div>
 
-      <!-- 三维立体架构导航控制台: 分组 (Group) × 分类 (Category) × 层级 (Layer) -->
-      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-md">
+      <!-- 三维立体架构导航控制台: 分组 (Group) × 分类 (Category) × 层级 (Layer) (Surface 1) -->
+      <div class="surface-card rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-md">
         
         <!-- 维度 1: 📦 业务大组 (Groups) -->
         <div class="flex items-start sm:items-center gap-2.5 flex-col sm:flex-row">
@@ -536,9 +611,9 @@
     </div>
   </main>
 
-  <!-- 5. 可视化 / MD 双视图联动知识工坊 (DUAL-VIEW DECK STUDIO MODAL) -->
-  <div id="modal-deck-studio" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-6xl w-full h-[92vh] shadow-2xl flex flex-col overflow-hidden">
+  <!-- 5. 可视化 / MD 双视图联动知识工坊 (DUAL-VIEW DECK STUDIO MODAL) (Surface 4 浮层) -->
+  <div id="modal-deck-studio" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 hidden">
+    <div class="surface-overlay rounded-2xl max-w-6xl w-full h-[92vh] shadow-2xl flex flex-col overflow-hidden border border-slate-800">
       
       <!-- 工坊顶部导航栏 -->
       <div class="px-5 py-3.5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 shrink-0">
@@ -572,11 +647,11 @@
         <div class="flex items-center gap-2 text-xs">
           <div class="hidden md:flex items-center gap-1 text-[11px] text-slate-400">
             <span>载入模板:</span>
-            <button onclick="app.loadTemplateMarkdown('http')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700">网络协议</button>
-            <button onclick="app.loadTemplateMarkdown('medicine')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700">药理抗生素</button>
-            <button onclick="app.loadTemplateMarkdown('law')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700">民法合同</button>
+            <button onclick="app.loadTemplateMarkdown('http')" class="px-2 py-0.5 rounded bg-slate-850 hover:bg-slate-800 text-indigo-300 border border-slate-750">网络协议</button>
+            <button onclick="app.loadTemplateMarkdown('medicine')" class="px-2 py-0.5 rounded bg-slate-850 hover:bg-slate-800 text-emerald-300 border border-slate-750">药理抗生素</button>
+            <button onclick="app.loadTemplateMarkdown('law')" class="px-2 py-0.5 rounded bg-slate-850 hover:bg-slate-800 text-amber-300 border border-slate-750">民法合同</button>
           </div>
-          <button onclick="app.closeDeckStudioModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-lg transition">&times;</button>
+          <button onclick="app.closeDeckStudioModal()" class="w-8 h-8 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-lg transition">&times;</button>
         </div>
       </div>
 
@@ -629,16 +704,16 @@
         </div>
       </div>
 
-      <!-- 工坊底部状态条与导入执行 -->
+      <!-- 工坊底部状态条与导入执行 (Rule of One: 唯一主CTA) -->
       <div class="px-5 py-3 border-t border-slate-800 bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 text-xs">
         <div id="deck-studio-lint-msg" class="text-slate-400 flex items-center gap-1.5 font-medium flex-1 overflow-hidden">
           <span>🟢 语法实时双向同步就绪</span>
         </div>
         <div class="flex items-center gap-2 w-full sm:w-auto shrink-0" id="studio-save-btn-container">
-          <button onclick="app.copyStudioMarkdown()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1 font-medium">
+          <button onclick="app.copyStudioMarkdown()" class="btn-secondary px-3.5 py-2 rounded-xl transition flex items-center gap-1 font-medium">
             <span id="btn-studio-copy-text">📋 复制 MD</span>
           </button>
-          <button onclick="app.saveDeckStudio('auto')" class="flex-1 sm:flex-none px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-1.5">
+          <button onclick="app.saveDeckStudio('auto')" class="btn-primary-cta flex-1 sm:flex-none px-5 py-2 rounded-xl font-bold transition flex items-center justify-center gap-1.5 shadow-md">
             <span>🚀 保存题库</span>
           </button>
         </div>
@@ -646,9 +721,9 @@
     </div>
   </div>
 
-  <!-- 6. 存档与备份管理弹窗 (MODAL) -->
-  <div id="modal-backup" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+  <!-- 6. 存档与备份管理弹窗 (MODAL) (Surface 4) -->
+  <div id="modal-backup" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="surface-overlay rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-800">
       <div class="flex justify-between items-center">
         <h3 class="text-base font-bold text-white flex items-center gap-2">
           <span>💾 学习数据与存档管理</span>
@@ -660,30 +735,30 @@
       </p>
 
       <div class="space-y-2 pt-2">
-        <button onclick="app.exportBackupJSON()" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center justify-center gap-2">
+        <button onclick="app.exportBackupJSON()" class="btn-primary-cta w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-md">
           <span>📥 导出完整多题库存档 (JSON)</span>
         </button>
 
-        <label class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer border border-slate-700">
+        <label class="btn-secondary w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer">
           <span>📤 导入备份恢复文件</span>
           <input type="file" id="backup-file-input" accept=".json" class="hidden" onchange="app.importBackupJSON(event)">
         </label>
 
-        <button onclick="app.resetAllProgress()" class="w-full py-2.5 px-4 rounded-xl bg-rose-950/30 hover:bg-rose-900/40 text-rose-300 border border-rose-900/50 text-xs font-bold transition">
+        <button onclick="app.resetAllProgress()" class="w-full py-2.5 px-4 rounded-xl bg-rose-950/25 hover:bg-rose-900/35 text-rose-300 border border-rose-900/40 text-xs font-bold transition">
           ⚠️ 重置当前题库的所有进度
         </button>
       </div>
 
       <div class="pt-2 border-t border-slate-800 flex justify-between items-center text-[11px] text-slate-500">
-        <span>通用引擎 v2.0 · Local-First</span>
+        <span>通用引擎 v2.2 · Local-First</span>
         <button onclick="app.closeBackupModal()" class="text-slate-400 hover:underline">关闭</button>
       </div>
     </div>
   </div>
 
-  <!-- 7. 原始知识大纲弹窗 (RAW MARKDOWN OUTLINE MODAL) -->
-  <div id="modal-raw-markdown" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+  <!-- 7. 原始知识大纲弹窗 (RAW MARKDOWN OUTLINE MODAL) (Surface 4) -->
+  <div id="modal-raw-markdown" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="surface-overlay rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col border border-slate-800">
       <div class="flex justify-between items-center">
         <div>
           <h3 class="text-base font-bold text-white flex items-center gap-2">
@@ -701,10 +776,10 @@
       <div class="flex justify-between items-center pt-2">
         <span class="text-xs text-slate-500 font-mono" id="raw-markdown-stats">共 0 字</span>
         <div class="flex gap-2">
-          <button onclick="app.copyRawMarkdown()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-1 shadow-md shadow-indigo-600/30">
+          <button onclick="app.copyRawMarkdown()" class="btn-primary-cta px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-md">
             <span id="copy-markdown-btn-text">📋 一键复制全文</span>
           </button>
-          <button onclick="app.closeRawMarkdownModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">
+          <button onclick="app.closeRawMarkdownModal()" class="btn-secondary px-4 py-2 rounded-xl text-xs font-medium">
             关闭
           </button>
         </div>
@@ -712,9 +787,9 @@
     </div>
   </div>
 
-  <!-- 8. 题库管理中心弹窗 (MODAL DECK MANAGER) -->
-  <div id="modal-deck-manager" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh]">
+  <!-- 8. 题库管理中心弹窗 (MODAL DECK MANAGER) (Surface 4) -->
+  <div id="modal-deck-manager" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 hidden">
+    <div class="surface-overlay rounded-2xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh] border border-slate-800">
       <!-- 头部 -->
       <div class="flex items-center justify-between pb-4 border-b border-slate-800 shrink-0">
         <div class="flex items-center gap-3">
@@ -724,16 +799,16 @@
           <div>
             <h3 class="text-base font-bold text-white flex items-center gap-2">
               <span>题库管理中心 (Deck Management)</span>
-              <span class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-indigo-300 font-mono border border-slate-700" id="deck-manager-total-badge">共 3 个题库</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-slate-850 text-indigo-300 font-mono border border-slate-750" id="deck-manager-total-badge">共 3 个题库</span>
             </h3>
             <p class="text-xs text-slate-400">查看各题库健康度、切换激活、可视化编辑、安全删除与独立导出</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <button onclick="app.closeDeckManagerModal(); app.showDeckStudioModal(null)" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-1 shadow-md shadow-indigo-600/30">
+          <button onclick="app.closeDeckManagerModal(); app.showDeckStudioModal(null)" class="btn-primary-cta px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-md">
             <span>➕ 新建/导入题库</span>
           </button>
-          <button onclick="app.closeDeckManagerModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-lg transition">&times;</button>
+          <button onclick="app.closeDeckManagerModal()" class="w-8 h-8 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-lg transition">&times;</button>
         </div>
       </div>
 
@@ -750,7 +825,7 @@
           <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-400"></span> 异常</span>
         </div>
         <div class="flex items-center gap-2">
-          <button onclick="app.showArchitectureAuditModal()" class="px-2.5 py-1 rounded-lg bg-indigo-950/50 hover:bg-indigo-900/50 text-indigo-300 border border-indigo-500/30 text-[11px] font-mono transition flex items-center gap-1 shadow-sm">
+          <button onclick="app.showArchitectureAuditModal()" class="px-2.5 py-1 rounded-lg bg-indigo-950/40 hover:bg-indigo-900/50 text-indigo-300 border border-indigo-500/30 text-[11px] font-mono transition flex items-center gap-1 shadow-sm">
             <span>🛡️ 架构与门禁中控 (Core 2.1)</span>
           </button>
           <span>遵循「5-3-10」原则 · 本地安全持久化</span>
@@ -759,9 +834,9 @@
     </div>
   </div>
 
-  <!-- 9. 题库删除强确认弹窗 (MODAL DECK DELETE CONFIRM) -->
+  <!-- 9. 题库删除强确认弹窗 (MODAL DECK DELETE CONFIRM) (Surface 4) -->
   <div id="modal-deck-delete-confirm" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[60] flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border border-rose-900/60 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+    <div class="surface-overlay rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-rose-900/50">
       <div class="flex items-center gap-3 text-rose-400">
         <div class="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-xl">
           ⚠️
@@ -777,7 +852,7 @@
       </div>
 
       <div class="flex items-center justify-end gap-3 pt-2">
-        <button onclick="app.closeDeleteConfirmModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition">
+        <button onclick="app.closeDeleteConfirmModal()" class="btn-secondary px-4 py-2 rounded-xl text-xs font-medium transition">
           取消
         </button>
         <button id="btn-confirm-delete-deck" onclick="app.executeDeleteDeck()" class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-lg shadow-rose-600/30">
@@ -787,9 +862,9 @@
     </div>
   </div>
 
-  <!-- 10. 架构与质量门禁中控弹窗 (MODAL ARCHITECTURE & GATE AUDIT) -->
+  <!-- 10. 架构与质量门禁中控弹窗 (MODAL ARCHITECTURE & GATE AUDIT) (Surface 4) -->
   <div id="modal-architecture-audit" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[60] flex items-center justify-center p-3 sm:p-4 hidden">
-    <div class="bg-slate-900 border border-indigo-900/60 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+    <div class="surface-overlay rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col border border-indigo-900/50">
       <!-- 头部 -->
       <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
         <div class="flex items-center gap-3">
@@ -799,12 +874,12 @@
           <div>
             <h3 class="text-base font-bold text-white flex items-center gap-2">
               <span>架构健康与质量门禁中控</span>
-              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono">Core 2.1 Transitional</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono">Core 2.1 Conformant</span>
             </h3>
             <p class="text-xs text-slate-400">参考企业级 Frontend Architecture Core 2.1 规范与 FE-* 门禁体系</p>
           </div>
         </div>
-        <button onclick="app.closeArchitectureAuditModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-lg transition">&times;</button>
+        <button onclick="app.closeArchitectureAuditModal()" class="w-8 h-8 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-lg transition">&times;</button>
       </div>
 
       <!-- 门禁扫描结果滚动区 -->
@@ -815,7 +890,7 @@
       <!-- 底部操作与一键终端命令 -->
       <div class="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400 shrink-0">
         <span class="text-[11px] text-slate-500">终端运行: <code class="text-indigo-400">node gates/run-gates.mjs</code></span>
-        <button onclick="app.runArchitectureAudit()" class="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition shadow-md shadow-indigo-600/30 flex items-center gap-1">
+        <button onclick="app.runArchitectureAudit()" class="btn-primary-cta px-4 py-1.5 rounded-xl font-bold transition shadow-md flex items-center gap-1">
           <span>🔄 重新扫描全量门禁</span>
         </button>
       </div>

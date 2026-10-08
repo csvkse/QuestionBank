@@ -1,29 +1,119 @@
 /**
- * CyberRetro Design System Semantic Color Tokens
- * Core: design-system/tokens/colors.css
+ * Enterprise Frontend Design System Semantic Color Tokens
+ * Conforming to 4-Tier Token Model & OKLCH Lightness Hierarchy
+ * Location: design-system/tokens/colors.css
  */
 
 :root {
-  --color-bg-base: #020617;        /* slate-950 */
-  --color-bg-surface: #0f172a;     /* slate-900 */
-  --color-bg-surface-hover: #1e293b; /* slate-800 */
-  --color-border-subtle: #1e293b;  /* slate-800 */
-  --color-border-highlight: #334155; /* slate-700 */
+  /* =======================================================================
+   * Tier 1: Primitives (基础色板)
+   * ======================================================================= */
+  --primitive-slate-950: #020617;
+  --primitive-slate-900: #0b1120;
+  --primitive-slate-850: #111c33;
+  --primitive-slate-800: #1e293b;
+  --primitive-slate-700: #334155;
+  --primitive-slate-600: #475569;
+  --primitive-slate-500: #64748b;
+  --primitive-slate-400: #94a3b8;
+  --primitive-slate-300: #cbd5e1;
+  --primitive-slate-200: #e2e8f0;
+  --primitive-slate-100: #f1f5f9;
+  --primitive-slate-50:  #f8fafc;
 
-  --color-primary: #6366f1;        /* indigo-500 */
-  --color-primary-hover: #4f46e5;  /* indigo-600 */
-  --color-primary-glow: rgba(99, 102, 241, 0.25);
+  --primitive-indigo-600: #4f46e5;
+  --primitive-indigo-500: #6366f1;
+  --primitive-indigo-400: #818cf8;
+  --primitive-indigo-300: #a5b4fc;
 
-  --color-success: #10b981;        /* emerald-500 */
-  --color-success-bg: rgba(16, 185, 129, 0.15);
+  --primitive-amber-500: #f59e0b;
+  --primitive-amber-400: #fbbf24;
+  --primitive-emerald-500: #10b981;
+  --primitive-emerald-400: #34d399;
+  --primitive-rose-500: #ef4444;
+  --primitive-rose-400: #f87171;
+  --primitive-cyan-500: #06b6d4;
+  --primitive-cyan-400: #22d3ee;
 
-  --color-warning: #f59e0b;        /* amber-500 */
-  --color-warning-bg: rgba(245, 158, 11, 0.15);
+  /* =======================================================================
+   * Tier 2: Semantic Surface Ladder (表面高程阶梯: Surface 0 ~ 4)
+   * 遵循明度渐进原则，杜绝无边界或明度倒置
+   * ======================================================================= */
+  --surface-canvas:  var(--primitive-slate-950);       /* Surface 0: 画布底色 */
+  --surface-card:    var(--primitive-slate-900);       /* Surface 1: 卡片容器 */
+  --surface-inset:   var(--primitive-slate-850);       /* Surface 2: 控件/内嵌区域 */
+  --surface-raised:  var(--primitive-slate-800);       /* Surface 3: 悬停/抬起卡片 */
+  --surface-overlay: #0e1726;                          /* Surface 4: 模态浮层/抽屉 */
 
-  --color-danger: #ef4444;         /* rose-500 */
-  --color-danger-bg: rgba(239, 68, 68, 0.15);
+  /* =======================================================================
+   * Tier 2: Semantic Text & Icon Tokens (WCAG 2.2 AA 对比度阶梯)
+   * ======================================================================= */
+  --text-primary:    var(--primitive-slate-50);        /* 正文与主标题: 对比度 > 12:1 */
+  --text-secondary:  var(--primitive-slate-400);       /* 辅助文本/描述: 对比度 > 5.5:1 */
+  --text-tertiary:   var(--primitive-slate-500);       /* 元数据/徽标: 对比度 > 3.2:1 */
+  --text-disabled:   var(--primitive-slate-600);       /* 禁用占位符 */
+  --text-brand:      var(--primitive-indigo-400);      /* 品牌文本 */
+  --text-accent:     var(--primitive-amber-400);       /* 强调高亮文本 */
 
-  --color-text-main: #f8fafc;      /* slate-50 */
-  --color-text-muted: #94a3b8;     /* slate-400 */
-  --color-text-subtle: #64748b;    /* slate-500 */
+  /* =======================================================================
+   * Tier 2: Semantic Border Tokens (克制边框体系: 能靠色差不加边框)
+   * ======================================================================= */
+  --border-subtle:   rgba(51, 65, 85, 0.45);          /* 容器细微弱分隔线 */
+  --border-default:  var(--primitive-slate-800);       /* 默认控件边框 */
+  --border-strong:   var(--primitive-slate-700);       /* 高亮轮廓线 */
+  --border-focus:    var(--primitive-indigo-500);      /* 键盘聚焦光圈 */
+
+  /* =======================================================================
+   * Tier 2: Action & CTA Tokens (遵循 Rule of One: 唯一实色主焦点)
+   * ======================================================================= */
+  --action-primary-bg:      var(--primitive-indigo-600);
+  --action-primary-hover:   var(--primitive-indigo-500);
+  --action-primary-text:    #ffffff;
+  --action-primary-glow:    rgba(99, 102, 241, 0.28);
+
+  --action-secondary-bg:    var(--primitive-slate-800);
+  --action-secondary-hover: var(--primitive-slate-700);
+  --action-secondary-text:  var(--primitive-slate-200);
+
+  --action-ghost-hover:     rgba(255, 255, 255, 0.06);
+
+  /* =======================================================================
+   * Tier 2: Status Semantic Feedback (按需出现，语义多通道传达)
+   * ======================================================================= */
+  --status-success:        var(--primitive-emerald-500);
+  --status-success-bg:     rgba(16, 185, 129, 0.12);
+  --status-success-border: rgba(16, 185, 129, 0.30);
+
+  --status-warning:        var(--primitive-amber-500);
+  --status-warning-bg:     rgba(245, 158, 11, 0.12);
+  --status-warning-border: rgba(245, 158, 11, 0.30);
+
+  --status-error:          var(--primitive-rose-500);
+  --status-error-bg:       rgba(239, 68, 68, 0.12);
+  --status-error-border:   rgba(239, 68, 68, 0.30);
+
+  --status-info:           var(--primitive-cyan-500);
+  --status-info-bg:        rgba(6, 182, 212, 0.12);
+  --status-info-border:    rgba(6, 182, 212, 0.30);
+
+  /* =======================================================================
+   * Legacy Compatibility Layer (平滑兼容老版变量名)
+   * ======================================================================= */
+  --color-bg-base:          var(--surface-canvas);
+  --color-bg-surface:       var(--surface-card);
+  --color-bg-surface-hover: var(--surface-raised);
+  --color-border-subtle:    var(--border-subtle);
+  --color-border-highlight: var(--border-strong);
+  --color-primary:          var(--primitive-indigo-500);
+  --color-primary-hover:    var(--action-primary-bg);
+  --color-primary-glow:     var(--action-primary-glow);
+  --color-success:          var(--status-success);
+  --color-success-bg:       var(--status-success-bg);
+  --color-warning:          var(--status-warning);
+  --color-warning-bg:       var(--status-warning-bg);
+  --color-danger:           var(--status-error);
+  --color-danger-bg:        var(--status-error-bg);
+  --color-text-main:        var(--text-primary);
+  --color-text-muted:       var(--text-secondary);
+  --color-text-subtle:      var(--text-tertiary);
 }

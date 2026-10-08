@@ -287,7 +287,46 @@ try {
   recordResult('FE-QUALITY-001', 'Modular File Size Health', 'FAIL', err.message);
 }
 
-// 8. 自动执行全量单元测试
+// 8. FE-DESIGN-001: 设计令牌规范完备性与 4 层模型检查
+try {
+  const tokenDir = path.join(ROOT_DIR, 'design-system/tokens');
+  const requiredFiles = ['colors.css', 'typography.css', 'elevation.css', 'spacing.css'];
+  let missingFiles = [];
+  requiredFiles.forEach(f => {
+    if (!fs.existsSync(path.join(tokenDir, f))) missingFiles.push(f);
+  });
+
+  if (missingFiles.length > 0) {
+    recordResult('FE-DESIGN-001', 'Design Token Completeness', 'FAIL', `Missing token files: ${missingFiles.join(', ')}`);
+  } else {
+    const colorsCss = fs.readFileSync(path.join(tokenDir, 'colors.css'), 'utf8');
+    const typographyCss = fs.readFileSync(path.join(tokenDir, 'typography.css'), 'utf8');
+
+    const requiredTokens = [
+      '--surface-canvas', '--surface-card', '--surface-inset', '--surface-raised', '--surface-overlay',
+      '--text-primary', '--text-secondary', '--text-tertiary',
+      '--border-subtle', '--border-default',
+      '--action-primary-bg', '--status-success', '--status-warning', '--status-error'
+    ];
+    const missingTokens = requiredTokens.filter(t => !colorsCss.includes(t));
+
+    const requiredTypography = [
+      '--font-sans', '--font-mono',
+      '--font-size-xs', '--font-size-sm', '--font-size-base', '--font-size-lg', '--font-size-xl', '--font-size-2xl', '--font-size-3xl'
+    ];
+    const missingTypo = requiredTypography.filter(t => !typographyCss.includes(t));
+
+    if (missingTokens.length === 0 && missingTypo.length === 0) {
+      recordResult('FE-DESIGN-001', 'Design Token Completeness', 'PASS', '100% Surface (0-4), Typography & Semantic tokens verified');
+    } else {
+      recordResult('FE-DESIGN-001', 'Design Token Completeness', 'FAIL', `Missing tokens: ${missingTokens.concat(missingTypo).join(', ')}`);
+    }
+  }
+} catch (err) {
+  recordResult('FE-DESIGN-001', 'Design Token Completeness', 'FAIL', err.message);
+}
+
+// 9. 自动执行全量单元测试
 try {
   const tests = [
     'tests/unit/sm2-scheduler.test.mjs',

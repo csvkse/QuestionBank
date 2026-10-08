@@ -21,6 +21,7 @@
 | **09** | [09_FRONTEND_ARCHITECTURE_AND_PHYSICAL_LAYOUT.md](./09_FRONTEND_ARCHITECTURE_AND_PHYSICAL_LAYOUT.md) | **前端架构升级与物理目录规范 (Core 2.1 映射)**<br>• 映射企业级 Frontend Architecture Core 2.1 规范<br>• 六大逻辑角色边界 (`app`, `features`, `shared`, `design-system`, `platform`, `vendor`)<br>• 目标物理目录树规划<br>• 开发态 (ESM) 与分发态 (便携独立单文件) 双模式交付流水线 |
 | **10** | [10_QUALITY_GATES_AND_GOVERNANCE_SPEC.md](./10_QUALITY_GATES_AND_GOVERNANCE_SPEC.md) | **质量门禁与架构治理规约 (Quality Gates)**<br>• 统一规则 ID 体系 (`FE-*` 与 `DS-*`)<br>• L0 ~ L3 门禁分级执行时机与性能预算<br>• 结构、依赖、资源、复杂度门禁明细<br>• **知识图谱专属硬门禁 `FE-KNOW-*` (同胞池、容量、AST幂等)**<br>• 渐进式基线 (Baseline) 与棘轮 (Ratchet) 治理协议 |
 | **11** | [11_ARCHITECTURE_MIGRATION_AND_PREVIEW_PLAN.md](./11_ARCHITECTURE_MIGRATION_AND_PREVIEW_PLAN.md) | **架构迁移路线图与预览方案 (Migration & Preview)**<br>• 原生 ESM、零依赖打包器、门禁引擎与存储兼容性可行性论证<br>• 三阶段平滑演进路线 (Transitional ➔ Hybrid ➔ Conformant)<br>• 终端 CLI 门禁、界面内嵌架构中控与打包产物三重视角预览方案 |
+| **12** | [12_DESIGN_SYSTEM_AND_UI_OPTIMIZATION_SPEC.md](./12_DESIGN_SYSTEM_AND_UI_OPTIMIZATION_SPEC.md) | **前端设计规范落地与设计令牌重构规范 (Design System & UI Spec)**<br>• 界面设计核心规范（70~90%中性色、Rule of One视觉焦点、层级演进铁律）<br>• 4层设计令牌架构（Primitive → Semantic → Component → Theme）<br>• Surface 0～4 表面层级与明度阶梯（告别“结构不够框来凑”）<br>• 8-Point 间距步进与 7 级排版字阶规范 |
 
 ---
 
