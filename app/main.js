@@ -69,11 +69,9 @@ export class KnowledgeMasterApp {
   init() {
     this.loadUserData();
     this.bindEvents();
-    this.renderActiveDeckIndicator();
-    this.renderAllViews();
-    this.router.navigate('study');
+    this.renderDeckSelector();
+    this.router.navigate('dashboard');
 
-    // 挂载至全局以支持内联事件
     if (typeof window !== 'undefined') {
       window.app = this;
     }
@@ -113,6 +111,7 @@ export class KnowledgeMasterApp {
       this.state.deckStates[deckId] = {
         totalAttempts: 0,
         totalCorrect: 0,
+        streak: 0,
         cards: {}
       };
     }
@@ -123,8 +122,9 @@ export class KnowledgeMasterApp {
     this.state.activeDeckId = deckId;
     this.saveUserData();
     this.resetStudyFilters();
-    this.renderActiveDeckIndicator();
+    this.renderDeckSelector();
     this.renderAllViews();
+    this.router.navigate(this.router.currentView || 'dashboard');
   }
 
   // ==================== 视图导航与渲染委托 ====================
@@ -133,16 +133,188 @@ export class KnowledgeMasterApp {
     this.router.navigate(viewId);
   }
 
-  renderActiveDeckIndicator() {
-    const deck = this.getActiveDeck();
-    const btn = document.getElementById('current-deck-btn-text');
-    if (btn) btn.innerText = `${deck.icon} ${deck.title}`;
+  renderDeckSelector() {
+    const selector = document.getElementById('deck-selector');
+    const decks = this.getAllDecks();
+    const activeDeck = this.getActiveDeck();
+
+    if (selector) {
+      selector.innerHTML = decks.map(d => `
+        <option value="${d.id}" ${d.id === activeDeck.id ? 'selected' : ''}>
+          ${d.icon} ${d.title}
+        </option>
+      `).join('');
+    }
+
+    const iconEl = document.getElementById('header-deck-icon');
+    const titleEl = document.getElementById('header-deck-title');
+    if (iconEl) iconEl.innerText = activeDeck.icon;
+    if (titleEl) titleEl.innerText = activeDeck.title;
   }
 
   renderAllViews() {
+    this.renderDashboard();
     this.renderStudyHub();
     this.renderReviewBoard();
     this.renderStats();
+  }
+
+  calcSpacedRepetitionMetrics() {
+    const deck = this.getActiveDeck();
+    const ds = this.getDeckState(deck.id);
+    const endOfToday = new Date().setHours(23, 59, 59, 999);
+    let dueCount = 0;
+    let rustyCount = 0;
+    let masteredCount = 0;
+    const dueEntities = [];
+    const mistakeEntities = [];
+
+    (deck.entities || []).forEach(entity => {
+      const card = ds.cards[entity.id];
+      if (!card || card.attempts === 0) return;
+
+      if (card.level >= 4) masteredCount++;
+
+      if (card.nextReviewAt && card.nextReviewAt <= endOfToday) {
+        dueCount++;
+        dueEntities.push(entity);
+        const daysOverdue = (endOfToday - card.nextReviewAt) / (1000 * 3600 * 24);
+        if (daysOverdue > (card.stabilityDays || 1) * 2) rustyCount++;
+      }
+
+      if (card.wrong > 0 && (card.wrong / card.attempts > 0.3 || card.level <= 1)) {
+        mistakeEntities.push(entity);
+      }
+    });
+
+    return { dueCount, rustyCount, masteredCount, dueEntities, mistakeEntities };
+  }
+
+  renderDashboard() {
+    const deck = this.getActiveDeck();
+    const ds = this.getDeckState(deck.id);
+    const totalEntities = (deck.entities || []).length;
+    const practicedCount = Object.values(ds.cards).filter(c => c.attempts > 0).length;
+    const coverageRate = totalEntities > 0 ? Math.round((practicedCount / totalEntities) * 100) : 0;
+
+    const { dueCount, rustyCount, masteredCount, dueEntities, mistakeEntities } = this.calcSpacedRepetitionMetrics();
+    const totalAcc = ds.totalAttempts > 0 ? Math.round((ds.totalCorrect / ds.totalAttempts) * 100) : 100;
+
+    const streakEl = document.getElementById('header-streak');
+    if (streakEl) streakEl.innerText = ds.streak || 0;
+
+    const covRateEl = document.getElementById('stat-coverage-rate');
+    const covDetailEl = document.getElementById('stat-coverage-detail');
+    const covBarEl = document.getElementById('stat-coverage-bar');
+    if (covRateEl) covRateEl.innerText = `${coverageRate}%`;
+    if (covDetailEl) covDetailEl.innerText = `(${practicedCount}/${totalEntities}词条)`;
+    if (covBarEl) covBarEl.style.width = `${coverageRate}%`;
+
+    const dueEl = document.getElementById('stat-due-count');
+    const rustyEl = document.getElementById('stat-rusty-count');
+    const accEl = document.getElementById('stat-accuracy-rate');
+    const accDetailEl = document.getElementById('stat-accuracy-detail');
+    const totalAttEl = document.getElementById('stat-total-attempts');
+    const masteredEl = document.getElementById('stat-mastered-count');
+
+    if (dueEl) dueEl.innerText = dueCount;
+    if (rustyEl) rustyEl.innerText = rustyCount;
+    if (accEl) accEl.innerText = `${totalAcc}%`;
+    if (accDetailEl) accDetailEl.innerText = `(${ds.totalCorrect || 0}/${ds.totalAttempts || 0})`;
+    if (totalAttEl) totalAttEl.innerText = ds.totalAttempts || 0;
+    if (masteredEl) masteredEl.innerText = masteredCount;
+
+    const badgeReview = document.getElementById('mode-badge-review');
+    const badgeWeakness = document.getElementById('mode-badge-weakness');
+    if (badgeReview) badgeReview.innerText = `今日到期: ${dueCount}`;
+    if (badgeWeakness) badgeWeakness.innerText = `错题待清: ${mistakeEntities.length}`;
+
+    const navMistakeBadge = document.getElementById('nav-mistake-badge');
+    if (navMistakeBadge) {
+      if (mistakeEntities.length > 0) {
+        navMistakeBadge.classList.remove('hidden');
+        navMistakeBadge.innerText = mistakeEntities.length;
+      } else {
+        navMistakeBadge.classList.add('hidden');
+      }
+    }
+
+    this.renderSmartBanner(dueCount, mistakeEntities.length, coverageRate);
+    this.renderDeckCategoryBars();
+  }
+
+  renderSmartBanner(dueCount, mistakeCount, coverageRate) {
+    const banner = document.getElementById('smart-recommendation-banner');
+    if (!banner) return;
+    let title = '';
+    let desc = '';
+    let actionBtnText = '';
+    let targetMode = '';
+    let colorClass = '';
+
+    if (dueCount > 0) {
+      title = `⏰ 艾宾浩斯遗忘警报：今日有 ${dueCount} 个知识点到达复习周期！`;
+      desc = `系统检测到该图谱中有知识点濒临遗忘。推荐开启【每日温故模式】，用时不到 2 分钟即可把记忆拉回长效区！`;
+      actionBtnText = '立即进行艾宾浩斯复习 🚀';
+      targetMode = 'daily';
+      colorClass = 'bg-amber-950/30 border-amber-500/40 text-amber-200';
+    } else if (mistakeCount >= 2) {
+      title = `🎯 盲区诊断报告：历史沉淀了 ${mistakeCount} 个易混淆错题！`;
+      desc = `检测到同胞概念间存在答题失误。建议启动【弱点定点爆破模式】，对错题进行针对性同胞选项辨析！`;
+      actionBtnText = '开启弱点歼灭战 💥';
+      targetMode = 'weakness';
+      colorClass = 'bg-rose-950/30 border-rose-500/40 text-rose-200';
+    } else if (coverageRate < 70) {
+      title = `🏆 阶梯认知推荐：当前题库覆盖率为 ${coverageRate}%，建议继续开拓！`;
+      desc = `推荐进入【分层阶梯战役模式】，依照布鲁姆认知模型由浅入深逐层挑战进阶要点！`;
+      actionBtnText = '继续闯关战役 ⚔️';
+      targetMode = 'ladder';
+      colorClass = 'bg-indigo-950/30 border-indigo-500/40 text-indigo-200';
+    } else {
+      title = `⚡ 极限测速推荐：图谱基础已非常稳固！挑战极速连击生存！`;
+      desc = `3 条命限时 6 秒抢答，检验对该领域知识的下意识条件反射与抗压反应！`;
+      actionBtnText = '挑战连击极限 ⚡';
+      targetMode = 'speed';
+      colorClass = 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200';
+    }
+
+    banner.className = `rounded-2xl p-5 border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all shadow-md ${colorClass}`;
+    banner.innerHTML = `
+      <div>
+        <div class="font-black text-sm sm:text-base flex items-center gap-1.5">${title}</div>
+        <p class="text-xs opacity-80 mt-1 max-w-2xl leading-relaxed">${desc}</p>
+      </div>
+      <button onclick="app.startMode('${targetMode}')" class="shrink-0 px-4 py-2.5 rounded-xl bg-white text-slate-950 hover:bg-slate-100 text-xs font-black shadow-lg transition">
+        ${actionBtnText}
+      </button>
+    `;
+  }
+
+  renderDeckCategoryBars() {
+    const container = document.getElementById('deck-category-bars') || document.getElementById('stats-category-breakdown');
+    if (!container) return;
+    const deck = this.getActiveDeck();
+    const ds = this.getDeckState(deck.id);
+
+    let html = '';
+    (deck.categories || []).forEach(cat => {
+      const ents = (deck.entities || []).filter(e => e.categoryId === cat.id);
+      const learned = ents.filter(e => ds.cards[e.id] && ds.cards[e.id].attempts > 0).length;
+      const pct = ents.length > 0 ? Math.round((learned / ents.length) * 100) : 0;
+
+      html += `
+        <div class="space-y-1.5 p-3 rounded-xl bg-slate-900 border border-slate-800">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-medium text-slate-300 truncate max-w-[200px]">${cat.name}</span>
+            <span class="font-mono text-slate-400 text-[11px]">${learned}/${ents.length} (${pct}%)</span>
+          </div>
+          <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+            <div class="bg-indigo-500 h-full rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+          </div>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
   }
 
   renderStudyHub() {
@@ -161,12 +333,21 @@ export class KnowledgeMasterApp {
       badge.innerText = `覆盖率: ${stats.coveragePercent}% (${stats.practiced}/${stats.total}) · 待复习: ${stats.due}`;
     }
 
-    const maskBtn = document.getElementById('study-mask-btn');
-    if (maskBtn) {
-      maskBtn.innerText = this.isAnswerMasked ? '👁️ 遮挡自测: 开' : '👁️ 遮挡自测: 关';
-      maskBtn.className = this.isAnswerMasked
-        ? 'px-3 py-1.5 rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition flex items-center gap-1 shadow-sm'
-        : 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white border border-slate-700 text-xs font-medium transition flex items-center gap-1';
+    const maskText = document.getElementById('mask-status-text');
+    const maskIcon = document.getElementById('mask-status-icon');
+    if (maskText) maskText.innerText = this.isAnswerMasked ? '自测遮挡模式: 开' : '自测遮挡模式: 关';
+    if (maskIcon) maskIcon.innerText = this.isAnswerMasked ? '🙈' : '👁️';
+
+    const deckIcon = document.getElementById('study-deck-icon');
+    const deckTitle = document.getElementById('study-deck-title');
+    const deckDesc = document.getElementById('study-deck-desc');
+    if (deckIcon) deckIcon.innerText = deck.icon;
+    if (deckTitle) deckTitle.innerText = `${deck.title} 知识图谱`;
+    if (deckDesc) deckDesc.innerText = deck.description || '按分类与认知层级系统归纳的核心知识清单。';
+
+    const countBadge = document.getElementById('study-matched-count-badge');
+    if (countBadge) {
+      countBadge.innerText = `显示 ${deck.entities.length} / ${deck.entities.length} 词条`;
     }
   }
 
@@ -176,6 +357,153 @@ export class KnowledgeMasterApp {
 
   renderStats() {
     this.radarChart.renderStats();
+  }
+
+  renderCodex() {
+    const tbody = document.getElementById('codex-table-body');
+    if (!tbody) return;
+    const deck = this.getActiveDeck();
+    const ds = this.getDeckState(deck.id);
+    const endOfToday = new Date().setHours(23, 59, 59, 999);
+
+    const list = (deck.entities || []).filter(e => {
+      const card = ds.cards[e.id];
+      if (this.currentFilter === 'DUE') return card && card.nextReviewAt && card.nextReviewAt <= endOfToday;
+      if (this.currentFilter === 'MISTAKE') return card && card.wrong > 0;
+      if (this.currentFilter === 'MASTERED') return card && card.level >= 4;
+      return true;
+    });
+
+    const countEl = document.getElementById('codex-filtered-count');
+    if (countEl) countEl.innerText = list.length;
+
+    let html = '';
+    list.forEach(entity => {
+      const card = ds.cards[entity.id] || { level: 0, attempts: 0, correct: 0, wrong: 0 };
+      let statusBadge = '<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400">未学习</span>';
+      let reviewTimeText = '—';
+
+      if (card.attempts > 0) {
+        if (card.level >= 4) {
+          statusBadge = '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">🟢 稳固掌握</span>';
+        } else if (card.nextReviewAt && card.nextReviewAt <= endOfToday) {
+          const daysOverdue = (endOfToday - card.nextReviewAt) / (1000 * 3600 * 24);
+          if (daysOverdue > (card.stabilityDays || 1) * 2) {
+            statusBadge = '<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">🔴 记忆生锈</span>';
+          } else {
+            statusBadge = '<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">🟡 今日到期</span>';
+          }
+        } else {
+          statusBadge = '<span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">🔵 巩固中</span>';
+        }
+
+        if (card.nextReviewAt) {
+          const d = new Date(card.nextReviewAt);
+          reviewTimeText = `${d.getMonth() + 1}月${d.getDate()}日`;
+        }
+      }
+
+      const cat = deck.categories.find(c => c.id === entity.categoryId);
+      const catName = cat ? cat.name : entity.categoryId;
+
+      html += `
+        <tr class="hover:bg-slate-800/40 transition">
+          <td class="py-3 px-4 font-bold text-white">
+            ${entity.title}
+            <div class="text-[11px] text-slate-400 font-normal">${entity.subtitle || ''}</div>
+          </td>
+          <td class="py-3 px-3 font-mono text-indigo-300">${entity.answer}</td>
+          <td class="py-3 px-3">
+            <span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[10px]">${catName}</span>
+          </td>
+          <td class="py-3 px-3 font-mono text-slate-400">Layer ${entity.layer}</td>
+          <td class="py-3 px-3">${statusBadge}</td>
+          <td class="py-3 px-3 font-mono">
+            <span class="text-emerald-400">${card.correct || 0}</span> / <span class="text-rose-400">${card.wrong || 0}</span>
+          </td>
+          <td class="py-3 px-3 font-mono text-slate-400">${reviewTimeText}</td>
+          <td class="py-3 px-3 text-right">
+            <button onclick="app.drillSingleEntity('${entity.id}')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition text-[11px]">
+              单独突击
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = html;
+  }
+
+  setCodexFilter(filter) {
+    this.currentFilter = filter;
+    const buttons = document.querySelectorAll('#codex-filter-buttons button');
+    buttons.forEach(b => {
+      b.className = 'px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300';
+    });
+    if (typeof event !== 'undefined' && event && event.target) {
+      event.target.className = 'px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-medium';
+    }
+    this.renderCodex();
+  }
+
+  startMode(modeName) {
+    this.quizRunner.startSession(modeName);
+  }
+
+  nextQuestion() {
+    this.currentIndex++;
+    this.quizRunner.loadQuestion();
+  }
+
+  exitArena() {
+    if (confirm('确定退出当前试炼吗？已作答进度已自动存档。')) {
+      if (this.timerInterval) clearInterval(this.timerInterval);
+      this.navigate('dashboard');
+    }
+  }
+
+  replayCurrentMode() {
+    this.startMode(this.currentMode || 'ladder');
+  }
+
+  simulateDayPass(days = 1) {
+    const deck = this.getActiveDeck();
+    const ds = this.getDeckState(deck.id);
+    const msToSubtract = days * 24 * 3600 * 1000;
+
+    Object.values(ds.cards).forEach(c => {
+      if (c.nextReviewAt) {
+        c.nextReviewAt -= msToSubtract;
+      }
+    });
+    this.saveUserData();
+    this.renderDashboard();
+  }
+
+  filterStudyEntities() {
+    this.treeRenderer.renderCards();
+    const countBadge = document.getElementById('study-matched-count-badge');
+    if (countBadge) {
+      const searchInput = document.getElementById('study-search-input');
+      const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+      const deck = this.getActiveDeck();
+      const total = (deck.entities || []).length;
+      countBadge.innerText = query ? `筛选中 · 总计 ${total} 词条` : `显示 ${total} / ${total} 词条`;
+    }
+  }
+
+  showRawMarkdownModal() {
+    const deck = this.getActiveDeck();
+    const md = serializeDeckToMarkdown(deck);
+    alert(md);
+  }
+
+  showBackupModal() {
+    ModalController.open('modal-backup');
+  }
+
+  closeBackupModal() {
+    ModalController.close('modal-backup');
   }
 
   // ==================== 竞技场刷题委托 ====================

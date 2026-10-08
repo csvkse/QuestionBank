@@ -1709,11 +1709,12 @@ class QuizRunner {
     this.app.sessionCorrect = 0;
     this.app.sessionCombo = 0;
     this.app.maxComboInSession = 0;
+    this.app.lives = 3;
     this.app.isAnswerLocked = false;
 
     if (this.app.quizQueue.length === 0) {
       alert('🎉 太棒了！当前模式下没有需要复习的词条。');
-      this.app.navigate('study');
+      this.app.navigate('dashboard');
       return;
     }
 
@@ -1728,42 +1729,58 @@ class QuizRunner {
     const all = deck.entities || [];
     const endOfToday = new Date().setHours(23, 59, 59, 999);
 
-    if (mode === 'EBBINGHAUS_REVIEW') {
+    const norm = (mode || '').toLowerCase();
+    if (norm === 'daily' || norm === 'daily_review' || norm === 'ebbinghaus_review') {
       const due = all.filter(e => {
         const c = ds.cards[e.id];
         return c && c.nextReviewAt && c.nextReviewAt <= endOfToday;
       });
       return due.length > 0 ? due.sort(() => Math.random() - 0.5) : all.slice(0, 10);
-    } else if (mode === 'WEAKNESS_SURGE') {
+    } else if (norm === 'weakness' || norm === 'weakness_surge') {
       const weak = all.filter(e => {
         const c = ds.cards[e.id];
         return c && c.wrong > 0 && c.level < 3;
       });
       return weak.length > 0 ? weak.sort(() => Math.random() - 0.5) : all.slice(0, 10);
+    } else if (norm === 'ladder' || norm === 'campaign' || norm === 'full_campaign') {
+      return [...all].sort((a, b) => a.layer - b.layer).slice(0, 12);
     } else {
-      return [...all].sort(() => Math.random() - 0.5);
+      return [...all].sort(() => Math.random() - 0.5).slice(0, 15);
     }
   }
 
   renderHeader() {
-    const modeBadge = document.getElementById('arena-mode-badge');
-    const deckBadge = document.getElementById('arena-deck-badge');
-    const deck = this.app.getActiveDeck();
+    const hpContainer = document.getElementById('arena-hp-container');
+    const timerWrap = document.getElementById('arena-timer-bar-wrap');
+    const isSpeed = (this.app.currentMode === 'speed' || this.app.currentMode === 'SPEED_SPRINT');
 
-    if (deckBadge) deckBadge.innerText = `${deck.icon} ${deck.title}`;
-    if (modeBadge) {
-      const modeNames = {
-        'EBBINGHAUS_REVIEW': '🧠 艾宾浩斯复习',
-        'WEAKNESS_SURGE': '🎯 弱点专攻',
-        'FULL_CAMPAIGN': '⚔️ 全量远征',
-        'CATEGORY_DRILL': '⚡ 专项突破'
-      };
-      modeBadge.innerText = modeNames[this.app.currentMode] || '⚔️ 答题竞技场';
+    if (hpContainer) {
+      if (isSpeed) {
+        hpContainer.classList.remove('hidden');
+        let hearts = '';
+        for (let i = 0; i < 3; i++) hearts += (i < this.app.lives ? '❤️' : '🖤');
+        hpContainer.innerHTML = hearts;
+      } else {
+        hpContainer.classList.add('hidden');
+      }
     }
+
+    if (timerWrap) {
+      if (isSpeed) timerWrap.classList.remove('hidden');
+      else timerWrap.classList.add('hidden');
+    }
+
+    const comboText = document.getElementById('arena-combo-text');
+    if (comboText) comboText.innerText = `${this.app.sessionCombo} Combo`;
   }
 
   loadQuestion() {
-    if (this.app.currentIndex >= this.app.quizQueue.length) {
+    if (this.app.timerInterval) clearInterval(this.app.timerInterval);
+    const drawer = document.getElementById('arena-feedback-drawer');
+    if (drawer) drawer.classList.add('hidden');
+
+    const isSpeed = (this.app.currentMode === 'speed' || this.app.currentMode === 'SPEED_SPRINT');
+    if (this.app.currentIndex >= this.app.quizQueue.length || (isSpeed && this.app.lives <= 0)) {
       this.finishSession();
       return;
     }
@@ -1771,65 +1788,109 @@ class QuizRunner {
     this.app.isAnswerLocked = false;
     const currentEntity = this.app.quizQueue[this.app.currentIndex];
     const deck = this.app.getActiveDeck();
+    const cat = (deck.categories || []).find(c => c.id === currentEntity.categoryId);
+    const catName = cat ? cat.name : '核心概念';
 
-    // 更新进度条
-    const progressFill = document.getElementById('arena-progress-fill');
+    // 更新进度
     const progressText = document.getElementById('arena-progress-text');
-    const pct = Math.round(((this.app.currentIndex) / this.app.quizQueue.length) * 100);
-    if (progressFill) progressFill.style.width = `${pct}%`;
     if (progressText) progressText.innerText = `${this.app.currentIndex + 1} / ${this.app.quizQueue.length}`;
 
-    // 渲染题目头部与提示
-    const titleEl = document.getElementById('question-target-title');
-    const subtitleEl = document.getElementById('question-target-subtitle');
-    const promptEl = document.getElementById('question-prompt-text');
-    const categoryEl = document.getElementById('question-category-tag');
+    const badge = document.getElementById('arena-target-badge');
+    if (badge) badge.innerText = `🏷️ ${catName} · Layer ${currentEntity.layer || 1}`;
 
-    if (titleEl) titleEl.innerText = currentEntity.title;
-    if (subtitleEl) subtitleEl.innerText = currentEntity.subtitle || '';
-    if (promptEl) promptEl.innerText = currentEntity.prompt || '请选择正确变形 / 含义对应：';
+    const baseWord = document.getElementById('arena-base-word');
+    if (baseWord) baseWord.innerText = currentEntity.title;
 
-    const cat = deck.categories.find(c => c.id === currentEntity.categoryId);
-    if (categoryEl) {
-      categoryEl.innerText = cat ? `${cat.group ? cat.group + ' • ' : ''}${cat.name} (L${currentEntity.layer})` : `L${currentEntity.layer}`;
+    const translation = document.getElementById('arena-translation');
+    if (translation) translation.innerText = currentEntity.subtitle || '';
+
+    const promptText = document.getElementById('arena-prompt-text');
+    if (promptText) promptText.innerText = currentEntity.prompt || '请选择最准确的含义或目标对应项：';
+
+    // 采样干扰项并渲染
+    const options = generateDistractors(currentEntity, deck.entities);
+    const grid = document.getElementById('arena-options-grid');
+    if (grid) {
+      grid.innerHTML = '';
+      options.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'w-full text-left p-3.5 sm:p-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 hover:border-indigo-500 text-slate-100 text-sm font-semibold transition flex items-center justify-between group active:scale-[0.98]';
+        btn.innerHTML = `
+          <div class="flex items-center gap-3">
+            <span class="w-6 h-6 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-xs font-mono text-slate-400 group-hover:text-indigo-400 group-hover:border-indigo-500/50 transition shrink-0">
+              ${idx + 1}
+            </span>
+            <span class="font-mono text-xs sm:text-sm leading-relaxed">${opt}</span>
+          </div>
+        `;
+        btn.onclick = () => this.handleAnswer(opt, btn);
+        grid.appendChild(btn);
+      });
     }
 
-    // 隐藏上一次的反馈面板
-    const feedbackBox = document.getElementById('answer-feedback-box');
-    if (feedbackBox) feedbackBox.classList.add('hidden');
-
-    // 生成选项
-    const options = generateDistractors(currentEntity, deck.entities);
-    const optionsContainer = document.getElementById('arena-options-container');
-    if (optionsContainer) {
-      const keys = ['A', 'B', 'C', 'D'];
-      let html = '';
-      options.forEach((opt, idx) => {
-        const key = keys[idx] || (idx + 1);
-        html += `
-          <button onclick="app.submitAnswer('${opt.replace(/'/g, "\\'")}', this)" class="option-card w-full p-4 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500 hover:bg-slate-800/80 text-left transition flex items-center justify-between group shadow-sm">
-            <div class="flex items-center gap-3">
-              <span class="w-7 h-7 rounded-lg bg-slate-800 group-hover:bg-indigo-600/30 text-indigo-400 font-mono text-xs font-bold flex items-center justify-center border border-slate-700 transition">
-                ${key}
-              </span>
-              <span class="text-white font-mono text-sm sm:text-base font-bold tracking-wide">${opt}</span>
-            </div>
-            <span class="text-slate-500 group-hover:text-indigo-400 text-xs transition">回车/点击 &rarr;</span>
-          </button>
-        `;
-      });
-      optionsContainer.innerHTML = html;
+    // 极速模式倒计时
+    if (isSpeed) {
+      this.app.timeLeft = 6;
+      const bar = document.getElementById('arena-timer-bar');
+      if (bar) bar.style.width = '100%';
+      this.app.timerInterval = setInterval(() => {
+        this.app.timeLeft -= 0.1;
+        const pct = Math.max(0, (this.app.timeLeft / 6) * 100);
+        if (bar) bar.style.width = `${pct}%`;
+        if (this.app.timeLeft <= 0) {
+          clearInterval(this.app.timerInterval);
+          this.handleAnswer('TIMEOUT', null);
+        }
+      }, 100);
     }
   }
 
   handleAnswer(selected, targetBtn) {
     if (this.app.isAnswerLocked) return;
     this.app.isAnswerLocked = true;
+    if (this.app.timerInterval) clearInterval(this.app.timerInterval);
 
     const currentEntity = this.app.quizQueue[this.app.currentIndex];
     const isCorrect = (selected.trim() === currentEntity.answer.trim());
     const deck = this.app.getActiveDeck();
     const ds = this.app.getDeckState(deck.id);
+
+    // 禁用按键并高亮正确/错误
+    const buttons = document.querySelectorAll('#arena-options-grid button');
+    buttons.forEach(b => {
+      b.disabled = true;
+      const optText = (b.querySelector('.font-mono:not(span:first-child)') || b).innerText.trim();
+      if (optText === currentEntity.answer) {
+        b.classList.remove('bg-slate-800/80', 'border-slate-700');
+        b.classList.add('bg-emerald-950/60', 'border-emerald-500', 'text-emerald-200');
+      } else if (b === targetBtn && !isCorrect) {
+        b.classList.remove('bg-slate-800/80', 'border-slate-700');
+        b.classList.add('bg-rose-950/60', 'border-rose-500', 'text-rose-200');
+      }
+    });
+
+    // 状态与音效
+    if (isCorrect) {
+      this.app.soundSynth.play('correct');
+      this.app.sessionCorrect++;
+      this.app.sessionCombo++;
+      ds.streak = (ds.streak || 0) + 1;
+      this.app.maxComboInSession = Math.max(this.app.maxComboInSession, this.app.sessionCombo);
+    } else {
+      this.app.soundSynth.play('wrong');
+      this.app.sessionCombo = 0;
+      ds.streak = 0;
+      const cardEl = document.getElementById('arena-card');
+      if (cardEl) {
+        cardEl.classList.add('shake-anim');
+        setTimeout(() => cardEl.classList.remove('shake-anim'), 400);
+      }
+      const isSpeed = (this.app.currentMode === 'speed' || this.app.currentMode === 'SPEED_SPRINT');
+      if (isSpeed) {
+        this.app.lives--;
+        this.renderHeader();
+      }
+    }
 
     // 更新 SM-2 进度
     ds.cards[currentEntity.id] = calculateNextReview(ds.cards[currentEntity.id], isCorrect);
@@ -1837,67 +1898,79 @@ class QuizRunner {
     if (isCorrect) ds.totalCorrect = (ds.totalCorrect || 0) + 1;
     this.app.saveUserData();
 
-    // 视觉与音频反馈
-    const feedbackBox = document.getElementById('answer-feedback-box');
-    const feedbackTitle = document.getElementById('feedback-title');
-    const feedbackExp = document.getElementById('feedback-explanation');
-    const feedbackPitfall = document.getElementById('feedback-pitfall');
+    const comboEl = document.getElementById('arena-combo-text');
+    if (comboEl) comboEl.innerText = `${this.app.sessionCombo} Combo`;
+    const streakEl = document.getElementById('header-streak');
+    if (streakEl) streakEl.innerText = ds.streak;
+
+    this.showFeedbackDrawer(isCorrect, currentEntity);
+  }
+
+  showFeedbackDrawer(isCorrect, currentEntity) {
+    const drawer = document.getElementById('arena-feedback-drawer');
+    const icon = document.getElementById('feedback-icon');
+    const title = document.getElementById('feedback-title');
+    const sub = document.getElementById('feedback-subtitle');
+    const ruleExp = document.getElementById('feedback-rule-exp');
+    const pitfalls = document.getElementById('feedback-pitfalls');
+
+    if (!drawer) return;
+    drawer.classList.remove('hidden');
 
     if (isCorrect) {
-      this.app.sessionCorrect++;
-      this.app.sessionCombo++;
-      this.app.maxComboInSession = Math.max(this.app.maxComboInSession, this.app.sessionCombo);
-      this.app.soundSynth.play('correct');
-
-      if (targetBtn) {
-        targetBtn.classList.remove('bg-slate-900/90', 'border-slate-800');
-        targetBtn.classList.add('bg-emerald-950/40', 'border-emerald-500', 'text-emerald-300');
+      drawer.className = 'bg-slate-900 border border-emerald-500/40 rounded-2xl p-5 shadow-lg';
+      if (icon) icon.innerText = '✨';
+      if (title) {
+        title.className = 'font-bold text-sm text-emerald-400';
+        title.innerText = '回答正确！';
       }
-
-      if (this.app.sessionCombo >= 3) {
-        this.app.comboController.triggerComboAnimation(this.app.sessionCombo);
-      }
+      if (sub) sub.innerText = `命中目标要点！当前已连续答对 ${this.app.sessionCombo} 题。`;
     } else {
-      this.app.sessionCombo = 0;
-      this.app.soundSynth.play('wrong');
-
-      if (targetBtn) {
-        targetBtn.classList.remove('bg-slate-900/90', 'border-slate-800');
-        targetBtn.classList.add('bg-rose-950/40', 'border-rose-500', 'text-rose-300');
+      drawer.className = 'bg-slate-900 border border-rose-500/40 rounded-2xl p-5 shadow-lg';
+      if (icon) icon.innerText = '⚠️';
+      if (title) {
+        title.className = 'font-bold text-sm text-rose-400';
+        title.innerText = `失误！正确答案为：${currentEntity.answer}`;
       }
+      if (sub) sub.innerText = '已将该概念自动归入错题档案，艾宾浩斯复习周期已重置。';
     }
 
-    // 展开解析卡片
-    if (feedbackBox) {
-      feedbackBox.classList.remove('hidden');
-      if (feedbackTitle) {
-        feedbackTitle.innerHTML = isCorrect 
-          ? `<span class="text-emerald-400 font-bold flex items-center gap-1.5">✅ 回答正确！Combo: ${this.app.sessionCombo}</span>`
-          : `<span class="text-rose-400 font-bold flex items-center gap-1.5">❌ 回答错误！正确答案：<span class="underline font-mono">${currentEntity.answer}</span></span>`;
-      }
-      if (feedbackExp) feedbackExp.innerText = currentEntity.explanation || '';
-      if (feedbackPitfall) {
-        if (currentEntity.pitfalls) {
-          feedbackPitfall.classList.remove('hidden');
-          feedbackPitfall.innerText = `⚠️ 避坑提醒: ${currentEntity.pitfalls}`;
-        } else {
-          feedbackPitfall.classList.add('hidden');
-        }
-      }
-    }
-
-    // 自动或按键进入下一题
-    setTimeout(() => {
-      this.app.currentIndex++;
-      this.loadQuestion();
-    }, isCorrect ? 1000 : 2200);
+    if (ruleExp) ruleExp.innerText = currentEntity.explanation || '暂无详细解析';
+    if (pitfalls) pitfalls.innerText = currentEntity.pitfalls || '暂无易错提醒';
   }
 
   finishSession() {
+    if (this.app.timerInterval) clearInterval(this.app.timerInterval);
     this.app.soundSynth.play('victory');
-    const accuracy = Math.round((this.app.sessionCorrect / this.app.quizQueue.length) * 100);
-    alert(`🎉 恭喜完成本轮练习！\n\n• 正确率: ${accuracy}% (${this.app.sessionCorrect}/${this.app.quizQueue.length})\n• 最高连击: ${this.app.maxComboInSession} Combo\n• 记忆数据已根据艾宾浩斯曲线自动排程！`);
-    this.app.navigate('study');
+    this.app.navigate('summary');
+
+    const totalQ = this.app.quizQueue.length;
+    const acc = totalQ > 0 ? Math.round((this.app.sessionCorrect / totalQ) * 100) : 0;
+
+    const scoreEl = document.getElementById('summary-score');
+    const accEl = document.getElementById('summary-acc');
+    const comboEl = document.getElementById('summary-combo');
+    if (scoreEl) scoreEl.innerText = `${this.app.sessionCorrect} / ${totalQ}`;
+    if (accEl) accEl.innerText = `${acc}%`;
+    if (comboEl) comboEl.innerText = this.app.maxComboInSession;
+
+    const icon = document.getElementById('summary-icon');
+    const title = document.getElementById('summary-title');
+    const sub = document.getElementById('summary-subtitle');
+
+    if (acc >= 90) {
+      if (icon) icon.innerText = '👑';
+      if (title) title.innerText = '宗师级表现！完美过关！';
+      if (sub) sub.innerText = '该知识图谱的核心脉络已高度内化，已成功沉淀至长效记忆。';
+    } else if (acc >= 70) {
+      if (icon) icon.innerText = '🎉';
+      if (title) title.innerText = '通关成功！良好熟练度！';
+      if (sub) sub.innerText = '常规考点均已牢牢掌握，少量易错盲区已加入近期艾宾浩斯排程。';
+    } else {
+      if (icon) icon.innerText = '🧗';
+      if (title) title.innerText = '继续加油！还需多加巩固！';
+      if (sub) sub.innerText = '检测到部分易混淆同胞概念失误，推荐使用【弱点歼灭战】针对性刷题。';
+    }
   }
 }
 
@@ -2037,7 +2110,7 @@ class TreeRenderer {
   }
 
   renderCards() {
-    const container = document.getElementById('study-cards-container');
+    const container = document.getElementById('study-content-container') || document.getElementById('study-cards-container');
     if (!container) return;
 
     const deck = this.app.getActiveDeck();
@@ -2737,36 +2810,30 @@ class RadarChartController {
 class AppRouter {
   constructor(app) {
     this.app = app;
-    this.currentView = 'study';
+    this.currentView = 'dashboard';
   }
 
-  navigate(viewId) {
-    this.currentView = viewId;
-    const views = ['view-arena', 'view-review', 'view-study', 'view-stats'];
+  navigate(viewName) {
+    if (this.app.timerInterval) {
+      clearInterval(this.app.timerInterval);
+    }
+    this.currentView = viewName;
+    const views = ['dashboard', 'arena', 'summary', 'codex', 'study'];
     views.forEach(v => {
-      const el = document.getElementById(v);
+      const el = document.getElementById(`view-${v}`);
       if (el) el.classList.add('hidden');
     });
 
-    const targetEl = document.getElementById(`view-${viewId}`);
+    const targetEl = document.getElementById(`view-${viewName}`);
     if (targetEl) targetEl.classList.remove('hidden');
 
-    // 更新导航高亮
-    const navBtns = document.querySelectorAll('.nav-tab-btn');
-    navBtns.forEach(btn => {
-      if (btn.getAttribute('data-view') === viewId) {
-        btn.classList.add('bg-indigo-600', 'text-white', 'shadow-md', 'shadow-indigo-600/30');
-        btn.classList.remove('text-slate-400', 'hover:text-white', 'bg-transparent');
-      } else {
-        btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-md', 'shadow-indigo-600/30');
-        btn.classList.add('text-slate-400', 'hover:text-white', 'bg-transparent');
-      }
-    });
-
-    // 触发对应视图的数据渲染
-    if (viewId === 'study') this.app.renderStudyHub();
-    else if (viewId === 'review') this.app.renderReviewBoard();
-    else if (viewId === 'stats') this.app.renderStats();
+    if (viewName === 'dashboard') {
+      this.app.renderDashboard();
+    } else if (viewName === 'codex') {
+      this.app.renderCodex();
+    } else if (viewName === 'study') {
+      this.app.renderStudyHub();
+    }
   }
 }
 
@@ -2824,11 +2891,9 @@ class KnowledgeMasterApp {
   init() {
     this.loadUserData();
     this.bindEvents();
-    this.renderActiveDeckIndicator();
-    this.renderAllViews();
-    this.router.navigate('study');
+    this.renderDeckSelector();
+    this.router.navigate('dashboard');
 
-    // 挂载至全局以支持内联事件
     if (typeof window !== 'undefined') {
       window.app = this;
     }
@@ -2868,6 +2933,7 @@ class KnowledgeMasterApp {
       this.state.deckStates[deckId] = {
         totalAttempts: 0,
         totalCorrect: 0,
+        streak: 0,
         cards: {}
       };
     }
@@ -2878,8 +2944,9 @@ class KnowledgeMasterApp {
     this.state.activeDeckId = deckId;
     this.saveUserData();
     this.resetStudyFilters();
-    this.renderActiveDeckIndicator();
+    this.renderDeckSelector();
     this.renderAllViews();
+    this.router.navigate(this.router.currentView || 'dashboard');
   }
 
   // ==================== 视图导航与渲染委托 ====================
@@ -2888,16 +2955,188 @@ class KnowledgeMasterApp {
     this.router.navigate(viewId);
   }
 
-  renderActiveDeckIndicator() {
-    const deck = this.getActiveDeck();
-    const btn = document.getElementById('current-deck-btn-text');
-    if (btn) btn.innerText = `${deck.icon} ${deck.title}`;
+  renderDeckSelector() {
+    const selector = document.getElementById('deck-selector');
+    const decks = this.getAllDecks();
+    const activeDeck = this.getActiveDeck();
+
+    if (selector) {
+      selector.innerHTML = decks.map(d => `
+        <option value="${d.id}" ${d.id === activeDeck.id ? 'selected' : ''}>
+          ${d.icon} ${d.title}
+        </option>
+      `).join('');
+    }
+
+    const iconEl = document.getElementById('header-deck-icon');
+    const titleEl = document.getElementById('header-deck-title');
+    if (iconEl) iconEl.innerText = activeDeck.icon;
+    if (titleEl) titleEl.innerText = activeDeck.title;
   }
 
   renderAllViews() {
+    this.renderDashboard();
     this.renderStudyHub();
     this.renderReviewBoard();
     this.renderStats();
+  }
+
+  calcSpacedRepetitionMetrics() {
+    const deck = this.getActiveDeck();
+    const ds = this.getDeckState(deck.id);
+    const endOfToday = new Date().setHours(23, 59, 59, 999);
+    let dueCount = 0;
+    let rustyCount = 0;
+    let masteredCount = 0;
+    const dueEntities = [];
+    const mistakeEntities = [];
+
+    (deck.entities || []).forEach(entity => {
+      const card = ds.cards[entity.id];
+      if (!card || card.attempts === 0) return;
+
+      if (card.level >= 4) masteredCount++;
+
+      if (card.nextReviewAt && card.nextReviewAt <= endOfToday) {
+        dueCount++;
+        dueEntities.push(entity);
+        const daysOverdue = (endOfToday - card.nextReviewAt) / (1000 * 3600 * 24);
+        if (daysOverdue > (card.stabilityDays || 1) * 2) rustyCount++;
+      }
+
+      if (card.wrong > 0 && (card.wrong / card.attempts > 0.3 || card.level <= 1)) {
+        mistakeEntities.push(entity);
+      }
+    });
+
+    return { dueCount, rustyCount, masteredCount, dueEntities, mistakeEntities };
+  }
+
+  renderDashboard() {
+    const deck = this.getActiveDeck();
+    const ds = this.getDeckState(deck.id);
+    const totalEntities = (deck.entities || []).length;
+    const practicedCount = Object.values(ds.cards).filter(c => c.attempts > 0).length;
+    const coverageRate = totalEntities > 0 ? Math.round((practicedCount / totalEntities) * 100) : 0;
+
+    const { dueCount, rustyCount, masteredCount, dueEntities, mistakeEntities } = this.calcSpacedRepetitionMetrics();
+    const totalAcc = ds.totalAttempts > 0 ? Math.round((ds.totalCorrect / ds.totalAttempts) * 100) : 100;
+
+    const streakEl = document.getElementById('header-streak');
+    if (streakEl) streakEl.innerText = ds.streak || 0;
+
+    const covRateEl = document.getElementById('stat-coverage-rate');
+    const covDetailEl = document.getElementById('stat-coverage-detail');
+    const covBarEl = document.getElementById('stat-coverage-bar');
+    if (covRateEl) covRateEl.innerText = `${coverageRate}%`;
+    if (covDetailEl) covDetailEl.innerText = `(${practicedCount}/${totalEntities}词条)`;
+    if (covBarEl) covBarEl.style.width = `${coverageRate}%`;
+
+    const dueEl = document.getElementById('stat-due-count');
+    const rustyEl = document.getElementById('stat-rusty-count');
+    const accEl = document.getElementById('stat-accuracy-rate');
+    const accDetailEl = document.getElementById('stat-accuracy-detail');
+    const totalAttEl = document.getElementById('stat-total-attempts');
+    const masteredEl = document.getElementById('stat-mastered-count');
+
+    if (dueEl) dueEl.innerText = dueCount;
+    if (rustyEl) rustyEl.innerText = rustyCount;
+    if (accEl) accEl.innerText = `${totalAcc}%`;
+    if (accDetailEl) accDetailEl.innerText = `(${ds.totalCorrect || 0}/${ds.totalAttempts || 0})`;
+    if (totalAttEl) totalAttEl.innerText = ds.totalAttempts || 0;
+    if (masteredEl) masteredEl.innerText = masteredCount;
+
+    const badgeReview = document.getElementById('mode-badge-review');
+    const badgeWeakness = document.getElementById('mode-badge-weakness');
+    if (badgeReview) badgeReview.innerText = `今日到期: ${dueCount}`;
+    if (badgeWeakness) badgeWeakness.innerText = `错题待清: ${mistakeEntities.length}`;
+
+    const navMistakeBadge = document.getElementById('nav-mistake-badge');
+    if (navMistakeBadge) {
+      if (mistakeEntities.length > 0) {
+        navMistakeBadge.classList.remove('hidden');
+        navMistakeBadge.innerText = mistakeEntities.length;
+      } else {
+        navMistakeBadge.classList.add('hidden');
+      }
+    }
+
+    this.renderSmartBanner(dueCount, mistakeEntities.length, coverageRate);
+    this.renderDeckCategoryBars();
+  }
+
+  renderSmartBanner(dueCount, mistakeCount, coverageRate) {
+    const banner = document.getElementById('smart-recommendation-banner');
+    if (!banner) return;
+    let title = '';
+    let desc = '';
+    let actionBtnText = '';
+    let targetMode = '';
+    let colorClass = '';
+
+    if (dueCount > 0) {
+      title = `⏰ 艾宾浩斯遗忘警报：今日有 ${dueCount} 个知识点到达复习周期！`;
+      desc = `系统检测到该图谱中有知识点濒临遗忘。推荐开启【每日温故模式】，用时不到 2 分钟即可把记忆拉回长效区！`;
+      actionBtnText = '立即进行艾宾浩斯复习 🚀';
+      targetMode = 'daily';
+      colorClass = 'bg-amber-950/30 border-amber-500/40 text-amber-200';
+    } else if (mistakeCount >= 2) {
+      title = `🎯 盲区诊断报告：历史沉淀了 ${mistakeCount} 个易混淆错题！`;
+      desc = `检测到同胞概念间存在答题失误。建议启动【弱点定点爆破模式】，对错题进行针对性同胞选项辨析！`;
+      actionBtnText = '开启弱点歼灭战 💥';
+      targetMode = 'weakness';
+      colorClass = 'bg-rose-950/30 border-rose-500/40 text-rose-200';
+    } else if (coverageRate < 70) {
+      title = `🏆 阶梯认知推荐：当前题库覆盖率为 ${coverageRate}%，建议继续开拓！`;
+      desc = `推荐进入【分层阶梯战役模式】，依照布鲁姆认知模型由浅入深逐层挑战进阶要点！`;
+      actionBtnText = '继续闯关战役 ⚔️';
+      targetMode = 'ladder';
+      colorClass = 'bg-indigo-950/30 border-indigo-500/40 text-indigo-200';
+    } else {
+      title = `⚡ 极限测速推荐：图谱基础已非常稳固！挑战极速连击生存！`;
+      desc = `3 条命限时 6 秒抢答，检验对该领域知识的下意识条件反射与抗压反应！`;
+      actionBtnText = '挑战连击极限 ⚡';
+      targetMode = 'speed';
+      colorClass = 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200';
+    }
+
+    banner.className = `rounded-2xl p-5 border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all shadow-md ${colorClass}`;
+    banner.innerHTML = `
+      <div>
+        <div class="font-black text-sm sm:text-base flex items-center gap-1.5">${title}</div>
+        <p class="text-xs opacity-80 mt-1 max-w-2xl leading-relaxed">${desc}</p>
+      </div>
+      <button onclick="app.startMode('${targetMode}')" class="shrink-0 px-4 py-2.5 rounded-xl bg-white text-slate-950 hover:bg-slate-100 text-xs font-black shadow-lg transition">
+        ${actionBtnText}
+      </button>
+    `;
+  }
+
+  renderDeckCategoryBars() {
+    const container = document.getElementById('deck-category-bars') || document.getElementById('stats-category-breakdown');
+    if (!container) return;
+    const deck = this.getActiveDeck();
+    const ds = this.getDeckState(deck.id);
+
+    let html = '';
+    (deck.categories || []).forEach(cat => {
+      const ents = (deck.entities || []).filter(e => e.categoryId === cat.id);
+      const learned = ents.filter(e => ds.cards[e.id] && ds.cards[e.id].attempts > 0).length;
+      const pct = ents.length > 0 ? Math.round((learned / ents.length) * 100) : 0;
+
+      html += `
+        <div class="space-y-1.5 p-3 rounded-xl bg-slate-900 border border-slate-800">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-medium text-slate-300 truncate max-w-[200px]">${cat.name}</span>
+            <span class="font-mono text-slate-400 text-[11px]">${learned}/${ents.length} (${pct}%)</span>
+          </div>
+          <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+            <div class="bg-indigo-500 h-full rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+          </div>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
   }
 
   renderStudyHub() {
@@ -2916,12 +3155,21 @@ class KnowledgeMasterApp {
       badge.innerText = `覆盖率: ${stats.coveragePercent}% (${stats.practiced}/${stats.total}) · 待复习: ${stats.due}`;
     }
 
-    const maskBtn = document.getElementById('study-mask-btn');
-    if (maskBtn) {
-      maskBtn.innerText = this.isAnswerMasked ? '👁️ 遮挡自测: 开' : '👁️ 遮挡自测: 关';
-      maskBtn.className = this.isAnswerMasked
-        ? 'px-3 py-1.5 rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 text-xs font-bold transition flex items-center gap-1 shadow-sm'
-        : 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white border border-slate-700 text-xs font-medium transition flex items-center gap-1';
+    const maskText = document.getElementById('mask-status-text');
+    const maskIcon = document.getElementById('mask-status-icon');
+    if (maskText) maskText.innerText = this.isAnswerMasked ? '自测遮挡模式: 开' : '自测遮挡模式: 关';
+    if (maskIcon) maskIcon.innerText = this.isAnswerMasked ? '🙈' : '👁️';
+
+    const deckIcon = document.getElementById('study-deck-icon');
+    const deckTitle = document.getElementById('study-deck-title');
+    const deckDesc = document.getElementById('study-deck-desc');
+    if (deckIcon) deckIcon.innerText = deck.icon;
+    if (deckTitle) deckTitle.innerText = `${deck.title} 知识图谱`;
+    if (deckDesc) deckDesc.innerText = deck.description || '按分类与认知层级系统归纳的核心知识清单。';
+
+    const countBadge = document.getElementById('study-matched-count-badge');
+    if (countBadge) {
+      countBadge.innerText = `显示 ${deck.entities.length} / ${deck.entities.length} 词条`;
     }
   }
 
@@ -2931,6 +3179,153 @@ class KnowledgeMasterApp {
 
   renderStats() {
     this.radarChart.renderStats();
+  }
+
+  renderCodex() {
+    const tbody = document.getElementById('codex-table-body');
+    if (!tbody) return;
+    const deck = this.getActiveDeck();
+    const ds = this.getDeckState(deck.id);
+    const endOfToday = new Date().setHours(23, 59, 59, 999);
+
+    const list = (deck.entities || []).filter(e => {
+      const card = ds.cards[e.id];
+      if (this.currentFilter === 'DUE') return card && card.nextReviewAt && card.nextReviewAt <= endOfToday;
+      if (this.currentFilter === 'MISTAKE') return card && card.wrong > 0;
+      if (this.currentFilter === 'MASTERED') return card && card.level >= 4;
+      return true;
+    });
+
+    const countEl = document.getElementById('codex-filtered-count');
+    if (countEl) countEl.innerText = list.length;
+
+    let html = '';
+    list.forEach(entity => {
+      const card = ds.cards[entity.id] || { level: 0, attempts: 0, correct: 0, wrong: 0 };
+      let statusBadge = '<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400">未学习</span>';
+      let reviewTimeText = '—';
+
+      if (card.attempts > 0) {
+        if (card.level >= 4) {
+          statusBadge = '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">🟢 稳固掌握</span>';
+        } else if (card.nextReviewAt && card.nextReviewAt <= endOfToday) {
+          const daysOverdue = (endOfToday - card.nextReviewAt) / (1000 * 3600 * 24);
+          if (daysOverdue > (card.stabilityDays || 1) * 2) {
+            statusBadge = '<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">🔴 记忆生锈</span>';
+          } else {
+            statusBadge = '<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">🟡 今日到期</span>';
+          }
+        } else {
+          statusBadge = '<span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">🔵 巩固中</span>';
+        }
+
+        if (card.nextReviewAt) {
+          const d = new Date(card.nextReviewAt);
+          reviewTimeText = `${d.getMonth() + 1}月${d.getDate()}日`;
+        }
+      }
+
+      const cat = deck.categories.find(c => c.id === entity.categoryId);
+      const catName = cat ? cat.name : entity.categoryId;
+
+      html += `
+        <tr class="hover:bg-slate-800/40 transition">
+          <td class="py-3 px-4 font-bold text-white">
+            ${entity.title}
+            <div class="text-[11px] text-slate-400 font-normal">${entity.subtitle || ''}</div>
+          </td>
+          <td class="py-3 px-3 font-mono text-indigo-300">${entity.answer}</td>
+          <td class="py-3 px-3">
+            <span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[10px]">${catName}</span>
+          </td>
+          <td class="py-3 px-3 font-mono text-slate-400">Layer ${entity.layer}</td>
+          <td class="py-3 px-3">${statusBadge}</td>
+          <td class="py-3 px-3 font-mono">
+            <span class="text-emerald-400">${card.correct || 0}</span> / <span class="text-rose-400">${card.wrong || 0}</span>
+          </td>
+          <td class="py-3 px-3 font-mono text-slate-400">${reviewTimeText}</td>
+          <td class="py-3 px-3 text-right">
+            <button onclick="app.drillSingleEntity('${entity.id}')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition text-[11px]">
+              单独突击
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = html;
+  }
+
+  setCodexFilter(filter) {
+    this.currentFilter = filter;
+    const buttons = document.querySelectorAll('#codex-filter-buttons button');
+    buttons.forEach(b => {
+      b.className = 'px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300';
+    });
+    if (typeof event !== 'undefined' && event && event.target) {
+      event.target.className = 'px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-medium';
+    }
+    this.renderCodex();
+  }
+
+  startMode(modeName) {
+    this.quizRunner.startSession(modeName);
+  }
+
+  nextQuestion() {
+    this.currentIndex++;
+    this.quizRunner.loadQuestion();
+  }
+
+  exitArena() {
+    if (confirm('确定退出当前试炼吗？已作答进度已自动存档。')) {
+      if (this.timerInterval) clearInterval(this.timerInterval);
+      this.navigate('dashboard');
+    }
+  }
+
+  replayCurrentMode() {
+    this.startMode(this.currentMode || 'ladder');
+  }
+
+  simulateDayPass(days = 1) {
+    const deck = this.getActiveDeck();
+    const ds = this.getDeckState(deck.id);
+    const msToSubtract = days * 24 * 3600 * 1000;
+
+    Object.values(ds.cards).forEach(c => {
+      if (c.nextReviewAt) {
+        c.nextReviewAt -= msToSubtract;
+      }
+    });
+    this.saveUserData();
+    this.renderDashboard();
+  }
+
+  filterStudyEntities() {
+    this.treeRenderer.renderCards();
+    const countBadge = document.getElementById('study-matched-count-badge');
+    if (countBadge) {
+      const searchInput = document.getElementById('study-search-input');
+      const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+      const deck = this.getActiveDeck();
+      const total = (deck.entities || []).length;
+      countBadge.innerText = query ? `筛选中 · 总计 ${total} 词条` : `显示 ${total} / ${total} 词条`;
+    }
+  }
+
+  showRawMarkdownModal() {
+    const deck = this.getActiveDeck();
+    const md = serializeDeckToMarkdown(deck);
+    alert(md);
+  }
+
+  showBackupModal() {
+    ModalController.open('modal-backup');
+  }
+
+  closeBackupModal() {
+    ModalController.close('modal-backup');
   }
 
   // ==================== 竞技场刷题委托 ====================

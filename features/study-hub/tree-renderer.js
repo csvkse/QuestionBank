@@ -9,7 +9,7 @@ export class TreeRenderer {
   }
 
   renderCards() {
-    const container = document.getElementById('study-cards-container');
+    const container = document.getElementById('study-content-container') || document.getElementById('study-cards-container');
     if (!container) return;
 
     const deck = this.app.getActiveDeck();
