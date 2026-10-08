@@ -46,6 +46,7 @@
 | **v2.1** | `ARCH_CORE2.1` 物理架构与门禁 | 遵循 Core 2.1 规范拆分模块、双模式分发(ESM/零依赖单文件)、自动化质量门禁套件 `gates/run-gates.mjs` | ✅ 已落地 | [v2.1 物理架构优化记录](./v2.1_CORE2.1_ARCHITECTURE.md) |
 | **v2.2** | `DESIGN_TOKENS` 4层令牌与表面 | 告别“结构不够框来凑”，构建 Surface 0～4 明度阶梯，落实 Rule of One，确立 70%~90% 中性色骨架 | ✅ 已落地 | [v2.2 设计令牌与表面优化记录](./v2.2_DESIGN_TOKENS_AND_SURFACES.md) |
 | **v2.3** | `NAV_ICONS_FOCUS` 导航/图标/焦点 | **导航栏品牌与题库解耦**、**单色矢量SVG图标全面替代彩色Emoji**、**解决Banner与卡片同质争焦与交互闭环** | ✅ 已落地 | [v2.3 导航栏/图标/焦点优化方案](./v2.3_NAVBAR_ICONS_INTERACTION.md) |
+| **v2.4** | `STUDIO_SINGLE_VIEW` 题库工坊单视图 | **修复题库工坊单视图模式不可用**、**DOM 节点 ID 映射修复**、**纯可视化/纯Markdown全宽展开布局**、**三视图切换SVG按钮响应** | ✅ 已落地 | [v2.4 题库工坊单视图模式优化记录](./v2.4_STUDIO_SINGLE_VIEW_MODE.md) |
 
 ---
 

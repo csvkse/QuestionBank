@@ -841,34 +841,37 @@ export class KnowledgeMasterApp {
 
   setStudioViewMode(mode) {
     this.studioViewMode = mode;
-    const visualCol = document.getElementById('studio-visual-col');
-    const mdCol = document.getElementById('studio-markdown-col');
-    const btnVisual = document.getElementById('btn-studio-view-visual');
-    const btnSplit = document.getElementById('btn-studio-view-split');
-    const btnMd = document.getElementById('btn-studio-view-md');
+    const visualPane = document.getElementById('studio-visual-pane');
+    const mdPane = document.getElementById('studio-markdown-pane');
+    const btnSplit = document.getElementById('btn-view-split');
+    const btnVisual = document.getElementById('btn-view-visual');
+    const btnMd = document.getElementById('btn-view-markdown');
 
-    if (!visualCol || !mdCol) return;
+    if (!visualPane || !mdPane) return;
 
-    [btnVisual, btnSplit, btnMd].forEach(b => {
-      if (b) b.className = 'px-2.5 py-1 text-slate-400 hover:text-white transition';
-    });
+    const baseClass = 'px-3 py-1 rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1.5';
+    const activeClass = 'px-3 py-1 rounded-lg bg-indigo-600 text-white font-medium shadow transition flex items-center gap-1.5';
+
+    if (btnSplit) btnSplit.className = (mode === 'split' ? activeClass : baseClass);
+    if (btnVisual) btnVisual.className = (mode === 'visual' ? activeClass : baseClass);
+    if (btnMd) btnMd.className = ((mode === 'markdown' || mode === 'md') ? activeClass : baseClass);
 
     if (mode === 'visual') {
-      visualCol.classList.remove('hidden');
-      visualCol.className = 'w-full overflow-y-auto pr-1 space-y-3';
-      mdCol.classList.add('hidden');
-      if (btnVisual) btnVisual.className = 'px-2.5 py-1 bg-indigo-600 text-white font-bold rounded-md shadow-sm transition';
-    } else if (mode === 'md') {
-      visualCol.classList.add('hidden');
-      mdCol.classList.remove('hidden');
-      mdCol.className = 'w-full flex flex-col space-y-2';
-      if (btnMd) btnMd.className = 'px-2.5 py-1 bg-indigo-600 text-white font-bold rounded-md shadow-sm transition';
+      visualPane.classList.remove('hidden', 'w-1/2', 'border-r');
+      visualPane.classList.add('w-full');
+      mdPane.classList.add('hidden');
+      mdPane.classList.remove('w-full', 'w-1/2');
+    } else if (mode === 'markdown' || mode === 'md') {
+      visualPane.classList.add('hidden');
+      visualPane.classList.remove('w-full', 'w-1/2');
+      mdPane.classList.remove('hidden', 'w-1/2');
+      mdPane.classList.add('w-full');
     } else {
-      visualCol.classList.remove('hidden');
-      visualCol.className = 'w-1/2 overflow-y-auto pr-2 space-y-3 border-r border-slate-800';
-      mdCol.classList.remove('hidden');
-      mdCol.className = 'w-1/2 flex flex-col pl-2 space-y-2';
-      if (btnSplit) btnSplit.className = 'px-2.5 py-1 bg-indigo-600 text-white font-bold rounded-md shadow-sm transition';
+      // split
+      visualPane.classList.remove('hidden', 'w-full');
+      visualPane.classList.add('w-1/2', 'border-r');
+      mdPane.classList.remove('hidden', 'w-full');
+      mdPane.classList.add('w-1/2');
     }
   }
 

@@ -765,14 +765,23 @@
 
         <!-- 中间：三模式视图切换按钮组 -->
         <div class="flex items-center rounded-xl bg-slate-950 p-1 border border-slate-800 text-xs">
-          <button id="btn-view-split" onclick="app.setStudioViewMode('split')" class="px-3 py-1 rounded-lg bg-indigo-600 text-white font-medium shadow transition flex items-center gap-1">
-            <span>🔀 分屏联动</span>
+          <button id="btn-view-split" onclick="app.setStudioViewMode('split')" class="px-3 py-1 rounded-lg bg-indigo-600 text-white font-medium shadow transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 3H5a2 2 0 00-2 2v14a2 2 0 002 2h3m8-18h3a2 2 0 012 2v14a2 2 0 01-2 2h-3m-4-18v18"/>
+            </svg>
+            <span>分屏联动</span>
           </button>
-          <button id="btn-view-visual" onclick="app.setStudioViewMode('visual')" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1">
-            <span>🎨 纯可视化</span>
+          <button id="btn-view-visual" onclick="app.setStudioViewMode('visual')" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+            </svg>
+            <span>纯可视化</span>
           </button>
-          <button id="btn-view-markdown" onclick="app.setStudioViewMode('markdown')" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1">
-            <span>📝 纯 Markdown</span>
+          <button id="btn-view-markdown" onclick="app.setStudioViewMode('markdown')" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            <span>纯 Markdown</span>
           </button>
         </div>
 
