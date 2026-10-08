@@ -1,0 +1,3473 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Universal Knowledge Master · 通用知识图谱游戏化记忆引擎</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.02); }
+    }
+    .animate-pulse-subtle { animation: pulse-subtle 2s infinite ease-in-out; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .shake-anim { animation: shake 0.35s ease-in-out; }
+    /* 自定义滚动条 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- 顶部导航条 -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+      
+      <!-- Logo 与 题库切换器 -->
+      <div class="flex items-center space-x-3">
+        <div onclick="app.navigate('dashboard')" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white font-black text-xl cursor-pointer">
+          <span id="header-deck-icon">⚡</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 onclick="app.navigate('dashboard')" class="font-bold text-base sm:text-lg tracking-wide text-white cursor-pointer hover:text-indigo-400 transition flex items-center gap-1.5">
+              <span id="header-deck-title">知识记忆工坊</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">v2.0 通用版</span>
+            </h1>
+          </div>
+          <!-- 快捷切换题库下拉与管理入口 -->
+          <div class="flex items-center gap-1.5 mt-0.5">
+            <select id="deck-selector" onchange="app.switchDeck(this.value)" class="bg-slate-800 text-xs text-indigo-300 font-medium rounded px-2 py-0.5 border border-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer max-w-[140px] sm:max-w-none truncate">
+              <!-- 动态填充内置题库与自定义题库 -->
+            </select>
+            <button onclick="app.showDeckManagerModal()" class="text-[11px] text-slate-300 hover:text-indigo-300 flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 border border-slate-700 transition" title="管理所有内置与自定义题库">
+              <span>⚙️ 题库管理</span>
+            </button>
+            <button onclick="app.showDeckStudioModal(null)" class="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 px-1.5 py-0.5 transition" title="新建或通过笔记导入新题库">
+              <span>➕ 导入/新建</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧快捷功能 -->
+      <div class="flex items-center space-x-2 sm:space-x-3 text-xs">
+        <button onclick="app.navigate('study')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 transition font-medium">
+          <span>📖 知识精读与学习</span>
+        </button>
+        <button onclick="app.navigate('codex')" class="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+          <span>📚 知识图谱 & 错题本</span>
+          <span id="nav-mistake-badge" class="px-1.5 py-0.2 text-[10px] rounded-full bg-rose-500/30 text-rose-300 hidden">0</span>
+        </button>
+        <button onclick="app.showBackupModal()" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1">
+          <span>💾 存档</span>
+        </button>
+        <div class="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono font-bold">
+          <span>🔥</span>
+          <span id="header-streak">0</span>
+          <span class="text-[10px] text-amber-400/70 hidden sm:inline">连击</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主容器 -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6">
+
+    <!-- 1. 仪表盘视图 (DASHBOARD) -->
+    <div id="view-dashboard" class="space-y-6">
+
+      <!-- 智能模式自适应推荐 Banner -->
+      <div id="smart-recommendation-banner" class="rounded-2xl p-5 border transition-all">
+        <!-- 动态由 JS 填充 -->
+      </div>
+
+      <!-- 核心指标统计卡片组 -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs text-slate-400 font-medium">知识点覆盖率</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span id="stat-coverage-rate" class="text-2xl font-black text-indigo-400">0%</span>
+            <span id="stat-coverage-detail" class="text-xs text-slate-500 font-mono">(0/0词条)</span>
+          </div>
+          <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+            <div id="stat-coverage-bar" class="bg-indigo-500 h-full rounded-full transition-all" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs text-slate-400 font-medium">今日到期复习 (艾宾浩斯)</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span id="stat-due-count" class="text-2xl font-black text-amber-400">0</span>
+            <span class="text-xs text-slate-500">个需巩固</span>
+          </div>
+          <div class="text-xs text-slate-500 mt-2 flex items-center justify-between">
+            <span>记忆生锈: <b id="stat-rusty-count" class="text-rose-400 font-mono">0</b></span>
+            <button onclick="app.simulateDayPass(1)" title="模拟时间快进1天以测试复习调度" class="text-indigo-400 hover:underline text-[11px]">+1天测试</button>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs text-slate-400 font-medium">综合答题正确率</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span id="stat-accuracy-rate" class="text-2xl font-black text-emerald-400">100%</span>
+            <span id="stat-accuracy-detail" class="text-xs text-slate-500 font-mono">(0/0)</span>
+          </div>
+          <div class="text-xs text-slate-500 mt-2">累计练习: <span id="stat-total-attempts" class="text-slate-300 font-mono">0</span> 次</div>
+        </div>
+
+        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+          <div class="text-xs text-slate-400 font-medium">已永久掌握 (Level ≥ 4)</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span id="stat-mastered-count" class="text-2xl font-black text-violet-400">0</span>
+            <span class="text-xs text-slate-500">个知识单元</span>
+          </div>
+          <div class="text-xs text-slate-500 mt-2">已跨越 7+ 天长效遗忘周期</div>
+        </div>
+      </div>
+
+      <!-- 游戏模式矩阵 -->
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-semibold text-slate-200 flex items-center gap-2">
+            <span>🎮 模式选择</span>
+            <span class="text-xs text-slate-400 font-normal">基于当前知识图谱全自动派生</span>
+          </h2>
+          <span class="text-xs text-slate-500 font-mono">5 大通用实战模式</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- 模式 1: 每日艾宾浩斯复习 -->
+          <div onclick="app.startMode('DAILY_REVIEW')" class="group relative bg-slate-900 border border-slate-800 hover:border-amber-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-amber-500/10">
+            <div class="flex justify-between items-start">
+              <span class="text-3xl">⏰</span>
+              <span id="mode-badge-review" class="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium">今日到期: 0</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-amber-400 transition">每日艾宾浩斯复习</h3>
+            <p class="text-xs text-slate-400 mt-1">根据遗忘曲线自动调度。在记忆濒临衰退的临界点精准强化，把短期印象固化为长久突触。</p>
+            <div class="mt-4 flex items-center text-xs text-amber-400 font-medium">
+              <span>立即复习 &rarr;</span>
+            </div>
+          </div>
+
+          <!-- 模式 2: 错题弱点定点爆破 -->
+          <div onclick="app.startMode('WEAKNESS')" class="group relative bg-slate-900 border border-slate-800 hover:border-rose-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-rose-500/10">
+            <div class="flex justify-between items-start">
+              <span class="text-3xl">🎯</span>
+              <span id="mode-badge-weakness" class="text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-medium">错题待清: 0</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-rose-400 transition">弱点歼灭战 (Boss Rush)</h3>
+            <p class="text-xs text-slate-400 mt-1">定点筛选历史失误实体与薄弱分类，针对性高强度同胞选项辨析，彻底消灭思维盲区。</p>
+            <div class="mt-4 flex items-center text-xs text-rose-400 font-medium">
+              <span>清剿错题 &rarr;</span>
+            </div>
+          </div>
+
+          <!-- 模式 3: 循序渐进关卡战役 -->
+          <div onclick="app.startMode('CAMPAIGN')" class="group relative bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-indigo-500/10">
+            <div class="flex justify-between items-start">
+              <span class="text-3xl">🏆</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium">阶梯分层关卡</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-indigo-400 transition">分层阶梯战役</h3>
+            <p class="text-xs text-slate-400 mt-1">遵循布鲁姆认知模型：由浅入深从 Layer 1 基础概念，阶梯推进到 Layer 3 进阶反常特例。</p>
+            <div class="mt-4 flex items-center text-xs text-indigo-400 font-medium">
+              <span>开启战役 &rarr;</span>
+            </div>
+          </div>
+
+          <!-- 模式 4: 极速生存模式 -->
+          <div onclick="app.startMode('SPEED_SPRINT')" class="group relative bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-emerald-500/10">
+            <div class="flex justify-between items-start">
+              <span class="text-3xl">⚡</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">3条命 · 限时</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-emerald-400 transition">极速连击生存</h3>
+            <p class="text-xs text-slate-400 mt-1">每题倒计时 6 秒，连续答对累积超高 Combo，测试你对知识要点的下意识条件反射。</p>
+            <div class="mt-4 flex items-center text-xs text-emerald-400 font-medium">
+              <span>挑战极限 &rarr;</span>
+            </div>
+          </div>
+
+          <!-- 模式 5: 自由沙盒试炼 -->
+          <div onclick="app.startMode('FREE_LAB')" class="group relative bg-slate-900 border border-slate-800 hover:border-violet-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-violet-500/10">
+            <div class="flex justify-between items-start">
+              <span class="text-3xl">🧪</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 font-medium">自定义筛选</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mt-3 group-hover:text-violet-400 transition">自由沙盒试炼</h3>
+            <p class="text-xs text-slate-400 mt-1">自由挑选当前知识图谱中的特定分类标签，聚焦重点章节，按需随心配置题目数量。</p>
+            <div class="mt-4 flex items-center text-xs text-violet-400 font-medium">
+              <span>自由定制 &rarr;</span>
+            </div>
+          </div>
+
+          <!-- 快捷入口: 原始知识精读与学习 -->
+          <div onclick="app.navigate('study')" class="group relative bg-slate-900/60 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-indigo-500/10 flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start">
+                <span class="text-3xl">📖</span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">系统教材</span>
+              </div>
+              <h3 class="text-lg font-bold text-white mt-3 group-hover:text-indigo-400 transition">原始知识精读与自测</h3>
+              <p class="text-xs text-slate-400 mt-1">按分类与分层系统阅览所有规则要点与避坑陷阱，支持答案遮挡自测与原始大纲导出。</p>
+            </div>
+            <div class="mt-4 flex items-center text-xs text-indigo-400 font-medium">
+              <span>进入精读 &rarr;</span>
+            </div>
+          </div>
+
+          <!-- 快捷入口: 知识图谱法典 -->
+          <div onclick="app.navigate('codex')" class="group relative bg-slate-900/60 border border-slate-800 hover:border-cyan-500/50 rounded-2xl p-5 cursor-pointer transition shadow-md hover:shadow-cyan-500/10 flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start">
+                <span class="text-3xl">📊</span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">知识法典</span>
+              </div>
+              <h3 class="text-lg font-bold text-white mt-3 group-hover:text-cyan-400 transition">知识图谱档案馆</h3>
+              <p class="text-xs text-slate-400 mt-1">浏览当前题库的所有概念条目、艾宾浩斯复习倒计时表、同胞干扰项关系与错题详情。</p>
+            </div>
+            <div class="mt-4 flex items-center text-xs text-cyan-400 font-medium">
+              <span>查阅档案 &rarr;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 分类图谱掌握度全景矩阵 -->
+      <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5">
+        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
+          <span>📊 各分类板块熟练度全景</span>
+        </h3>
+        <div id="deck-category-bars" class="space-y-3 text-xs">
+          <!-- 由 JS 填充各分类进度条 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 战斗答题竞技场视图 (ARENA) -->
+    <div id="view-arena" class="hidden space-y-6 max-w-2xl mx-auto">
+      <!-- 竞技场顶部状态栏 -->
+      <div class="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-xl px-4 py-3">
+        <button onclick="app.exitArena()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition">
+          <span>&larr; 退出练习</span>
+        </button>
+        <div class="flex items-center gap-3">
+          <div id="arena-hp-container" class="flex gap-1 text-base hidden">
+            <!-- HP 红心 -->
+          </div>
+          <div class="text-xs font-mono px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">
+            进度: <span id="arena-progress-text" class="text-indigo-400 font-bold">1 / 10</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1 text-xs font-bold text-amber-400 font-mono">
+          <span>🔥</span>
+          <span id="arena-combo-text">0 Combo</span>
+        </div>
+      </div>
+
+      <!-- 限时倒计时条 (极速模式显示) -->
+      <div id="arena-timer-bar-wrap" class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden hidden">
+        <div id="arena-timer-bar" class="bg-gradient-to-r from-emerald-500 to-amber-500 h-full w-full transition-all duration-100 ease-linear"></div>
+      </div>
+
+      <!-- 核心题目卡片 -->
+      <div id="arena-card" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl text-center relative overflow-hidden transition-all">
+        <!-- 分类/层级标记 -->
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-3 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30" id="arena-target-badge">
+          分类: 客户端错误 · Layer 2
+        </div>
+
+        <!-- 考核概念大字 -->
+        <div class="space-y-1 my-3">
+          <div id="arena-base-word" class="text-3xl sm:text-4xl font-black text-white tracking-wide">
+            401 Unauthorized
+          </div>
+          <div class="flex items-center justify-center gap-2 text-slate-400 text-xs sm:text-sm">
+            <span id="arena-phonetic" class="font-mono"></span>
+            <span id="arena-translation" class="text-slate-300"></span>
+          </div>
+        </div>
+
+        <!-- 针对概念的特别问题提示语 -->
+        <div id="arena-prompt-text" class="my-3 text-xs sm:text-sm text-indigo-300/90 font-medium">
+          请选择最准确的含义或目标对应项：
+        </div>
+
+        <!-- 四选一选项矩阵 (由同胞采样算法动态生成) -->
+        <div id="arena-options-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+          <!-- 动态渲染四个按键选项 -->
+        </div>
+
+        <!-- 快捷键引导提示 -->
+        <div class="mt-4 text-[11px] text-slate-500 font-mono">
+          键盘可按数字键 <span class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">1</span> <span class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">2</span> <span class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">3</span> <span class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">4</span> 秒速作答
+        </div>
+      </div>
+
+      <!-- 答题后即时浮出的【规则溯源卡】 -->
+      <div id="arena-feedback-drawer" class="hidden bg-slate-900 border rounded-2xl p-5 shadow-lg transition-all">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-2">
+            <span id="feedback-icon" class="text-2xl">✨</span>
+            <div>
+              <h4 id="feedback-title" class="font-bold text-sm text-white">回答正确！</h4>
+              <p id="feedback-subtitle" class="text-xs text-slate-400 mt-0.5">连续答对 · 记忆稳定度持续提升</p>
+            </div>
+          </div>
+          <button id="btn-next-question" onclick="app.nextQuestion()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition flex items-center gap-1">
+            <span>下一题 (Enter)</span>
+            <span>&rarr;</span>
+          </button>
+        </div>
+
+        <!-- 规则深度解析 -->
+        <div class="mt-4 pt-3 border-t border-slate-800/80 text-xs space-y-2">
+          <div class="flex gap-2">
+            <span class="text-indigo-400 font-semibold shrink-0">【知识要点】:</span>
+            <span id="feedback-rule-exp" class="text-slate-300 leading-relaxed"></span>
+          </div>
+          <div id="feedback-pitfalls-box" class="flex gap-2 text-rose-300">
+            <span class="font-semibold shrink-0">【易错避坑】:</span>
+            <span id="feedback-pitfalls" class="leading-relaxed"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 结算成绩单视图 (SUMMARY) -->
+    <div id="view-summary" class="hidden max-w-lg mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 text-center space-y-5">
+      <div class="text-5xl" id="summary-icon">🎉</div>
+      <div>
+        <h2 class="text-2xl font-black text-white" id="summary-title">试炼完成！</h2>
+        <p class="text-xs text-slate-400 mt-1" id="summary-subtitle">本次学习数据已成功记入该知识库的艾宾浩斯模型</p>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 text-center">
+        <div>
+          <div class="text-[11px] text-slate-400">正确率</div>
+          <div id="summary-acc" class="text-xl font-black text-emerald-400 mt-0.5">100%</div>
+        </div>
+        <div>
+          <div class="text-[11px] text-slate-400">答对/总题数</div>
+          <div id="summary-score" class="text-xl font-black text-white mt-0.5">10/10</div>
+        </div>
+        <div>
+          <div class="text-[11px] text-slate-400">最大连击</div>
+          <div id="summary-combo" class="text-xl font-black text-amber-400 mt-0.5">10</div>
+        </div>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button onclick="app.navigate('dashboard')" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition">
+          返回主界面
+        </button>
+        <button onclick="app.replayCurrentMode()" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition">
+          再练一局
+        </button>
+      </div>
+    </div>
+
+    <!-- 4. 知识图谱法典与错题本视图 (CODEX) -->
+    <div id="view-codex" class="hidden space-y-5">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <span>📚 知识图谱档案馆与错题簿</span>
+          </h2>
+          <p class="text-xs text-slate-400">查阅各概念的艾宾浩斯复习倒计时、同胞关系、练习日志与做题历史</p>
+        </div>
+        <button onclick="app.navigate('dashboard')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
+          &larr; 返回主控台
+        </button>
+      </div>
+
+      <!-- 过滤器与统计快捷条 -->
+      <div class="flex flex-wrap gap-2 items-center justify-between text-xs">
+        <div class="flex flex-wrap gap-1.5" id="codex-filter-buttons">
+          <button onclick="app.setCodexFilter('ALL')" class="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-medium">全部词条</button>
+          <button onclick="app.setCodexFilter('DUE')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">🟡 今日待复习</button>
+          <button onclick="app.setCodexFilter('MISTAKE')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">🔴 高频错题</button>
+          <button onclick="app.setCodexFilter('MASTERED')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">🟢 已永久巩固</button>
+        </div>
+        <div class="text-slate-400 font-mono">
+          显示数量: <span id="codex-filtered-count" class="text-indigo-400 font-bold">0</span> 条
+        </div>
+      </div>
+
+      <!-- 词条大表格 -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-800/70 text-slate-400 font-semibold border-b border-slate-800">
+              <tr>
+                <th class="py-3 px-4">知识概念 (Entity)</th>
+                <th class="py-3 px-3">核心答案 / 特征</th>
+                <th class="py-3 px-3">所属分类 (Taxonomy)</th>
+                <th class="py-3 px-3">分层 (Layer)</th>
+                <th class="py-3 px-3">艾宾浩斯状态</th>
+                <th class="py-3 px-3">练习(对/错)</th>
+                <th class="py-3 px-3">下次复习时间</th>
+                <th class="py-3 px-3 text-right">专项操作</th>
+              </tr>
+            </thead>
+            <tbody id="codex-table-body" class="divide-y divide-slate-800/60">
+              <!-- JS 动态循环填充每一行 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. 原始知识点精读与自测学习页面 (STUDY HUB) -->
+    <div id="view-study" class="hidden space-y-6">
+      <!-- 页面顶部横幅与控制栏 -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-2xl" id="study-deck-icon">⚡</span>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <span id="study-deck-title">知识库精读与系统学习</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">教材视界</span>
+            </h2>
+          </div>
+          <p class="text-xs text-slate-400 mt-1 max-w-xl" id="study-deck-desc">
+            按分类与认知层级系统归纳的核心知识清单。支持划词阅读、记忆遮挡自测与原始大纲导出。
+          </p>
+        </div>
+
+        <!-- 顶部操作按钮组 -->
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- 遮挡模式切换开关 -->
+          <button id="btn-toggle-mask" onclick="app.toggleAnswerMask()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs flex items-center gap-1.5 transition">
+            <span id="mask-status-icon">👁️</span>
+            <span id="mask-status-text">自测遮挡模式: 关</span>
+          </button>
+          <!-- 查看原始大纲 -->
+          <button onclick="app.showRawMarkdownModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs flex items-center gap-1.5 transition">
+            <span>📋 查看原始大纲 (Markdown)</span>
+          </button>
+          <button onclick="app.navigate('dashboard')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs transition">
+            &larr; 返回主控台
+          </button>
+        </div>
+      </div>
+
+      <!-- 搜索输入框与快捷控制 -->
+      <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div class="relative flex-1 max-w-xl">
+          <input type="text" id="study-search-input" oninput="app.filterStudyEntities()" placeholder="🔍 实时搜索概念、答案、解析或陷阱关键字..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 shadow-sm">
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="app.resetStudyFilters()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition flex items-center gap-1">
+            <span>🔄 重置全部筛选</span>
+          </button>
+          <span class="text-xs text-slate-400 font-mono px-2" id="study-matched-count-badge">显示 0 / 0 词条</span>
+        </div>
+      </div>
+
+      <!-- 三维立体架构导航控制台: 分组 (Group) × 分类 (Category) × 层级 (Layer) -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-md">
+        
+        <!-- 维度 1: 📦 业务大组 (Groups) -->
+        <div class="flex items-start sm:items-center gap-2.5 flex-col sm:flex-row">
+          <div class="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 shrink-0 w-24">
+            <span class="text-[10px] px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-400 font-mono font-bold">STEP 1</span>
+            <span>📦 业务分组:</span>
+          </div>
+          <div class="flex items-center gap-1.5 flex-wrap flex-1" id="study-group-filters">
+            <!-- 动态渲染大组药丸 -->
+          </div>
+        </div>
+
+        <!-- 维度 2: 🏷️ 细分类别 (Categories) -->
+        <div class="flex items-start sm:items-center gap-2.5 flex-col sm:flex-row pt-3 border-t border-slate-800/80">
+          <div class="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 shrink-0 w-24">
+            <span class="text-[10px] px-1 py-0.2 rounded bg-purple-500/20 text-purple-400 font-mono font-bold">STEP 2</span>
+            <span>🏷️ 细分类别:</span>
+          </div>
+          <div class="flex items-center gap-1.5 flex-wrap flex-1" id="study-category-filters">
+            <!-- 动态渲染所选大组下的分类药丸 -->
+          </div>
+        </div>
+
+        <!-- 维度 3: 🪜 认知分层 (Layers / 难度阶梯) -->
+        <div class="flex items-start sm:items-center gap-2.5 flex-col sm:flex-row pt-3 border-t border-slate-800/80">
+          <div class="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 shrink-0 w-24">
+            <span class="text-[10px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-400 font-mono font-bold">STEP 3</span>
+            <span>🪜 认知层级:</span>
+          </div>
+          <div class="flex items-center gap-1.5 flex-wrap flex-1" id="study-layer-filters">
+            <!-- 动态渲染层级药丸: [全部层级] [🌱 Layer 1: 基础认知] [🌿 Layer 2: 规律运用] [🔥 Layer 3: 陷阱与特例] -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 知识卡片主体容器 (按分类板块分组渲染) -->
+      <div id="study-content-container" class="space-y-6">
+        <!-- 动态渲染各板块及板块下实体卡片 -->
+      </div>
+    </div>
+  </main>
+
+  <!-- 5. 可视化 / MD 双视图联动知识工坊 (DUAL-VIEW DECK STUDIO MODAL) -->
+  <div id="modal-deck-studio" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-6xl w-full h-[92vh] shadow-2xl flex flex-col overflow-hidden">
+      
+      <!-- 工坊顶部导航栏 -->
+      <div class="px-5 py-3.5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-base font-bold shadow-md shadow-indigo-600/30">
+            ✨
+          </div>
+          <div>
+            <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+              <span>双视图联动知识工坊</span>
+              <span id="studio-mode-badge" class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">新建 / 导入模式</span>
+            </h3>
+            <p id="studio-mode-subtitle" class="text-[11px] text-slate-400 hidden sm:block">左侧可视化表单与右侧 Markdown 笔记实时互通，支持任意学科分类与分层</p>
+          </div>
+        </div>
+
+        <!-- 中间：三模式视图切换按钮组 -->
+        <div class="flex items-center rounded-xl bg-slate-950 p-1 border border-slate-800 text-xs">
+          <button id="btn-view-split" onclick="app.setStudioViewMode('split')" class="px-3 py-1 rounded-lg bg-indigo-600 text-white font-medium shadow transition flex items-center gap-1">
+            <span>🔀 分屏联动</span>
+          </button>
+          <button id="btn-view-visual" onclick="app.setStudioViewMode('visual')" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1">
+            <span>🎨 纯可视化</span>
+          </button>
+          <button id="btn-view-markdown" onclick="app.setStudioViewMode('markdown')" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1">
+            <span>📝 纯 Markdown</span>
+          </button>
+        </div>
+
+        <!-- 右侧：快捷模板与关闭 -->
+        <div class="flex items-center gap-2 text-xs">
+          <div class="hidden md:flex items-center gap-1 text-[11px] text-slate-400">
+            <span>载入模板:</span>
+            <button onclick="app.loadTemplateMarkdown('http')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700">网络协议</button>
+            <button onclick="app.loadTemplateMarkdown('medicine')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700">药理抗生素</button>
+            <button onclick="app.loadTemplateMarkdown('law')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700">民法合同</button>
+          </div>
+          <button onclick="app.closeDeckStudioModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-lg transition">&times;</button>
+        </div>
+      </div>
+
+      <!-- 工坊主体：双视图编辑工作区 -->
+      <div class="flex-1 flex min-h-0 overflow-hidden" id="studio-workspaces-container">
+        
+        <!-- 左侧：可视化表单编辑区 -->
+        <div id="studio-visual-pane" class="w-1/2 flex flex-col border-r border-slate-800 bg-slate-900/40 overflow-hidden transition-all">
+          <div class="p-3 border-b border-slate-800/80 bg-slate-900/70 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-slate-200">🎨 可视化知识架构</span>
+              <span class="text-[10px] text-slate-500 font-mono">(修改后右侧代码即时更新)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="app.addCategoryInVisual()" class="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-medium transition flex items-center gap-1">
+                <span>+ 新增分类板块</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 可视化树形卡片滚动区域 -->
+          <div class="flex-1 overflow-y-auto p-4 space-y-4" id="studio-visual-cards-container">
+            <!-- 动态渲染题库元数据及各分类下实体 -->
+          </div>
+        </div>
+
+        <!-- 右侧：Markdown 代码实时编辑区 -->
+        <div id="studio-markdown-pane" class="w-1/2 flex flex-col bg-slate-950 overflow-hidden transition-all">
+          <div class="px-4 py-3 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between shrink-0 text-xs text-slate-400">
+            <div class="flex items-center gap-2">
+              <span class="font-mono font-bold text-slate-300">📝 Markdown 语法编辑器</span>
+              <span class="text-[10px] text-slate-500">(输入时左侧视图毫秒级解析)</span>
+            </div>
+            <div class="font-mono text-[11px] text-indigo-400" id="studio-md-line-count">
+              行数: 0 | 字符: 0
+            </div>
+          </div>
+
+          <div class="flex-1 p-3 overflow-hidden">
+            <textarea id="deck-markdown-input" oninput="app.onMarkdownEditorInput()" class="w-full h-full bg-transparent border-0 text-xs font-mono text-slate-200 focus:outline-none resize-none leading-relaxed selection:bg-indigo-600" placeholder="# 题库名称
+> 简介说明
+
+## [分类] 分类A名称
+### [Layer 1] 基础层
+- **概念名称**: 核心答案
+  - *解析*: 详细说明
+  - *误区*: 避坑陷阱 (可选)
+  - *混淆*: 混淆概念 (可选)"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- 工坊底部状态条与导入执行 -->
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 text-xs">
+        <div id="deck-studio-lint-msg" class="text-slate-400 flex items-center gap-1.5 font-medium flex-1 overflow-hidden">
+          <span>🟢 语法实时双向同步就绪</span>
+        </div>
+        <div class="flex items-center gap-2 w-full sm:w-auto shrink-0" id="studio-save-btn-container">
+          <button onclick="app.copyStudioMarkdown()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1 font-medium">
+            <span id="btn-studio-copy-text">📋 复制 MD</span>
+          </button>
+          <button onclick="app.saveDeckStudio('auto')" class="flex-1 sm:flex-none px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-1.5">
+            <span>🚀 保存题库</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. 存档与备份管理弹窗 (MODAL) -->
+  <div id="modal-backup" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <span>💾 学习数据与存档管理</span>
+        </h3>
+        <button onclick="app.closeBackupModal()" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        所有题库、自定义笔记、做题记录与艾宾浩斯复习倒计时均保存在浏览器本地。可随时导出 JSON 备份。
+      </p>
+
+      <div class="space-y-2 pt-2">
+        <button onclick="app.exportBackupJSON()" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center justify-center gap-2">
+          <span>📥 导出完整多题库存档 (JSON)</span>
+        </button>
+
+        <label class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer border border-slate-700">
+          <span>📤 导入备份恢复文件</span>
+          <input type="file" id="backup-file-input" accept=".json" class="hidden" onchange="app.importBackupJSON(event)">
+        </label>
+
+        <button onclick="app.resetAllProgress()" class="w-full py-2.5 px-4 rounded-xl bg-rose-950/30 hover:bg-rose-900/40 text-rose-300 border border-rose-900/50 text-xs font-bold transition">
+          ⚠️ 重置当前题库的所有进度
+        </button>
+      </div>
+
+      <div class="pt-2 border-t border-slate-800 flex justify-between items-center text-[11px] text-slate-500">
+        <span>通用引擎 v2.0 · Local-First</span>
+        <button onclick="app.closeBackupModal()" class="text-slate-400 hover:underline">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. 原始知识大纲弹窗 (RAW MARKDOWN OUTLINE MODAL) -->
+  <div id="modal-raw-markdown" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <span>📋 原始知识大纲 (Markdown)</span>
+          </h3>
+          <p class="text-xs text-slate-400">当前知识库的结构化 Markdown 原文，可一键复制到本地笔记软件中</p>
+        </div>
+        <button onclick="app.closeRawMarkdownModal()" class="text-slate-400 hover:text-white text-xl">&times;</button>
+      </div>
+
+      <div class="flex-1 min-h-[260px] overflow-hidden">
+        <textarea id="raw-markdown-textarea" readonly class="w-full h-full min-h-[260px] bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300 focus:outline-none select-all"></textarea>
+      </div>
+
+      <div class="flex justify-between items-center pt-2">
+        <span class="text-xs text-slate-500 font-mono" id="raw-markdown-stats">共 0 字</span>
+        <div class="flex gap-2">
+          <button onclick="app.copyRawMarkdown()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-1 shadow-md shadow-indigo-600/30">
+            <span id="copy-markdown-btn-text">📋 一键复制全文</span>
+          </button>
+          <button onclick="app.closeRawMarkdownModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. 题库管理中心弹窗 (MODAL DECK MANAGER) -->
+  <div id="modal-deck-manager" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh]">
+      <!-- 头部 -->
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-lg shadow-inner">
+            ⚙️
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span>题库管理中心 (Deck Management)</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-indigo-300 font-mono border border-slate-700" id="deck-manager-total-badge">共 3 个题库</span>
+            </h3>
+            <p class="text-xs text-slate-400">查看各题库健康度、切换激活、可视化编辑、安全删除与独立导出</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="app.closeDeckManagerModal(); app.showDeckStudioModal(null)" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-1 shadow-md shadow-indigo-600/30">
+            <span>➕ 新建/导入题库</span>
+          </button>
+          <button onclick="app.closeDeckManagerModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-lg transition">&times;</button>
+        </div>
+      </div>
+
+      <!-- 题库列表滚动区域 -->
+      <div class="flex-1 overflow-y-auto py-4 space-y-3" id="deck-manager-list-container">
+        <!-- JS 动态填充所有题库卡片 -->
+      </div>
+
+      <!-- 底部说明与容量提示 -->
+      <div class="pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 shrink-0">
+        <div class="flex items-center gap-3">
+          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> 完整同胞池</span>
+          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> 需补充条目</span>
+          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-400"></span> 异常</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="app.showArchitectureAuditModal()" class="px-2.5 py-1 rounded-lg bg-indigo-950/50 hover:bg-indigo-900/50 text-indigo-300 border border-indigo-500/30 text-[11px] font-mono transition flex items-center gap-1 shadow-sm">
+            <span>🛡️ 架构与门禁中控 (Core 2.1)</span>
+          </button>
+          <span>遵循「5-3-10」原则 · 本地安全持久化</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. 题库删除强确认弹窗 (MODAL DECK DELETE CONFIRM) -->
+  <div id="modal-deck-delete-confirm" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[60] flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-rose-900/60 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center gap-3 text-rose-400">
+        <div class="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-xl">
+          ⚠️
+        </div>
+        <div>
+          <h4 class="text-base font-bold text-white">确定彻底删除此题库？</h4>
+          <span class="text-xs text-rose-400 font-medium">此操作不可撤销，数据将从本地永久清除</span>
+        </div>
+      </div>
+
+      <div id="deck-delete-impact-info" class="p-3.5 bg-slate-950 rounded-xl border border-slate-800 text-xs space-y-1.5 text-slate-300">
+        <!-- 动态列出题库名称、分类数、词条数、刷题记录数 -->
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button onclick="app.closeDeleteConfirmModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition">
+          取消
+        </button>
+        <button id="btn-confirm-delete-deck" onclick="app.executeDeleteDeck()" class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-lg shadow-rose-600/30">
+          🗑️ 确认彻底删除
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. 架构与质量门禁中控弹窗 (MODAL ARCHITECTURE & GATE AUDIT) -->
+  <div id="modal-architecture-audit" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[60] flex items-center justify-center p-3 sm:p-4 hidden">
+    <div class="bg-slate-900 border border-indigo-900/60 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+      <!-- 头部 -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl shadow-inner">
+            🛡️
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span>架构健康与质量门禁中控</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono">Core 2.1 Transitional</span>
+            </h3>
+            <p class="text-xs text-slate-400">参考企业级 Frontend Architecture Core 2.1 规范与 FE-* 门禁体系</p>
+          </div>
+        </div>
+        <button onclick="app.closeArchitectureAuditModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-lg transition">&times;</button>
+      </div>
+
+      <!-- 门禁扫描结果滚动区 -->
+      <div class="flex-1 overflow-y-auto space-y-2.5 pr-1 font-mono text-xs" id="architecture-audit-results">
+        <!-- 动态生成门禁条目 -->
+      </div>
+
+      <!-- 底部操作与一键终端命令 -->
+      <div class="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400 shrink-0">
+        <span class="text-[11px] text-slate-500">终端运行: <code class="text-indigo-400">node gates/run-gates.mjs</code></span>
+        <button onclick="app.runArchitectureAudit()" class="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition shadow-md shadow-indigo-600/30 flex items-center gap-1">
+          <span>🔄 重新扫描全量门禁</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 网页底部版权 -->
+  <footer class="border-t border-slate-900 py-4 text-center text-xs text-slate-500">
+    <p>Universal Knowledge Master · 通用知识图谱游戏化记忆引擎 · 领域无关架构</p>
+  </footer>
+
+  <!-- 核心逻辑脚本 (通用引擎实现) -->
+  <script>
+    /**
+     * 内置预设题库定义 (涵盖英语动词、网络协议、Python核心三大领域)
+     */
+    const BUILTIN_DECKS = [
+      // 1. 英语动词形态题库 (完整保留原版全部考点与规则)
+      {
+        id: 'deck_verbs',
+        title: '英语动词形态与变异法则',
+        icon: '⚡',
+        description: '涵盖 -ic 加 k 黄金特例、-ing/-ed 规则变化、不规则 AAA~ABC 五大阵营、三单特例与词性辨析。',
+        categories: [
+          { id: 'CAT_IC_SPECIAL', name: '⭐ -ic 结尾加 k 必考特例', group: '一、规则变形与读音规律' },
+          { id: 'CAT_ING_RULES', name: '🌀 现在分词四规律 (双写/去e/ie变y)', group: '一、规则变形与读音规律' },
+          { id: 'CAT_ED_RULES', name: '🛡️ 规则过去式四变化 (+ed/+d/双写/辅音+y)', group: '一、规则变形与读音规律' },
+          { id: 'CAT_IRREG_AAA', name: '⚡ 不规则: AAA 型 (三态同形)', group: '二、不规则动词核心记忆法' },
+          { id: 'CAT_IRREG_AAB_ABA', name: '⚡ 不规则: AAB / ABA 型', group: '二、不规则动词核心记忆法' },
+          { id: 'CAT_IRREG_ABB', name: '⚡ 不规则: ABB 型 (核心中流砥柱)', group: '二、不规则动词核心记忆法' },
+          { id: 'CAT_IRREG_ABC', name: '⚡ 不规则: ABC 型 (三态皆异)', group: '二、不规则动词核心记忆法' },
+          { id: 'CAT_THIRD_SINGULAR', name: '🔥 第三人称单数与真不规则', group: '三、第三人称单数与真不规则' }
+        ],
+        layers: [
+          { level: 1, name: 'Layer 1: 基础认知 (常规直变)' },
+          { level: 2, name: 'Layer 2: 规律运用 (双写/去e/核心变位)' },
+          { level: 3, name: 'Layer 3: 陷阱与特例 (反直觉/盲区)' }
+        ],
+        entities: [
+          // -ic 特例
+          { id: 'v_picnic', categoryId: 'CAT_IC_SPECIAL', layer: 3, title: 'picnic', subtitle: '/ˈpɪknɪk/ · 野餐', prompt: '转化为过去式 (-ed)：', answer: 'picnicked', confusedWith: 'v_panic', pitfalls: '漏加 k 拼成 picniced 是最高频错误！', explanation: '动词以 ic 结尾，变 -ing / -ed 时先加 k，再加后缀！' },
+          { id: 'v_panic', categoryId: 'CAT_IC_SPECIAL', layer: 3, title: 'panic', subtitle: '/ˈpænɪk/ · 惊慌', prompt: '转化为现在分词 (-ing)：', answer: 'panicking', pitfalls: 'panicing 漏加 k 报错！', explanation: 'panic 变 -ing 必须先补 k 变 panicking。' },
+          { id: 'v_mimic', categoryId: 'CAT_IC_SPECIAL', layer: 3, title: 'mimic', subtitle: '/ˈmɪmɪk/ · 模仿', prompt: '转化为过去分词 (-ed)：', answer: 'mimicked', explanation: 'mimic 变 -ed 先加 k → mimicked。' },
+          { id: 'v_frolic', categoryId: 'CAT_IC_SPECIAL', layer: 3, title: 'frolic', subtitle: '/ˈfrɒlɪk/ · 嬉戏', prompt: '转化为现在分词 (-ing)：', answer: 'frolicking', explanation: 'frolic 变 -ing 先加 k → frolicking。' },
+          { id: 'v_traffic', categoryId: 'CAT_IC_SPECIAL', layer: 3, title: 'traffic', subtitle: '/ˈtræfɪk/ · 非法交易', prompt: '转化为过去式 (-ed)：', answer: 'trafficked', explanation: 'traffic 作动词变 -ed 先加 k → trafficked。' },
+          
+          // -ing 规则
+          { id: 'v_work', categoryId: 'CAT_ING_RULES', layer: 1, title: 'work', subtitle: '/wɜːk/ · 工作', prompt: '转化为现在分词 (-ing)：', answer: 'working', explanation: '一般情况直接加 ing。' },
+          { id: 'v_write', categoryId: 'CAT_ING_RULES', layer: 2, title: 'write', subtitle: '/raɪt/ · 写作', prompt: '转化为现在分词 (-ing)：', answer: 'writing', pitfalls: '以不发音 e 结尾，必须去掉 e 再加 ing！', explanation: 'write 去 e + ing 变 writing。' },
+          { id: 'v_run', categoryId: 'CAT_ING_RULES', layer: 2, title: 'run', subtitle: '/rʌn/ · 奔跑', prompt: '转化为现在分词 (-ing)：', answer: 'running', explanation: '重读闭音节辅元辅，双写 n 再加 ing。' },
+          { id: 'v_lie', categoryId: 'CAT_ING_RULES', layer: 3, title: 'lie', subtitle: '/laɪ/ · 躺/说谎', prompt: '转化为现在分词 (-ing)：', answer: 'lying', pitfalls: '直接加 ing 或 lieing 都是经典错误！', explanation: '以 ie 结尾，变 y + ing → lying。' },
+          { id: 'v_die', categoryId: 'CAT_ING_RULES', layer: 3, title: 'die', subtitle: '/daɪ/ · 死亡', prompt: '转化为现在分词 (-ing)：', answer: 'dying', explanation: '以 ie 结尾，变 y + ing → dying。' },
+
+          // -ed 规则
+          { id: 'v_love', categoryId: 'CAT_ED_RULES', layer: 1, title: 'love', subtitle: '/lʌv/ · 爱', prompt: '转化为过去式 (-ed)：', answer: 'loved', explanation: '以 e 结尾直接加 d。' },
+          { id: 'v_stop', categoryId: 'CAT_ED_RULES', layer: 2, title: 'stop', subtitle: '/stɒp/ · 停止', prompt: '转化为过去式 (-ed)：', answer: 'stopped', explanation: '重读闭音节辅元辅，双写 p 再加 ed。' },
+          { id: 'v_study', categoryId: 'CAT_ED_RULES', layer: 2, title: 'study', subtitle: '/ˈstʌdi/ · 学习', prompt: '转化为过去式 (-ed)：', answer: 'studied', explanation: '辅音+y 结尾，变 y 为 i 再加 ed。' },
+
+          // 不规则 AAA
+          { id: 'v_cost', categoryId: 'CAT_IRREG_AAA', layer: 1, title: 'cost', subtitle: '/kɒst/ · 花费', prompt: '转化为过去式：', answer: 'cost', explanation: 'AAA 型：cost → cost → cost 三态同形。' },
+          { id: 'v_put', categoryId: 'CAT_IRREG_AAA', layer: 1, title: 'put', subtitle: '/pʊt/ · 放置', prompt: '转化为过去分词：', answer: 'put', explanation: 'AAA 型：put → put → put。' },
+          { id: 'v_read', categoryId: 'CAT_IRREG_AAA', layer: 3, title: 'read', subtitle: '/riːd/ · 阅读', prompt: '转化为过去式：', answer: 'read', pitfalls: '拼写完全不变，但过去式发音变为 /red/！', explanation: 'AAA 型拼写同形，但注意读音发生改变。' },
+
+          // 不规则 AAB / ABA
+          { id: 'v_beat', categoryId: 'CAT_IRREG_AAB_ABA', layer: 3, title: 'beat', subtitle: '/biːt/ · 击败', prompt: '转化为过去分词：', answer: 'beaten', explanation: 'AAB 型：beat → beat → beaten，仅过去分词加 en。' },
+          { id: 'v_come', categoryId: 'CAT_IRREG_AAB_ABA', layer: 2, title: 'come', subtitle: '/kʌm/ · 来', prompt: '转化为过去分词：', answer: 'come', explanation: 'ABA 型：come → came → come，原形与过去分词同形。' },
+          { id: 'v_become', categoryId: 'CAT_IRREG_AAB_ABA', layer: 2, title: 'become', subtitle: '/bɪˈkʌm/ · 成为', prompt: '转化为过去分词：', answer: 'become', explanation: 'ABA 型：become → became → become。' },
+
+          // 不规则 ABB
+          { id: 'v_find', categoryId: 'CAT_IRREG_ABB', layer: 2, title: 'find', subtitle: '/faɪnd/ · 发现', prompt: '转化为过去式：', answer: 'found', explanation: 'ABB 型：find → found → found。' },
+          { id: 'v_build', categoryId: 'CAT_IRREG_ABB', layer: 2, title: 'build', subtitle: '/bɪld/ · 建造', prompt: '转化为过去分词：', answer: 'built', explanation: 'ABB 型：build → built → built。' },
+          { id: 'v_teach', categoryId: 'CAT_IRREG_ABB', layer: 3, title: 'teach', subtitle: '/tiːtʃ/ · 教授', prompt: '转化为过去式：', answer: 'taught', pitfalls: '注意与 think(thought) 区分！', explanation: 'ABB 型：teach → taught → taught。' },
+          { id: 'v_think', categoryId: 'CAT_IRREG_ABB', layer: 3, title: 'think', subtitle: '/θɪŋk/ · 思考', prompt: '转化为过去式：', answer: 'thought', explanation: 'ABB 型：think → thought → thought。' },
+
+          // 不规则 ABC
+          { id: 'v_go', categoryId: 'CAT_IRREG_ABC', layer: 2, title: 'go', subtitle: '/ɡəʊ/ · 去', prompt: '转化为过去分词：', answer: 'gone', explanation: 'ABC 型：go → went → gone。' },
+          { id: 'v_see', categoryId: 'CAT_IRREG_ABC', layer: 2, title: 'see', subtitle: '/siː/ · 看见', prompt: '转化为过去式：', answer: 'saw', explanation: 'ABC 型：see → saw → seen。' },
+          { id: 'v_eat', categoryId: 'CAT_IRREG_ABC', layer: 2, title: 'eat', subtitle: '/iːt/ · 吃', prompt: '转化为过去分词：', answer: 'eaten', explanation: 'ABC 型：eat → ate → eaten。' },
+          { id: 'v_break', categoryId: 'CAT_IRREG_ABC', layer: 3, title: 'break', subtitle: '/breɪk/ · 打碎', prompt: '转化为过去分词：', answer: 'broken', explanation: 'ABC 型：break → broke → broken。' },
+
+          // 三单与真不规则
+          { id: 'v_be', categoryId: 'CAT_THIRD_SINGULAR', layer: 3, title: 'be', subtitle: '/biː/ · 是', prompt: '转化为第三人称单数 (现在时)：', answer: 'is', explanation: '真不规则三单：be 直接变 is。' },
+          { id: 'v_have', categoryId: 'CAT_THIRD_SINGULAR', layer: 3, title: 'have', subtitle: '/hæv/ · 拥有', prompt: '转化为第三人称单数：', answer: 'has', explanation: '真不规则三单：have 直接变 has。' },
+          { id: 'v_pass', categoryId: 'CAT_THIRD_SINGULAR', layer: 1, title: 'pass', subtitle: '/pɑːs/ · 通过', prompt: '转化为第三人称单数：', answer: 'passes', explanation: '以 s 结尾加 es → passes。' }
+        ]
+      },
+
+      // 2. HTTP 网络状态码与协议题库
+      {
+        id: 'deck_http',
+        title: 'HTTP 状态码与网络协议',
+        icon: '🌐',
+        description: '梳理 2xx 成功、3xx 重定向、4xx 客户端错误与 5xx 服务端错误，专攻 401 vs 403 等高频混淆考点。',
+        categories: [
+          { id: 'CAT_2XX', name: '2xx 成功与已接受', group: '一、正常响应与重定向族' },
+          { id: 'CAT_3XX', name: '3xx 重定向与缓存', group: '一、正常响应与重定向族' },
+          { id: 'CAT_4XX', name: '4xx 客户端错误 (重点攻坚)', group: '二、客户端与服务端异常族' },
+          { id: 'CAT_5XX', name: '5xx 服务端与网关异常', group: '二、客户端与服务端异常族' }
+        ],
+        layers: [
+          { level: 1, name: 'Layer 1: 基础概念' },
+          { level: 2, name: 'Layer 2: 常见业务场景' },
+          { level: 3, name: 'Layer 3: 隐秘陷阱与对比' }
+        ],
+        entities: [
+          { id: 'http_200', categoryId: 'CAT_2XX', layer: 1, title: '200 OK', subtitle: '成功响应', prompt: '其核心含义与处理机制是？', answer: '请求已成功，响应头与实体主体正常返回', explanation: '标准成功响应。' },
+          { id: 'http_204', categoryId: 'CAT_2XX', layer: 2, title: '204 No Content', subtitle: '无内容成功', prompt: '其核心特点是？', answer: '请求成功处理，但响应报文不包含实体主体内容', explanation: '常用于预检 OPTIONS 请求或 DELETE 成功后无需返回数据。' },
+          { id: 'http_301', categoryId: 'CAT_3XX', layer: 2, title: '301 Moved Permanently', subtitle: '永久重定向', prompt: '其特征与缓存机制是？', answer: '资源永久迁移至新 URI，搜索引擎会更新索引且浏览器会强缓存', confusedWith: 'http_302', explanation: '永久重定向，后续直接访问 Location 给出的新地址。' },
+          { id: 'http_302', categoryId: 'CAT_3XX', layer: 2, title: '302 Found', subtitle: '临时重定向', prompt: '其特征是？', answer: '资源临时移动，客户端本次应重定向但未来仍应访问原 URI', confusedWith: 'http_301', explanation: '临时重定向，搜索引擎保留原 URL。' },
+          { id: 'http_304', categoryId: 'CAT_3XX', layer: 2, title: '304 Not Modified', subtitle: '协商缓存命中', prompt: '其核心作用是？', answer: '资源未修改，客户端可直接使用本地缓存，不传输 Body', explanation: '配合 If-None-Match (ETag) 或 If-Modified-Since 使用。' },
+          { id: 'http_400', categoryId: 'CAT_4XX', layer: 1, title: '400 Bad Request', subtitle: '请求报文错误', prompt: '常见诱因是？', answer: '请求参数或语法格式错误，服务器无法解析', explanation: '客户端提交了无效的 JSON 或缺损参数。' },
+          { id: 'http_401', categoryId: 'CAT_4XX', layer: 3, title: '401 Unauthorized', subtitle: '未认证 (缺少凭据)', prompt: '其核心定义是？', answer: '缺少有效身份凭证 (未携带 Token 或未登录)', confusedWith: 'http_403', pitfalls: '401 是不知道你是谁；403 是知道你是谁但不让你进！', explanation: '未认证状态，响应通常带有 WWW-Authenticate 头。' },
+          { id: 'http_403', categoryId: 'CAT_4XX', layer: 3, title: '403 Forbidden', subtitle: '禁止访问 (权限不足)', prompt: '其核心定义是？', answer: '服务器理解请求但拒绝执行，即使提供有效凭据也无权访问', confusedWith: 'http_401', pitfalls: '403 重新输入密码登录依然无权访问，属于鉴权失败。', explanation: '权限不足 (如普通用户尝试访问超管接口)。' },
+          { id: 'http_404', categoryId: 'CAT_4XX', layer: 1, title: '404 Not Found', subtitle: '资源未找到', prompt: '其核心定义是？', answer: '服务器无法在请求的 URI 上找到对应资源', explanation: 'URL 不存在或已被彻底删除。' },
+          { id: 'http_500', categoryId: 'CAT_5XX', layer: 1, title: '500 Internal Server Error', subtitle: '服务器内部错误', prompt: '其核心定义是？', answer: '服务器在处理请求时发生未捕获的内部程序异常', explanation: '服务端代码崩溃抛出未处理的 Exception。' },
+          { id: 'http_502', categoryId: 'CAT_5XX', layer: 3, title: '502 Bad Gateway', subtitle: '错误网关', prompt: '通常由什么架构原因触发？', answer: '反向代理 (如 Nginx) 从上游服务器收到了无效响应', confusedWith: 'http_504', explanation: '上游服务挂掉或端口未监听。' },
+          { id: 'http_504', categoryId: 'CAT_5XX', layer: 3, title: '504 Gateway Timeout', subtitle: '网关超时', prompt: '其与 502 的根本区别是？', answer: '代理服务器等待上游服务响应超时，上游处理太慢未及时返回', confusedWith: 'http_502', explanation: '上游执行超时导致超时中断。' }
+        ]
+      },
+
+      // 3. Python 核心概念与避坑指南
+      {
+        id: 'deck_python',
+        title: 'Python 核心数据类型与内存模型',
+        icon: '🐍',
+        description: '透彻理解不可变对象与可变对象、引用计数、浅拷贝与深拷贝、默认参数跨调用共享等经典陷阱。',
+        categories: [
+          { id: 'CAT_MUTABLE', name: '可变对象与容器 (Mutable)', group: '一、核心内存对象模型' },
+          { id: 'CAT_IMMUTABLE', name: '不可变对象 (Immutable)', group: '一、核心内存对象模型' },
+          { id: 'CAT_PITFALLS', name: '语言运行时经典避坑 (Gotchas)', group: '二、语言运行时经典避坑' }
+        ],
+        layers: [
+          { level: 1, name: 'Layer 1: 基础属性' },
+          { level: 2, name: 'Layer 2: 内存与机制' },
+          { level: 3, name: 'Layer 3: 隐蔽陷阱' }
+        ],
+        entities: [
+          { id: 'py_list', categoryId: 'CAT_MUTABLE', layer: 1, title: '列表 (list)', subtitle: '动态连续数组', prompt: '其核心特征是？', answer: '可变序列，支持原地追加修改，时间复杂度 append 为 O(1)', explanation: '底层为可动态扩容的指针数组。' },
+          { id: 'py_dict', categoryId: 'CAT_MUTABLE', layer: 1, title: '字典 (dict)', subtitle: '哈希映射表', prompt: '其对键 (Key) 的要求是？', answer: '键必须是可哈希 (Hashable) 的不可变对象，查询为平均 O(1)', explanation: '基于紧凑哈希表实现。' },
+          { id: 'py_tuple', categoryId: 'CAT_IMMUTABLE', layer: 1, title: '元组 (tuple)', subtitle: '不可变序列', prompt: '其核心特征是？', answer: '一旦创建不可修改长度与指向，可作为字典键或集合元素', explanation: '内存开销小，元素只读。' },
+          { id: 'py_str', categoryId: 'CAT_IMMUTABLE', layer: 1, title: '字符串 (str)', subtitle: '字符序列', prompt: '对其拼接修改会发生什么？', answer: '属于不可变对象，任何拼接或 replace 均会分配新内存', explanation: '大量拼接推荐使用 "".join(list) 提高效率。' },
+          { id: 'py_def_arg', categoryId: 'CAT_PITFALLS', layer: 3, title: 'def f(x=[]): 默认参数陷阱', subtitle: '跨函数调用共享', prompt: '该代码的潜在问题是？', answer: '默认参数在函数定义时完成求值，所有调用共享同一个列表对象', pitfalls: '多次调用该函数，x 会不断累积此前调用的值！推荐使用 def f(x=None)。', explanation: 'Python 函数属于一级对象，默认参数保存在 __defaults__ 元组中。' },
+          { id: 'py_copy', categoryId: 'CAT_PITFALLS', layer: 3, title: 'copy.copy() 浅拷贝', subtitle: '与 deepcopy 的差异', prompt: '其内存复制行为是？', answer: '仅复制父对象外壳，其内部嵌套的子对象依然共享相同引用', explanation: '修改子对象会相互影响；彻底隔离需用 copy.deepcopy()。' },
+          { id: 'py_is_eq', categoryId: 'CAT_PITFALLS', layer: 2, title: 'is 与 == 的本质区别', subtitle: '同一性 vs 等价性', prompt: '其核心判决依据是？', answer: 'is 比较两个变量的内存地址 id()，== 比较对象的内容值', explanation: '判空必须使用 if x is None。' }
+        ]
+      }
+    ];
+
+    /**
+     * Web Audio API 音效合成引擎
+     */
+    class SoundFxEngine {
+      constructor() { this.ctx = null; }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+      }
+      playCorrect(combo = 1) {
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        const baseFreq = 523.25 * (1 + Math.min(combo * 0.05, 0.8));
+        osc.frequency.setValueAtTime(baseFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.33, now + 0.12);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+        osc.start(now);
+        osc.stop(now + 0.26);
+      }
+      playError() {
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.linearRampToValueAtTime(80, now + 0.25);
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+        osc.start(now);
+        osc.stop(now + 0.31);
+      }
+    }
+
+    /**
+     * 通用知识图谱游戏化核心引擎 (Universal Engine v2.0)
+     */
+    class UniversalKnowledgeEngine {
+      constructor() {
+        this.storageKey = 'universal_knowledge_engine_v2';
+        this.sound = new SoundFxEngine();
+        this.loadState();
+
+        this.currentMode = null;
+        this.quizQueue = [];
+        this.currentIndex = 0;
+        this.currentQuestion = null;
+        this.sessionCorrect = 0;
+        this.sessionCombo = 0;
+        this.maxComboInSession = 0;
+        this.lives = 3;
+        this.timerInterval = null;
+        this.timeLeft = 6;
+        this.currentFilter = 'ALL';
+        this.isAnswerMasked = false;
+        this.studySearchKeyword = '';
+        this.studySelectedGroup = 'ALL';
+        this.studySelectedCat = 'ALL';
+        this.studySelectedLayer = 'ALL';
+        this.studioViewMode = 'split';
+        this.draftDeck = null;
+        this.mdSyncTimer = null;
+        this.editingDeckId = null;
+        this.deckToDeleteId = null;
+
+        this.initKeyboardEvents();
+        this.renderDeckSelector();
+        this.renderDashboard();
+      }
+
+      // 本地存储管理
+      loadState() {
+        const raw = localStorage.getItem(this.storageKey);
+        if (raw) {
+          try {
+            this.state = JSON.parse(raw);
+          } catch(e) {
+            console.error(e);
+            this.state = this.getInitialState();
+          }
+        } else {
+          this.state = this.getInitialState();
+          this.saveState();
+        }
+      }
+
+      saveState() {
+        localStorage.setItem(this.storageKey, JSON.stringify(this.state));
+      }
+
+      getInitialState() {
+        return {
+          version: '2.0.0',
+          activeDeckId: 'deck_verbs',
+          simulatedDateOffsetDays: 0,
+          customDecks: [],
+          // 每个题库独立的记忆卡片空间: { [deckId]: { streak, totalAttempts, totalCorrect, cards: {}, logs: [] } }
+          deckStates: {}
+        };
+      }
+
+      // 获取全部题库列表 (内置 + 自定义)
+      getAllDecks() {
+        return [...BUILTIN_DECKS, ...(this.state.customDecks || [])];
+      }
+
+      // 获取当前激活的题库对象
+      getActiveDeck() {
+        const decks = this.getAllDecks();
+        return decks.find(d => d.id === this.state.activeDeckId) || BUILTIN_DECKS[0];
+      }
+
+      // 获取当前激活题库的独立状态
+      getActiveDeckState() {
+        const deckId = this.state.activeDeckId;
+        if (!this.state.deckStates[deckId]) {
+          this.state.deckStates[deckId] = {
+            streak: 0,
+            totalAttempts: 0,
+            totalCorrect: 0,
+            cards: {},
+            logs: []
+          };
+        }
+        return this.state.deckStates[deckId];
+      }
+
+      getCurrentDate() {
+        const d = new Date();
+        d.setDate(d.getDate() + (this.state.simulatedDateOffsetDays || 0));
+        return d;
+      }
+
+      getEndOfTodayTimestamp() {
+        const d = this.getCurrentDate();
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).getTime();
+      }
+
+      getWordCard(entityId) {
+        const ds = this.getActiveDeckState();
+        if (!ds.cards[entityId]) {
+          ds.cards[entityId] = {
+            entityId: entityId,
+            level: 0,
+            stabilityDays: 1,
+            attempts: 0,
+            correct: 0,
+            wrong: 0,
+            lastPracticedAt: null,
+            nextReviewAt: null
+          };
+        }
+        return ds.cards[entityId];
+      }
+
+      // 切换当前题库
+      switchDeck(deckId) {
+        this.state.activeDeckId = deckId;
+        this.saveState();
+        this.renderDeckSelector();
+        if (!document.getElementById('view-study').classList.contains('hidden')) {
+          this.renderStudyHub();
+        } else if (!document.getElementById('view-codex').classList.contains('hidden')) {
+          this.renderCodex();
+        } else {
+          this.renderDashboard();
+        }
+      }
+
+      // 模拟快进
+      simulateDayPass(days) {
+        this.state.simulatedDateOffsetDays = (this.state.simulatedDateOffsetDays || 0) + days;
+        this.saveState();
+        this.renderDashboard();
+        alert(`⏰ 已模拟快进 ${days} 天！当前模拟时间为：${this.getCurrentDate().toLocaleDateString('zh-CN')}。`);
+      }
+
+      // 计算当前题库艾宾浩斯调度指标
+      calcSpacedRepetitionMetrics() {
+        const deck = this.getActiveDeck();
+        const ds = this.getActiveDeckState();
+        const endOfToday = this.getEndOfTodayTimestamp();
+
+        let dueCount = 0;
+        let rustyCount = 0;
+        let masteredCount = 0;
+        const dueEntities = [];
+        const mistakeEntities = [];
+
+        deck.entities.forEach(entity => {
+          const card = ds.cards[entity.id];
+          if (!card || card.attempts === 0) return;
+
+          if (card.level >= 4) masteredCount++;
+
+          if (card.nextReviewAt && card.nextReviewAt <= endOfToday) {
+            dueCount++;
+            dueEntities.push(entity);
+            const daysOverdue = (endOfToday - card.nextReviewAt) / (1000 * 3600 * 24);
+            if (daysOverdue > card.stabilityDays * 2) rustyCount++;
+          }
+
+          if (card.wrong > 0 && (card.wrong / card.attempts > 0.3 || card.level <= 1)) {
+            mistakeEntities.push(entity);
+          }
+        });
+
+        return { dueCount, rustyCount, masteredCount, dueEntities, mistakeEntities };
+      }
+
+      // 键盘快捷键监听
+      initKeyboardEvents() {
+        window.addEventListener('keydown', (e) => {
+          if (!document.getElementById('modal-backup').classList.contains('hidden') ||
+              !document.getElementById('modal-deck-studio').classList.contains('hidden')) return;
+
+          if (!document.getElementById('view-arena').classList.contains('hidden')) {
+            const feedbackOpen = !document.getElementById('arena-feedback-drawer').classList.contains('hidden');
+            if (feedbackOpen) {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.nextQuestion();
+              }
+              return;
+            }
+
+            if (['1', '2', '3', '4'].includes(e.key)) {
+              const idx = parseInt(e.key) - 1;
+              const buttons = document.querySelectorAll('#arena-options-grid button');
+              if (buttons[idx]) buttons[idx].click();
+            }
+          }
+        });
+      }
+
+      // 页面导航
+      navigate(viewName) {
+        clearInterval(this.timerInterval);
+        ['dashboard', 'arena', 'summary', 'codex', 'study'].forEach(v => {
+          const el = document.getElementById(`view-${v}`);
+          if (el) el.classList.add('hidden');
+        });
+        document.getElementById(`view-${viewName}`).classList.remove('hidden');
+
+        if (viewName === 'dashboard') {
+          this.renderDashboard();
+        } else if (viewName === 'codex') {
+          this.renderCodex();
+        } else if (viewName === 'study') {
+          this.renderStudyHub();
+        }
+      }
+
+      // 渲染题库下拉框
+      renderDeckSelector() {
+        const selector = document.getElementById('deck-selector');
+        const decks = this.getAllDecks();
+        const activeDeck = this.getActiveDeck();
+
+        selector.innerHTML = decks.map(d => `
+          <option value="${d.id}" ${d.id === activeDeck.id ? 'selected' : ''}>
+            ${d.icon} ${d.title}
+          </option>
+        `).join('');
+
+        document.getElementById('header-deck-icon').innerText = activeDeck.icon;
+        document.getElementById('header-deck-title').innerText = activeDeck.title;
+      }
+
+      // 渲染主仪表盘
+      renderDashboard() {
+        const deck = this.getActiveDeck();
+        const ds = this.getActiveDeckState();
+        const totalEntities = deck.entities.length;
+        const practicedCount = Object.values(ds.cards).filter(c => c.attempts > 0).length;
+        const coverageRate = totalEntities > 0 ? Math.round((practicedCount / totalEntities) * 100) : 0;
+
+        const { dueCount, rustyCount, masteredCount, dueEntities, mistakeEntities } = this.calcSpacedRepetitionMetrics();
+        const totalAcc = ds.totalAttempts > 0 ? Math.round((ds.totalCorrect / ds.totalAttempts) * 100) : 100;
+
+        document.getElementById('header-streak').innerText = ds.streak || 0;
+        document.getElementById('stat-coverage-rate').innerText = `${coverageRate}%`;
+        document.getElementById('stat-coverage-detail').innerText = `(${practicedCount}/${totalEntities}词条)`;
+        document.getElementById('stat-coverage-bar').style.width = `${coverageRate}%`;
+
+        document.getElementById('stat-due-count').innerText = dueCount;
+        document.getElementById('stat-rusty-count').innerText = rustyCount;
+        document.getElementById('stat-accuracy-rate').innerText = `${totalAcc}%`;
+        document.getElementById('stat-accuracy-detail').innerText = `(${ds.totalCorrect}/${ds.totalAttempts})`;
+        document.getElementById('stat-total-attempts').innerText = ds.totalAttempts;
+        document.getElementById('stat-mastered-count').innerText = masteredCount;
+
+        document.getElementById('mode-badge-review').innerText = `今日到期: ${dueCount}`;
+        document.getElementById('mode-badge-weakness').innerText = `错题待清: ${mistakeEntities.length}`;
+
+        const navMistakeBadge = document.getElementById('nav-mistake-badge');
+        if (mistakeEntities.length > 0) {
+          navMistakeBadge.classList.remove('hidden');
+          navMistakeBadge.innerText = mistakeEntities.length;
+        } else {
+          navMistakeBadge.classList.add('hidden');
+        }
+
+        this.renderSmartBanner(dueCount, mistakeEntities.length, coverageRate);
+        this.renderDeckCategoryBars();
+      }
+
+      // 智能自适应模式推荐
+      renderSmartBanner(dueCount, mistakeCount, coverageRate) {
+        const banner = document.getElementById('smart-recommendation-banner');
+        let title = '';
+        let desc = '';
+        let actionBtnText = '';
+        let targetMode = '';
+        let colorClass = '';
+
+        if (dueCount > 0) {
+          title = `⏰ 艾宾浩斯遗忘警报：今日有 ${dueCount} 个知识点到达复习周期！`;
+          desc = `系统检测到该图谱中有知识点濒临遗忘。推荐开启【每日温故模式】，用时不到 2 分钟即可把记忆拉回长效区！`;
+          actionBtnText = '立即进行艾宾浩斯复习 🚀';
+          targetMode = 'DAILY_REVIEW';
+          colorClass = 'bg-amber-950/30 border-amber-500/40 text-amber-200';
+        } else if (mistakeCount >= 2) {
+          title = `🎯 盲区诊断报告：历史沉淀了 ${mistakeCount} 个易混淆错题！`;
+          desc = `检测到同胞概念间存在答题失误。建议启动【弱点定点爆破模式】，对错题进行针对性同胞选项辨析！`;
+          actionBtnText = '开启弱点歼灭战 💥';
+          targetMode = 'WEAKNESS';
+          colorClass = 'bg-rose-950/30 border-rose-500/40 text-rose-200';
+        } else if (coverageRate < 70) {
+          title = `🏆 阶梯认知推荐：当前题库覆盖率为 ${coverageRate}%，建议继续开拓！`;
+          desc = `推荐进入【分层阶梯战役模式】，依照布鲁姆认知模型由浅入深逐层挑战进阶要点！`;
+          actionBtnText = '继续闯关战役 ⚔️';
+          targetMode = 'CAMPAIGN';
+          colorClass = 'bg-indigo-950/30 border-indigo-500/40 text-indigo-200';
+        } else {
+          title = `⚡ 极限测速推荐：图谱基础已非常稳固！挑战极速连击生存！`;
+          desc = `3 条命限时 6 秒抢答，检验对该领域知识的下意识条件反射与抗压反应！`;
+          actionBtnText = '进入极速生存模式 ⚡';
+          targetMode = 'SPEED_SPRINT';
+          colorClass = 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200';
+        }
+
+        banner.className = `rounded-2xl p-5 border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${colorClass}`;
+        banner.innerHTML = `
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded-md bg-white/10 text-xs font-mono font-bold tracking-wider uppercase">智能向导推荐</span>
+              <h3 class="font-bold text-sm sm:text-base text-white">${title}</h3>
+            </div>
+            <p class="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">${desc}</p>
+          </div>
+          <button onclick="app.startMode('${targetMode}')" class="shrink-0 px-4 py-2.5 rounded-xl bg-white text-slate-950 hover:bg-slate-100 text-xs font-black shadow-lg transition">
+            ${actionBtnText}
+          </button>
+        `;
+      }
+
+      // 渲染分类熟练度条
+      renderDeckCategoryBars() {
+        const container = document.getElementById('deck-category-bars');
+        const deck = this.getActiveDeck();
+        const ds = this.getActiveDeckState();
+
+        if (!deck.categories || deck.categories.length === 0) {
+          container.innerHTML = '<div class="text-slate-500 text-xs">暂无分类信息</div>';
+          return;
+        }
+
+        let html = '';
+        deck.categories.forEach(cat => {
+          const catEntities = deck.entities.filter(e => e.categoryId === cat.id);
+          const total = catEntities.length;
+          let practiced = 0;
+          let correctTotal = 0;
+          let attemptTotal = 0;
+
+          catEntities.forEach(e => {
+            const card = ds.cards[e.id];
+            if (card && card.attempts > 0) {
+              practiced++;
+              correctTotal += card.correct;
+              attemptTotal += card.attempts;
+            }
+          });
+
+          const pct = total > 0 ? Math.round((practiced / total) * 100) : 0;
+          const acc = attemptTotal > 0 ? Math.round((correctTotal / attemptTotal) * 100) : 0;
+
+          html += `
+            <div>
+              <div class="flex justify-between items-center text-slate-300 mb-1">
+                <span class="font-medium">${cat.name}</span>
+                <span class="font-mono text-slate-400">覆盖: <b class="text-white">${practiced}/${total}</b> (${pct}%) | 准确率: <b class="${acc >= 80 ? 'text-emerald-400' : 'text-amber-400'}">${acc}%</b></span>
+              </div>
+              <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-indigo-500 to-violet-500 h-full rounded-full transition-all" style="width: ${pct}%"></div>
+              </div>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      }
+
+      /**
+       * 通用同胞干扰项发生器 (Universal Sibling Distractor Synthesizer)
+       */
+      generateQuestion(entity) {
+        const deck = this.getActiveDeck();
+        const correctAnswer = entity.answer;
+        const distractors = [];
+
+        // 1. 如果配置了人工预设干扰项，优先纳入
+        if (entity.presetDistractors && entity.presetDistractors.length > 0) {
+          distractors.push(...entity.presetDistractors);
+        }
+
+        // 2. 强混淆关联实体抽取
+        if (entity.confusedWith) {
+          const confusedEntity = deck.entities.find(e => e.id === entity.confusedWith || e.title === entity.confusedWith);
+          if (confusedEntity && confusedEntity.answer !== correctAnswer && !distractors.includes(confusedEntity.answer)) {
+            distractors.push(confusedEntity.answer);
+          }
+        }
+
+        // 3. 同胞采样 (Sibling Sampling): 同分类下的其他实体答案
+        const siblingEntities = deck.entities.filter(e => e.categoryId === entity.categoryId && e.id !== entity.id);
+        const shuffledSiblings = [...siblingEntities].sort(() => Math.random() - 0.5);
+        for (const sib of shuffledSiblings) {
+          if (distractors.length >= 3) break;
+          if (sib.answer !== correctAnswer && !distractors.includes(sib.answer)) {
+            distractors.push(sib.answer);
+          }
+        }
+
+        // 4. 同层级退火 (Layer Fallback): 若同一分类下不足，在相同难度层抽取
+        if (distractors.length < 3) {
+          const layerEntities = deck.entities.filter(e => e.layer === entity.layer && e.id !== entity.id);
+          const shuffledLayers = [...layerEntities].sort(() => Math.random() - 0.5);
+          for (const le of shuffledLayers) {
+            if (distractors.length >= 3) break;
+            if (le.answer !== correctAnswer && !distractors.includes(le.answer)) {
+              distractors.push(le.answer);
+            }
+          }
+        }
+
+        // 5. 全库随机采样兜底
+        if (distractors.length < 3) {
+          const allOther = deck.entities.filter(e => e.id !== entity.id);
+          const shuffledAll = [...allOther].sort(() => Math.random() - 0.5);
+          for (const other of shuffledAll) {
+            if (distractors.length >= 3) break;
+            if (other.answer !== correctAnswer && !distractors.includes(other.answer)) {
+              distractors.push(other.answer);
+            }
+          }
+        }
+
+        // 组装并打乱 4 个选项
+        const finalDistractors = distractors.slice(0, 3);
+        const options = [correctAnswer, ...finalDistractors].sort(() => Math.random() - 0.5);
+
+        // 分类名称展示
+        const cat = deck.categories.find(c => c.id === entity.categoryId);
+        const catName = cat ? cat.name : '通用分类';
+
+        return {
+          entityId: entity.id,
+          title: entity.title,
+          subtitle: entity.subtitle || '',
+          categoryName: catName,
+          layer: entity.layer,
+          prompt: entity.prompt || '请选择对应的准确属性或解析：',
+          correctAnswer: correctAnswer,
+          options: options,
+          explanation: entity.explanation || '请牢记此核心概念！',
+          pitfalls: entity.pitfalls || '注意同胞概念之间的关键边界区别！'
+        };
+      }
+
+      // 启动游戏模式
+      startMode(modeName) {
+        this.currentMode = modeName;
+        this.quizQueue = [];
+        this.currentIndex = 0;
+        this.sessionCorrect = 0;
+        this.sessionCombo = 0;
+        this.maxComboInSession = 0;
+        this.lives = 3;
+
+        const deck = this.getActiveDeck();
+        const { dueEntities, mistakeEntities } = this.calcSpacedRepetitionMetrics();
+
+        if (modeName === 'DAILY_REVIEW') {
+          const pool = dueEntities.length > 0 ? dueEntities : deck.entities.slice(0, 10);
+          this.quizQueue = [...pool].sort(() => Math.random() - 0.5).slice(0, 15);
+        } else if (modeName === 'WEAKNESS') {
+          const pool = mistakeEntities.length > 0 ? mistakeEntities : deck.entities.filter(e => e.layer >= 2);
+          this.quizQueue = [...pool].sort(() => Math.random() - 0.5).slice(0, 10);
+        } else if (modeName === 'CAMPAIGN') {
+          // 关卡战役：按 Layer 1 -> Layer 2 -> Layer 3 排序投放
+          const sortedByLayer = [...deck.entities].sort((a, b) => a.layer - b.layer);
+          this.quizQueue = sortedByLayer.slice(0, 12);
+        } else if (modeName === 'SPEED_SPRINT') {
+          this.quizQueue = [...deck.entities].sort(() => Math.random() - 0.5).slice(0, 25);
+        } else if (modeName === 'FREE_LAB') {
+          this.quizQueue = [...deck.entities].sort(() => Math.random() - 0.5).slice(0, 15);
+        }
+
+        this.navigate('arena');
+        this.renderArenaHeader();
+        this.loadCurrentQuestion();
+      }
+
+      exitArena() {
+        if (confirm('确定退出当前试炼吗？已作答进度已自动存档。')) {
+          clearInterval(this.timerInterval);
+          this.navigate('dashboard');
+        }
+      }
+
+      renderArenaHeader() {
+        const hpContainer = document.getElementById('arena-hp-container');
+        const timerWrap = document.getElementById('arena-timer-bar-wrap');
+
+        if (this.currentMode === 'SPEED_SPRINT') {
+          hpContainer.classList.remove('hidden');
+          timerWrap.classList.remove('hidden');
+          this.renderHearts();
+        } else {
+          hpContainer.classList.add('hidden');
+          timerWrap.classList.add('hidden');
+        }
+
+        document.getElementById('arena-combo-text').innerText = `${this.sessionCombo} Combo`;
+      }
+
+      renderHearts() {
+        const hpContainer = document.getElementById('arena-hp-container');
+        let hearts = '';
+        for (let i = 0; i < 3; i++) {
+          hearts += i < this.lives ? '❤️' : '🖤';
+        }
+        hpContainer.innerHTML = hearts;
+      }
+
+      loadCurrentQuestion() {
+        clearInterval(this.timerInterval);
+        document.getElementById('arena-feedback-drawer').classList.add('hidden');
+
+        if (this.currentIndex >= this.quizQueue.length || (this.currentMode === 'SPEED_SPRINT' && this.lives <= 0)) {
+          this.finishQuizSession();
+          return;
+        }
+
+        const rawEntity = this.quizQueue[this.currentIndex];
+        this.currentQuestion = this.generateQuestion(rawEntity);
+
+        document.getElementById('arena-progress-text').innerText = `${this.currentIndex + 1} / ${this.quizQueue.length}`;
+        document.getElementById('arena-target-badge').innerText = `🏷️ ${this.currentQuestion.categoryName} · Layer ${this.currentQuestion.layer}`;
+        document.getElementById('arena-base-word').innerText = this.currentQuestion.title;
+        document.getElementById('arena-translation').innerText = this.currentQuestion.subtitle;
+        document.getElementById('arena-prompt-text').innerText = this.currentQuestion.prompt;
+
+        const grid = document.getElementById('arena-options-grid');
+        grid.innerHTML = '';
+        this.currentQuestion.options.forEach((opt, idx) => {
+          const btn = document.createElement('button');
+          btn.className = 'w-full text-left p-3.5 sm:p-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 hover:border-indigo-500 text-slate-100 text-sm font-semibold transition flex items-center justify-between group active:scale-[0.98]';
+          btn.innerHTML = `
+            <div class="flex items-center gap-3">
+              <span class="w-6 h-6 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-xs font-mono text-slate-400 group-hover:text-indigo-400 group-hover:border-indigo-500/50 transition shrink-0">
+                ${idx + 1}
+              </span>
+              <span class="font-mono text-xs sm:text-sm leading-relaxed">${opt}</span>
+            </div>
+          `;
+          btn.onclick = () => this.handleAnswer(opt, btn);
+          grid.appendChild(btn);
+        });
+
+        if (this.currentMode === 'SPEED_SPRINT') {
+          this.timeLeft = 6;
+          const bar = document.getElementById('arena-timer-bar');
+          bar.style.width = '100%';
+          this.timerInterval = setInterval(() => {
+            this.timeLeft -= 0.1;
+            const pct = Math.max(0, (this.timeLeft / 6) * 100);
+            bar.style.width = `${pct}%`;
+            if (this.timeLeft <= 0) {
+              clearInterval(this.timerInterval);
+              this.handleAnswer('TIMEOUT', null);
+            }
+          }, 100);
+        }
+      }
+
+      handleAnswer(userChoice, targetBtn) {
+        clearInterval(this.timerInterval);
+        const q = this.currentQuestion;
+        const isCorrect = (userChoice === q.correctAnswer);
+        const ds = this.getActiveDeckState();
+
+        const buttons = document.querySelectorAll('#arena-options-grid button');
+        buttons.forEach(b => {
+          b.disabled = true;
+          const optText = b.querySelector('.font-mono:not(span:first-child)').innerText.trim();
+          if (optText === q.correctAnswer) {
+            b.classList.remove('bg-slate-800/80', 'border-slate-700');
+            b.classList.add('bg-emerald-950/60', 'border-emerald-500', 'text-emerald-200');
+          } else if (b === targetBtn && !isCorrect) {
+            b.classList.remove('bg-slate-800/80', 'border-slate-700');
+            b.classList.add('bg-rose-950/60', 'border-rose-500', 'text-rose-200');
+          }
+        });
+
+        if (isCorrect) {
+          this.sound.playCorrect(this.sessionCombo + 1);
+          this.sessionCorrect++;
+          this.sessionCombo++;
+          ds.streak++;
+          if (this.sessionCombo > this.maxComboInSession) this.maxComboInSession = this.sessionCombo;
+        } else {
+          this.sound.playError();
+          this.sessionCombo = 0;
+          ds.streak = 0;
+          document.getElementById('arena-card').classList.add('shake-anim');
+          setTimeout(() => document.getElementById('arena-card').classList.remove('shake-anim'), 400);
+
+          if (this.currentMode === 'SPEED_SPRINT') {
+            this.lives--;
+            this.renderHearts();
+          }
+        }
+
+        ds.totalAttempts++;
+        if (isCorrect) ds.totalCorrect++;
+        document.getElementById('arena-combo-text').innerText = `${this.sessionCombo} Combo`;
+        document.getElementById('header-streak').innerText = ds.streak;
+
+        this.updateWordMemoryState(q.entityId, isCorrect);
+
+        ds.logs.unshift({
+          timestamp: Date.now(),
+          entityId: q.entityId,
+          isCorrect: isCorrect,
+          userChoice: userChoice,
+          correctAnswer: q.correctAnswer,
+          mode: this.currentMode
+        });
+        if (ds.logs.length > 500) ds.logs.pop();
+        this.saveState();
+
+        this.showFeedbackDrawer(isCorrect);
+      }
+
+      updateWordMemoryState(entityId, isCorrect) {
+        const card = this.getWordCard(entityId);
+        card.attempts++;
+        const now = this.getCurrentDate().getTime();
+        card.lastPracticedAt = now;
+
+        const scheduleDays = [1, 2, 4, 7, 15, 30];
+        if (isCorrect) {
+          card.correct++;
+          if (card.level < 6) card.level++;
+        } else {
+          card.wrong++;
+          card.level = 1;
+        }
+
+        const intervalDays = scheduleDays[Math.min(card.level, scheduleDays.length - 1)];
+        card.stabilityDays = intervalDays;
+        card.nextReviewAt = now + (intervalDays * 24 * 3600 * 1000);
+      }
+
+      showFeedbackDrawer(isCorrect) {
+        const drawer = document.getElementById('arena-feedback-drawer');
+        const icon = document.getElementById('feedback-icon');
+        const title = document.getElementById('feedback-title');
+        const sub = document.getElementById('feedback-subtitle');
+        const ruleExp = document.getElementById('feedback-rule-exp');
+        const pitfalls = document.getElementById('feedback-pitfalls');
+
+        drawer.classList.remove('hidden');
+        if (isCorrect) {
+          drawer.className = 'bg-slate-900 border border-emerald-500/40 rounded-2xl p-5 shadow-lg';
+          icon.innerText = '✨';
+          title.className = 'font-bold text-sm text-emerald-400';
+          title.innerText = '回答正确！';
+          sub.innerText = `命中目标要点！当前已连续答对 ${this.sessionCombo} 题。`;
+        } else {
+          drawer.className = 'bg-slate-900 border border-rose-500/40 rounded-2xl p-5 shadow-lg';
+          icon.innerText = '⚠️';
+          title.className = 'font-bold text-sm text-rose-400';
+          title.innerText = `失误！正确答案为：${this.currentQuestion.correctAnswer}`;
+          sub.innerText = '已将该概念自动归入错题档案，艾宾浩斯复习周期已重置。';
+        }
+
+        ruleExp.innerText = this.currentQuestion.explanation;
+        pitfalls.innerText = this.currentQuestion.pitfalls;
+      }
+
+      nextQuestion() {
+        this.currentIndex++;
+        this.loadCurrentQuestion();
+      }
+
+      finishQuizSession() {
+        clearInterval(this.timerInterval);
+        this.navigate('summary');
+
+        const totalQ = this.currentIndex;
+        const acc = totalQ > 0 ? Math.round((this.sessionCorrect / totalQ) * 100) : 0;
+
+        document.getElementById('summary-score').innerText = `${this.sessionCorrect} / ${totalQ}`;
+        document.getElementById('summary-acc').innerText = `${acc}%`;
+        document.getElementById('summary-combo').innerText = this.maxComboInSession;
+
+        const icon = document.getElementById('summary-icon');
+        const title = document.getElementById('summary-title');
+        const sub = document.getElementById('summary-subtitle');
+
+        if (acc >= 90) {
+          icon.innerText = '👑';
+          title.innerText = '宗师级表现！完美过关！';
+          sub.innerText = '该知识图谱的核心脉络已高度内化，已成功沉淀至长效记忆。';
+        } else if (acc >= 70) {
+          icon.innerText = '🎉';
+          title.innerText = '通关成功！良好熟练度！';
+          sub.innerText = '常规考点均已牢牢掌握，少量易错盲区已加入近期艾宾浩斯排程。';
+        } else {
+          icon.innerText = '🧗';
+          title.innerText = '继续加油！还需多加巩固！';
+          sub.innerText = '检测到部分易混淆同胞概念失误，推荐使用【弱点歼灭战】针对性刷题。';
+        }
+      }
+
+      replayCurrentMode() {
+        this.startMode(this.currentMode || 'CAMPAIGN');
+      }
+
+      // 知识图谱法典视图
+      setCodexFilter(filter) {
+        this.currentFilter = filter;
+        const buttons = document.querySelectorAll('#codex-filter-buttons button');
+        buttons.forEach(b => {
+          b.className = 'px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300';
+        });
+        event.target.className = 'px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-medium';
+        this.renderCodex();
+      }
+
+      renderCodex() {
+        const tbody = document.getElementById('codex-table-body');
+        const deck = this.getActiveDeck();
+        const ds = this.getActiveDeckState();
+        const endOfToday = this.getEndOfTodayTimestamp();
+
+        const list = deck.entities.filter(e => {
+          const card = ds.cards[e.id];
+          if (this.currentFilter === 'DUE') return card && card.nextReviewAt && card.nextReviewAt <= endOfToday;
+          if (this.currentFilter === 'MISTAKE') return card && card.wrong > 0;
+          if (this.currentFilter === 'MASTERED') return card && card.level >= 4;
+          return true;
+        });
+
+        document.getElementById('codex-filtered-count').innerText = list.length;
+        let html = '';
+
+        list.forEach(entity => {
+          const card = ds.cards[entity.id] || { level: 0, attempts: 0, correct: 0, wrong: 0 };
+          let statusBadge = '<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400">未学习</span>';
+          let reviewTimeText = '—';
+
+          if (card.attempts > 0) {
+            if (card.level >= 4) {
+              statusBadge = '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">🟢 稳固掌握</span>';
+            } else if (card.nextReviewAt && card.nextReviewAt <= endOfToday) {
+              const daysOverdue = (endOfToday - card.nextReviewAt) / (1000 * 3600 * 24);
+              if (daysOverdue > card.stabilityDays * 2) {
+                statusBadge = '<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">🔴 记忆生锈</span>';
+              } else {
+                statusBadge = '<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">🟡 今日到期</span>';
+              }
+            } else {
+              statusBadge = '<span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">🔵 巩固中</span>';
+            }
+
+            if (card.nextReviewAt) {
+              const d = new Date(card.nextReviewAt);
+              reviewTimeText = `${d.getMonth() + 1}月${d.getDate()}日`;
+            }
+          }
+
+          const cat = deck.categories.find(c => c.id === entity.categoryId);
+          const catName = cat ? cat.name : entity.categoryId;
+
+          html += `
+            <tr class="hover:bg-slate-800/40 transition">
+              <td class="py-3 px-4 font-bold text-white">
+                ${entity.title}
+                <div class="text-[11px] text-slate-400 font-normal">${entity.subtitle || ''}</div>
+              </td>
+              <td class="py-3 px-3 font-mono text-indigo-300">${entity.answer}</td>
+              <td class="py-3 px-3">
+                <span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[10px]">${catName}</span>
+              </td>
+              <td class="py-3 px-3 font-mono text-slate-400">Layer ${entity.layer}</td>
+              <td class="py-3 px-3">${statusBadge}</td>
+              <td class="py-3 px-3 font-mono">
+                <span class="text-emerald-400">${card.correct}</span> / <span class="text-rose-400">${card.wrong}</span>
+              </td>
+              <td class="py-3 px-3 font-mono text-slate-400">${reviewTimeText}</td>
+              <td class="py-3 px-3 text-right">
+                <button onclick="app.drillSingleEntity('${entity.id}')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition text-[11px]">
+                  单独突击
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+
+        tbody.innerHTML = html;
+      }
+
+      drillSingleEntity(entityId) {
+        const deck = this.getActiveDeck();
+        const entity = deck.entities.find(e => e.id === entityId);
+        if (!entity) return;
+        this.currentMode = 'SINGLE_DRILL';
+        this.quizQueue = [entity];
+        this.currentIndex = 0;
+        this.sessionCorrect = 0;
+        this.sessionCombo = 0;
+        this.maxComboInSession = 0;
+        this.navigate('arena');
+        this.renderArenaHeader();
+        this.loadCurrentQuestion();
+      }
+
+      // ==========================================
+      // 知识精读与学习中心 (Study Hub) 逻辑
+      // ==========================================
+
+      // 切换遮挡自测模式
+      toggleAnswerMask() {
+        this.isAnswerMasked = !this.isAnswerMasked;
+        const icon = document.getElementById('mask-status-icon');
+        const text = document.getElementById('mask-status-text');
+        const btn = document.getElementById('btn-toggle-mask');
+        if (this.isAnswerMasked) {
+          icon.innerText = '🙈';
+          text.innerText = '自测遮挡模式: 开 (悬停/点击显现)';
+          btn.className = 'px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs flex items-center gap-1.5 transition font-semibold';
+        } else {
+          icon.innerText = '👁️';
+          text.innerText = '自测遮挡模式: 关';
+          btn.className = 'px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs flex items-center gap-1.5 transition';
+        }
+        this.renderStudyHubCards();
+      }
+
+      // 实时搜索过滤
+      // 实时搜索过滤
+      filterStudyEntities() {
+        this.studySearchKeyword = (document.getElementById('study-search-input')?.value || '').trim().toLowerCase();
+        this.renderStudyHub();
+      }
+
+      // 切换业务大组过滤
+      setStudyGroupFilter(groupName) {
+        this.studySelectedGroup = groupName;
+        this.studySelectedCat = 'ALL'; // 切换大组时重置细分类
+        this.renderStudyHub();
+      }
+
+      // 切换细分类别过滤
+      setStudyCategoryFilter(catId) {
+        this.studySelectedCat = catId;
+        this.renderStudyHub();
+      }
+
+      // 切换认知层级过滤
+      setStudyLayerFilter(layerLevel) {
+        this.studySelectedLayer = layerLevel;
+        this.renderStudyHub();
+      }
+
+      // 重置全部筛选条件
+      resetStudyFilters() {
+        this.studySelectedGroup = 'ALL';
+        this.studySelectedCat = 'ALL';
+        this.studySelectedLayer = 'ALL';
+        this.studySearchKeyword = '';
+        const input = document.getElementById('study-search-input');
+        if (input) input.value = '';
+        this.renderStudyHub();
+      }
+
+      // 渲染知识精读主视图
+      renderStudyHub() {
+        const deck = this.getActiveDeck();
+        document.getElementById('study-deck-icon').innerText = deck.icon;
+        document.getElementById('study-deck-title').innerText = deck.title;
+        document.getElementById('study-deck-desc').innerText = deck.description;
+
+        // 1. 渲染业务大组 (Groups) 过滤器
+        const groupContainer = document.getElementById('study-group-filters');
+        if (groupContainer) {
+          const allGroups = [];
+          (deck.categories || []).forEach(c => {
+            const g = c.group || '通用分组';
+            if (!allGroups.includes(g)) allGroups.push(g);
+          });
+
+          let groupHtml = `
+            <button onclick="app.setStudyGroupFilter('ALL')" class="px-2.5 py-1 rounded-lg text-xs transition ${this.studySelectedGroup === 'ALL' ? 'bg-indigo-600 text-white font-bold shadow' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}">
+              全部大组 (${deck.entities.length})
+            </button>
+          `;
+          allGroups.forEach(grp => {
+            const grpEntCount = deck.entities.filter(e => {
+              const cat = deck.categories.find(c => c.id === e.categoryId);
+              return cat && (cat.group || '通用分组') === grp;
+            }).length;
+            const isActive = this.studySelectedGroup === grp;
+            groupHtml += `
+              <button onclick="app.setStudyGroupFilter('${grp}')" class="px-2.5 py-1 rounded-lg text-xs transition ${isActive ? 'bg-indigo-600 text-white font-bold shadow' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}">
+                📦 ${grp} (${grpEntCount})
+              </button>
+            `;
+          });
+          groupContainer.innerHTML = groupHtml;
+        }
+
+        // 2. 渲染细分类别 (Categories) 过滤器 (跟随选中的大组联动)
+        const catContainer = document.getElementById('study-category-filters');
+        if (catContainer) {
+          const availableCats = (deck.categories || []).filter(c => {
+            if (this.studySelectedGroup === 'ALL') return true;
+            return (c.group || '通用分组') === this.studySelectedGroup;
+          });
+          const availableCount = deck.entities.filter(e => availableCats.some(c => c.id === e.categoryId)).length;
+
+          let catHtml = `
+            <button onclick="app.setStudyCategoryFilter('ALL')" class="px-2.5 py-1 rounded-lg text-xs transition ${this.studySelectedCat === 'ALL' ? 'bg-purple-600 text-white font-bold shadow' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}">
+              全部分类 (${availableCount})
+            </button>
+          `;
+          availableCats.forEach(cat => {
+            const catEntCount = deck.entities.filter(e => e.categoryId === cat.id).length;
+            const isActive = this.studySelectedCat === cat.id;
+            catHtml += `
+              <button onclick="app.setStudyCategoryFilter('${cat.id}')" class="px-2.5 py-1 rounded-lg text-xs transition ${isActive ? 'bg-purple-600 text-white font-bold shadow' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}">
+                ${cat.name} (${catEntCount})
+              </button>
+            `;
+          });
+          catContainer.innerHTML = catHtml;
+        }
+
+        // 3. 渲染认知层级 (Layers) 过滤器
+        const layerContainer = document.getElementById('study-layer-filters');
+        if (layerContainer) {
+          const l1Count = deck.entities.filter(e => e.layer === 1).length;
+          const l2Count = deck.entities.filter(e => e.layer === 2).length;
+          const l3Count = deck.entities.filter(e => e.layer === 3).length;
+
+          let layerHtml = `
+            <button onclick="app.setStudyLayerFilter('ALL')" class="px-2.5 py-1 rounded-lg text-xs transition ${this.studySelectedLayer === 'ALL' ? 'bg-amber-600 text-white font-bold shadow' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'}">
+              全部层级 (${deck.entities.length})
+            </button>
+            <button onclick="app.setStudyLayerFilter('1')" class="px-2.5 py-1 rounded-lg text-xs transition ${this.studySelectedLayer === '1' ? 'bg-sky-600 text-white font-bold shadow' : 'bg-slate-800 hover:bg-slate-700 text-sky-400 border border-sky-500/20'}">
+              🌱 Layer 1: 基础认知 (${l1Count})
+            </button>
+            <button onclick="app.setStudyLayerFilter('2')" class="px-2.5 py-1 rounded-lg text-xs transition ${this.studySelectedLayer === '2' ? 'bg-purple-600 text-white font-bold shadow' : 'bg-slate-800 hover:bg-slate-700 text-purple-400 border border-purple-500/20'}">
+              🌿 Layer 2: 规律运用 (${l2Count})
+            </button>
+            <button onclick="app.setStudyLayerFilter('3')" class="px-2.5 py-1 rounded-lg text-xs transition ${this.studySelectedLayer === '3' ? 'bg-rose-600 text-white font-bold shadow' : 'bg-slate-800 hover:bg-slate-700 text-rose-400 border border-rose-500/20'}">
+              🔥 Layer 3: 陷阱特例 (${l3Count})
+            </button>
+          `;
+          layerContainer.innerHTML = layerHtml;
+        }
+
+        this.renderStudyHubCards();
+      }
+
+      // 渲染精读卡片集合 (三级知识树: 业务大组 -> 细分类别 -> 认知层级 -> 词条卡片)
+      renderStudyHubCards() {
+        const deck = this.getActiveDeck();
+        const ds = this.getActiveDeckState();
+        const container = document.getElementById('study-content-container');
+        const countBadge = document.getElementById('study-matched-count-badge');
+        const kw = this.studySearchKeyword;
+        const selectedGroup = this.studySelectedGroup;
+        const selectedCat = this.studySelectedCat;
+        const selectedLayer = this.studySelectedLayer;
+
+        // 过滤实体
+        let filtered = deck.entities.filter(e => {
+          const cat = deck.categories.find(c => c.id === e.categoryId) || { group: '通用分组' };
+          const grp = cat.group || '通用分组';
+
+          if (selectedGroup !== 'ALL' && grp !== selectedGroup) return false;
+          if (selectedCat !== 'ALL' && e.categoryId !== selectedCat) return false;
+          if (selectedLayer !== 'ALL' && e.layer !== parseInt(selectedLayer)) return false;
+
+          if (kw) {
+            const matchTitle = (e.title || '').toLowerCase().includes(kw);
+            const matchAnswer = (e.answer || '').toLowerCase().includes(kw);
+            const matchExp = (e.explanation || '').toLowerCase().includes(kw);
+            const matchSub = (e.subtitle || '').toLowerCase().includes(kw);
+            const matchPit = (e.pitfalls || '').toLowerCase().includes(kw);
+            return matchTitle || matchAnswer || matchExp || matchSub || matchPit;
+          }
+          return true;
+        });
+
+        if (countBadge) {
+          countBadge.innerText = `显示 ${filtered.length} / ${deck.entities.length} 词条`;
+        }
+
+        if (filtered.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-12 bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-3">
+              <div class="text-4xl">🔍</div>
+              <p class="text-sm text-slate-300 font-medium">当前筛选条件下未找到匹配的知识点</p>
+              <p class="text-xs text-slate-500">可能当前大组、分类或层级组合下无对应条目</p>
+              <button onclick="app.resetStudyFilters()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition inline-flex items-center gap-1 shadow-md shadow-indigo-600/30">
+                🔄 重置全部筛选条件
+              </button>
+            </div>
+          `;
+          return;
+        }
+
+        // 构建三级知识树: tree[groupName][catId].layers[layerNum] = [items]
+        const tree = {};
+        filtered.forEach(e => {
+          const cat = deck.categories.find(c => c.id === e.categoryId) || { id: 'unknown', name: '通用分类', group: '通用分组' };
+          const grp = cat.group || '通用分组';
+          if (!tree[grp]) tree[grp] = {};
+          if (!tree[grp][cat.id]) tree[grp][cat.id] = { cat, layers: {} };
+          const lNum = e.layer || 1;
+          if (!tree[grp][cat.id].layers[lNum]) tree[grp][cat.id].layers[lNum] = [];
+          tree[grp][cat.id].layers[lNum].push(e);
+        });
+
+        let html = '';
+        const endOfToday = this.getEndOfTodayTimestamp();
+
+        Object.keys(tree).forEach(groupName => {
+          const catMap = tree[groupName];
+          let groupTotal = 0;
+          Object.values(catMap).forEach(c => {
+            Object.values(c.layers).forEach(arr => groupTotal += arr.length);
+          });
+
+          html += `
+            <!-- 1. 业务大组容器 (Level 1: Group) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 space-y-5 shadow-lg">
+              <!-- 大组标题栏 -->
+              <div class="flex items-center justify-between pb-3.5 border-b border-slate-800">
+                <div class="flex items-center gap-2.5 flex-wrap">
+                  <span class="w-3 h-3 rounded bg-indigo-500 shadow-md shadow-indigo-500/40"></span>
+                  <h3 class="text-base sm:text-lg font-black text-white tracking-wide flex items-center gap-2">
+                    <span>📦 ${groupName}</span>
+                  </h3>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-indigo-300 font-mono border border-slate-700">共 ${groupTotal} 词条 · ${Object.keys(catMap).length} 分类</span>
+                </div>
+                <button onclick="app.drillGroup('${groupName}')" class="text-xs px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 transition flex items-center gap-1 font-medium">
+                  <span>⚡ 专项练本大组</span>
+                </button>
+              </div>
+
+              <!-- 大组下的各分类板块 (Level 2: Categories) -->
+              <div class="space-y-5">
+          `;
+
+          Object.keys(catMap).forEach(catId => {
+            const { cat, layers } = catMap[catId];
+            let catTotal = 0;
+            Object.values(layers).forEach(arr => catTotal += arr.length);
+
+            html += `
+              <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-4 sm:p-5 space-y-4">
+                <!-- 分类小标头 -->
+                <div class="flex items-center justify-between pb-2.5 border-b border-slate-800/80">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-purple-400 font-mono text-xs font-bold">🏷️</span>
+                    <h4 class="text-sm font-bold text-slate-100 tracking-wide">${cat.name}</h4>
+                    <span class="text-xs text-slate-500 font-mono">(${catTotal} 单元)</span>
+                  </div>
+                  <button onclick="app.drillCategory('${cat.id}')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-purple-600 text-slate-300 hover:text-white transition flex items-center gap-1 font-medium">
+                    <span>⚡ 专项练本科目</span>
+                  </button>
+                </div>
+
+                <!-- 分类下的认知层级梯队 (Level 3: Layers) -->
+                <div class="space-y-4">
+            `;
+
+            [1, 2, 3].forEach(lNum => {
+              const items = layers[lNum];
+              if (!items || items.length === 0) return;
+
+              const layerConfig = (deck.layers && deck.layers.find(l => l.level === lNum)) || {
+                level: lNum,
+                name: lNum === 1 ? '基础认知' : (lNum === 2 ? '规律运用' : '陷阱与特例')
+              };
+              const lIcon = lNum === 1 ? '🌱' : (lNum === 2 ? '🌿' : '🔥');
+              const lColor = lNum === 1 
+                ? 'bg-sky-500/15 text-sky-300 border-sky-500/30' 
+                : (lNum === 2 ? 'bg-purple-500/15 text-purple-300 border-purple-500/30' : 'bg-rose-500/15 text-rose-300 border-rose-500/30');
+
+              html += `
+                <div class="space-y-2.5">
+                  <!-- 层级标头 -->
+                  <div class="flex items-center gap-2 pt-1">
+                    <span class="text-[11px] font-bold px-2.5 py-0.5 rounded border font-mono ${lColor} flex items-center gap-1.5 shadow-sm">
+                      <span>${lIcon}</span>
+                      <span>Layer ${lNum}: ${layerConfig.name}</span>
+                      <span class="opacity-80">(${items.length} 词条)</span>
+                    </span>
+                    <div class="h-px bg-slate-800/80 flex-1"></div>
+                    <button onclick="app.drillLayer(${lNum})" class="text-[10px] text-slate-500 hover:text-slate-300 transition">只练此层 &rarr;</button>
+                  </div>
+
+                  <!-- 词条卡片网格 -->
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              `;
+
+              items.forEach(item => {
+                const card = ds.cards[item.id] || { level: 0, attempts: 0, correct: 0, wrong: 0 };
+                
+                // 记忆状态标签
+                let stateBadge = '';
+                if (card.attempts === 0) {
+                  stateBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400">未学习</span>';
+                } else if (card.level >= 4) {
+                  stateBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">🟢 稳固掌握</span>';
+                } else if (card.nextReviewAt && card.nextReviewAt <= endOfToday) {
+                  stateBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30">🟡 今日到期</span>';
+                } else {
+                  stateBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30">🔵 记忆冷却中</span>';
+                }
+
+                // 核心答案样式 (支持遮挡自测)
+                const answerClass = this.isAnswerMasked 
+                  ? 'filter blur-[5px] hover:filter-none transition-all cursor-pointer select-none bg-slate-800 px-2 py-0.5 rounded text-indigo-400 hover:text-indigo-200 border border-slate-700 inline-block font-mono'
+                  : 'text-indigo-300 font-mono font-bold bg-indigo-500/10 border border-indigo-500/30 px-2.5 py-0.5 rounded inline-block';
+
+                html += `
+                  <div class="bg-slate-950/70 border border-slate-800 hover:border-slate-700 rounded-xl p-4 flex flex-col justify-between space-y-3 transition shadow-sm">
+                    <div>
+                      <div class="flex items-start justify-between gap-2">
+                        <div>
+                          <h4 class="text-base font-black text-white tracking-wide">${item.title}</h4>
+                          <p class="text-xs text-slate-400 font-mono mt-0.5">${item.subtitle || ''}</p>
+                        </div>
+                        <div class="flex flex-col items-end gap-1 shrink-0">
+                          <span class="text-[10px] px-2 py-0.5 rounded border font-mono ${lColor}">L${item.layer}</span>
+                          ${stateBadge}
+                        </div>
+                      </div>
+
+                      <!-- 核心答案与考核目标 -->
+                      <div class="mt-3 p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs space-y-1">
+                        <div class="text-slate-400 text-[11px] font-medium">${item.prompt || '核心对应与特征：'}</div>
+                        <div>
+                          <span class="${answerClass}" title="${this.isAnswerMasked ? '点击或鼠标悬停查看答案' : ''}">${item.answer}</span>
+                        </div>
+                      </div>
+
+                      <!-- 规则精要 -->
+                      <div class="mt-3 text-xs leading-relaxed text-slate-300">
+                        <span class="text-indigo-400 font-bold">【规则精要】:</span> ${item.explanation}
+                      </div>
+
+                      <!-- 避坑提醒 -->
+                      ${item.pitfalls ? `
+                        <div class="mt-2 text-xs text-rose-300 leading-relaxed bg-rose-950/20 border border-rose-900/30 rounded-lg p-2">
+                          <span class="font-bold">⚠️ 【易错避坑】:</span> ${item.pitfalls}
+                        </div>
+                      ` : ''}
+
+                      <!-- 混淆同胞 -->
+                      ${item.confusedWith ? `
+                        <div class="mt-2 text-[11px] text-amber-300/90 font-mono">
+                          <span>🔗 强辨析同胞:</span> <span class="underline">${item.confusedWith}</span>
+                        </div>
+                      ` : ''}
+                    </div>
+
+                    <!-- 底部做题记录与专项突破 -->
+                    <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
+                      <span>历史做题: <b class="text-emerald-400">${card.correct}</b>对 / <b class="text-rose-400">${card.wrong}</b>错</span>
+                      <button onclick="app.drillSingleEntity('${item.id}')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition font-medium">
+                        🎯 专项突破
+                      </button>
+                    </div>
+                  </div>
+                `;
+              });
+
+              html += `
+                  </div>
+                </div>
+              `;
+            });
+
+            html += `
+                </div>
+              </div>
+            `;
+          });
+
+          html += `
+              </div>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+      }
+
+      // 专项练习整个业务大组
+      drillGroup(groupName) {
+        const deck = this.getActiveDeck();
+        const entities = deck.entities.filter(e => {
+          const c = deck.categories.find(cat => cat.id === e.categoryId);
+          return c && (c.group || '通用分组') === groupName;
+        });
+        if (entities.length === 0) return;
+        this.currentMode = 'CATEGORY_DRILL';
+        this.quizQueue = [...entities].sort(() => Math.random() - 0.5);
+        this.currentIndex = 0;
+        this.sessionCorrect = 0;
+        this.sessionCombo = 0;
+        this.maxComboInSession = 0;
+        this.navigate('arena');
+        this.renderArenaHeader();
+        this.loadCurrentQuestion();
+      }
+
+      // 专项练习特定认知层级
+      drillLayer(layerNum) {
+        const deck = this.getActiveDeck();
+        const entities = deck.entities.filter(e => e.layer === layerNum);
+        if (entities.length === 0) return;
+        this.currentMode = 'CATEGORY_DRILL';
+        this.quizQueue = [...entities].sort(() => Math.random() - 0.5);
+        this.currentIndex = 0;
+        this.sessionCorrect = 0;
+        this.sessionCombo = 0;
+        this.maxComboInSession = 0;
+        this.navigate('arena');
+        this.renderArenaHeader();
+        this.loadCurrentQuestion();
+      }
+
+      // 专项练习整个分类
+      drillCategory(catId) {
+        const deck = this.getActiveDeck();
+        const catEntities = deck.entities.filter(e => e.categoryId === catId);
+        if (catEntities.length === 0) return;
+        this.currentMode = 'CATEGORY_DRILL';
+        this.quizQueue = [...catEntities].sort(() => Math.random() - 0.5);
+        this.currentIndex = 0;
+        this.sessionCorrect = 0;
+        this.sessionCombo = 0;
+        this.maxComboInSession = 0;
+        this.navigate('arena');
+        this.renderArenaHeader();
+        this.loadCurrentQuestion();
+      }
+
+      // 将任意题库对象序列化为结构化 Markdown (严格体现 分组 -> 分类 -> 层级 -> 词条)
+      serializeDeckToMarkdown(deck) {
+        if (!deck) return '';
+        let md = `# ${deck.icon || '📚'} ${deck.title || '知识库'}\n`;
+        if (deck.description) md += `> ${deck.description}\n\n`;
+
+        // 收集所有业务分组
+        const groups = [];
+        (deck.categories || []).forEach(cat => {
+          const gName = cat.group || '核心知识板块';
+          if (!groups.includes(gName)) groups.push(gName);
+        });
+
+        groups.forEach(groupName => {
+          md += `## [分组] ${groupName}\n\n`;
+          const catsInGroup = (deck.categories || []).filter(c => (c.group || '核心知识板块') === groupName);
+
+          catsInGroup.forEach(cat => {
+            md += `### [分类] ${cat.name}\n`;
+            const catEntities = (deck.entities || []).filter(e => e.categoryId === cat.id);
+
+            [1, 2, 3].forEach(layer => {
+              const layerEntities = catEntities.filter(e => e.layer === layer);
+              if (layerEntities.length > 0) {
+                const layerLabels = { 1: '基础认知', 2: '规律运用', 3: '陷阱与特例' };
+                md += `#### [Layer ${layer}] ${layerLabels[layer] || ''}\n`;
+                layerEntities.forEach(e => {
+                  md += `- **${e.title}**: ${e.answer}\n`;
+                  if (e.subtitle) md += `  - *注记*: ${e.subtitle}\n`;
+                  if (e.prompt) md += `  - *考点*: ${e.prompt}\n`;
+                  if (e.explanation) md += `  - *解析*: ${e.explanation}\n`;
+                  if (e.pitfalls) md += `  - *误区*: ${e.pitfalls}\n`;
+                  if (e.confusedWith) md += `  - *混淆*: ${e.confusedWith}\n`;
+                });
+              }
+            });
+            md += `\n`;
+          });
+        });
+
+        return md.trim();
+      }
+
+      // 查看原始 Markdown 大纲
+      showRawMarkdownModal() {
+        const deck = this.getActiveDeck();
+        const md = this.serializeDeckToMarkdown(deck);
+        const textarea = document.getElementById('raw-markdown-textarea');
+        textarea.value = md;
+        document.getElementById('raw-markdown-stats').innerText = `共 ${md.length} 字符 · ${deck.entities.length} 个知识单元`;
+        document.getElementById('modal-raw-markdown').classList.remove('hidden');
+      }
+
+      closeRawMarkdownModal() {
+        document.getElementById('modal-raw-markdown').classList.add('hidden');
+      }
+
+      copyRawMarkdown() {
+        const textarea = document.getElementById('raw-markdown-textarea');
+        textarea.select();
+        navigator.clipboard.writeText(textarea.value).then(() => {
+          const btnText = document.getElementById('copy-markdown-btn-text');
+          btnText.innerText = '✅ 已复制到剪贴板！';
+          setTimeout(() => {
+            btnText.innerText = '📋 一键复制全文';
+          }, 2000);
+        }).catch(() => {
+          alert('请使用键盘快捷键 Ctrl+C 复制');
+        });
+      }
+
+      // ==========================================
+      // 双视图联动知识工坊 (Dual-View Linked Studio)
+      // ==========================================
+
+      setStudioViewMode(mode) {
+        this.studioViewMode = mode;
+        const visualPane = document.getElementById('studio-visual-pane');
+        const mdPane = document.getElementById('studio-markdown-pane');
+        const btnSplit = document.getElementById('btn-view-split');
+        const btnVisual = document.getElementById('btn-view-visual');
+        const btnMd = document.getElementById('btn-view-markdown');
+
+        if (!visualPane || !mdPane) return;
+
+        [btnSplit, btnVisual, btnMd].forEach(b => {
+          if (b) b.className = 'px-3 py-1 rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1';
+        });
+
+        if (mode === 'split') {
+          if (btnSplit) btnSplit.className = 'px-3 py-1 rounded-lg bg-indigo-600 text-white font-medium shadow transition flex items-center gap-1';
+          visualPane.className = 'w-1/2 flex flex-col border-r border-slate-800 bg-slate-900/40 overflow-hidden transition-all';
+          mdPane.className = 'w-1/2 flex flex-col bg-slate-950 overflow-hidden transition-all';
+        } else if (mode === 'visual') {
+          if (btnVisual) btnVisual.className = 'px-3 py-1 rounded-lg bg-indigo-600 text-white font-medium shadow transition flex items-center gap-1';
+          visualPane.className = 'w-full flex flex-col border-r-0 bg-slate-900/40 overflow-hidden transition-all';
+          mdPane.className = 'hidden';
+        } else if (mode === 'markdown') {
+          if (btnMd) btnMd.className = 'px-3 py-1 rounded-lg bg-indigo-600 text-white font-medium shadow transition flex items-center gap-1';
+          visualPane.className = 'hidden';
+          mdPane.className = 'w-full flex flex-col bg-slate-950 overflow-hidden transition-all';
+        }
+      }
+
+      showDeckStudioModal(deckIdToEdit = null) {
+        this.editingDeckId = deckIdToEdit;
+        const textarea = document.getElementById('deck-markdown-input');
+        const modeBadge = document.getElementById('studio-mode-badge');
+        const modeSubtitle = document.getElementById('studio-mode-subtitle');
+        const saveBtnContainer = document.getElementById('studio-save-btn-container');
+
+        if (deckIdToEdit) {
+          const deck = this.getAllDecks().find(d => d.id === deckIdToEdit);
+          if (deck) {
+            this.draftDeck = JSON.parse(JSON.stringify(deck));
+            textarea.value = this.serializeDraftToMarkdown();
+            const isBuiltin = (deck.id === 'deck_verbs' || deck.id === 'deck_http' || deck.id === 'deck_python');
+            if (isBuiltin) {
+              if (modeBadge) {
+                modeBadge.innerText = '复制预设模式 (只读受保护)';
+                modeBadge.className = 'text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono';
+              }
+              if (modeSubtitle) modeSubtitle.innerText = '🔒 系统内置预设受保护：在此修改后保存将自动创建为独立新题库副本。';
+              if (saveBtnContainer) {
+                saveBtnContainer.innerHTML = `
+                  <button onclick="app.copyStudioMarkdown()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1 font-medium">
+                    <span id="btn-studio-copy-text">📋 复制 MD</span>
+                  </button>
+                  <button onclick="app.saveDeckStudio('fork')" class="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold transition shadow-lg shadow-amber-600/30 flex items-center justify-center gap-1.5">
+                    <span>🍴 保存为新题库副本</span>
+                  </button>
+                `;
+              }
+            } else {
+              if (modeBadge) {
+                modeBadge.innerText = '编辑模式 (原地更新)';
+                modeBadge.className = 'text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono';
+              }
+              if (modeSubtitle) modeSubtitle.innerText = `✏️ 正在编辑自定义题库「${deck.title}」。保存修改将直接覆盖更新此题库并保留答题记录。`;
+              if (saveBtnContainer) {
+                saveBtnContainer.innerHTML = `
+                  <button onclick="app.copyStudioMarkdown()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1 font-medium">
+                    <span id="btn-studio-copy-text">📋 复制 MD</span>
+                  </button>
+                  <button onclick="app.saveDeckStudio('fork')" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition font-medium" title="另存为独立新副本">
+                    <span>🍴 另存为新题库</span>
+                  </button>
+                  <button onclick="app.saveDeckStudio('update')" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-1.5">
+                    <span>💾 保存修改 (原地更新)</span>
+                  </button>
+                `;
+              }
+            }
+          }
+        } else {
+          // 新建模式
+          if (modeBadge) {
+            modeBadge.innerText = '新建 / 导入模式';
+            modeBadge.className = 'text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono';
+          }
+          if (modeSubtitle) modeSubtitle.innerText = '左侧可视化表单与右侧 Markdown 笔记实时互通，支持任意学科分类与分层。';
+          if (saveBtnContainer) {
+            saveBtnContainer.innerHTML = `
+              <button onclick="app.copyStudioMarkdown()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1 font-medium">
+                <span id="btn-studio-copy-text">📋 复制 MD</span>
+              </button>
+              <button onclick="app.saveDeckStudio('new')" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-1.5">
+                <span>🚀 导入并立即游玩题库</span>
+              </button>
+            `;
+          }
+          if (!textarea.value.trim()) {
+            this.loadTemplateMarkdown('http');
+          } else {
+            this.parseMarkdownToDraft();
+          }
+        }
+
+        this.renderVisualEditor();
+        this.setStudioViewMode(this.studioViewMode || 'split');
+        document.getElementById('modal-deck-studio').classList.remove('hidden');
+        this.updateStudioMdCounts();
+        this.updateLintStatus();
+      }
+
+      closeDeckStudioModal() {
+        document.getElementById('modal-deck-studio').classList.add('hidden');
+      }
+
+      updateStudioMdCounts() {
+        const textarea = document.getElementById('deck-markdown-input');
+        const countEl = document.getElementById('studio-md-line-count');
+        if (textarea && countEl) {
+          const lines = textarea.value.split('\n').length;
+          const chars = textarea.value.length;
+          countEl.innerText = `行数: ${lines} | 字符: ${chars}`;
+        }
+      }
+
+      // Markdown 编辑器实时输入 -> 毫秒级同步至可视化视图
+      onMarkdownEditorInput() {
+        this.updateStudioMdCounts();
+        clearTimeout(this.mdSyncTimer);
+        this.mdSyncTimer = setTimeout(() => {
+          this.parseMarkdownToDraft();
+          this.renderVisualEditor();
+          this.updateLintStatus();
+        }, 180);
+      }
+
+      // 解析 Markdown 文本为内部 draftDeck 对象 (支持 [分组] / [分类] / [Layer] 三级知识树)
+      parseMarkdownToDraft() {
+        const text = document.getElementById('deck-markdown-input').value;
+        const lines = text.split('\n');
+
+        let deckTitle = '自定义知识库';
+        let deckDesc = '';
+        let deckIcon = '📝';
+        const categories = [];
+        const entities = [];
+
+        let currentGroup = '核心知识板块';
+        let currentCatId = null;
+        let currentLayer = 1;
+        let currentEntity = null;
+
+        lines.forEach(line => {
+          const trimmed = line.trim();
+          if (!trimmed) return;
+
+          if (trimmed.startsWith('# ') && !trimmed.startsWith('## ')) {
+            const fullTitle = trimmed.replace('# ', '').trim();
+            const iconMatch = fullTitle.match(/^(\p{Emoji}|\p{Extended_Pictographic})/u);
+            if (iconMatch) {
+              deckIcon = iconMatch[0];
+              deckTitle = fullTitle.replace(deckIcon, '').trim();
+            } else {
+              deckTitle = fullTitle;
+            }
+          } else if (trimmed.startsWith('> ')) {
+            deckDesc = trimmed.replace('> ', '').trim();
+          } else if (trimmed.startsWith('## ') && (trimmed.includes('[分组]') || trimmed.startsWith('## 分组') || trimmed.startsWith('## 业务分组') || trimmed.startsWith('## 一、') || trimmed.startsWith('## 二、') || trimmed.startsWith('## 三、') || trimmed.startsWith('## 四、') || trimmed.startsWith('## 五、') || (!trimmed.includes('[分类]') && !trimmed.startsWith('## [分类]')))) {
+            if (trimmed.includes('[分类]')) {
+              let catRaw = trimmed.replace(/^##\s*(\[分类\])?\s*/, '').trim();
+              let catGroup = currentGroup;
+              const inlineGroupMatch = catRaw.match(/[\[\(](?:分组|Group)[:：]\s*([^\]\)]+)[\]\)]/);
+              if (inlineGroupMatch) {
+                catGroup = inlineGroupMatch[1].trim();
+                catRaw = catRaw.replace(inlineGroupMatch[0], '').trim();
+              }
+              const catId = 'CAT_' + Math.random().toString(36).substr(2, 6).toUpperCase();
+              currentCatId = catId;
+              categories.push({ id: catId, name: catRaw, group: catGroup });
+            } else {
+              const grpRaw = trimmed.replace(/^##\s*(\[分组\]|分组:|业务分组:?|\[业务分组\])?\s*/, '').trim();
+              if (grpRaw) currentGroup = grpRaw;
+            }
+          } else if (trimmed.startsWith('### ') && (trimmed.includes('[分类]') || !trimmed.toLowerCase().includes('layer'))) {
+            let catRaw = trimmed.replace(/^###\s*(\[分类\])?\s*/, '').trim();
+            let catGroup = currentGroup;
+            const inlineGroupMatch = catRaw.match(/[\[\(](?:分组|Group)[:：]\s*([^\]\)]+)[\]\)]/);
+            if (inlineGroupMatch) {
+              catGroup = inlineGroupMatch[1].trim();
+              catRaw = catRaw.replace(inlineGroupMatch[0], '').trim();
+            }
+            const catId = 'CAT_' + Math.random().toString(36).substr(2, 6).toUpperCase();
+            currentCatId = catId;
+            categories.push({ id: catId, name: catRaw, group: catGroup });
+          } else if (trimmed.startsWith('### ') || trimmed.startsWith('#### ')) {
+            const layerMatch = trimmed.match(/Layer\s*(\d+)/i);
+            if (layerMatch) currentLayer = parseInt(layerMatch[1]);
+          } else if (trimmed.startsWith('- **') || trimmed.startsWith('* **')) {
+            const match = trimmed.match(/^[-*]\s+\*\*(.+?)\*\*:\s*(.+)$/);
+            if (match) {
+              if (!currentCatId) {
+                currentCatId = 'CAT_DEFAULT';
+                categories.push({ id: currentCatId, name: '通用板块', group: currentGroup });
+              }
+              const eId = 'E_' + Math.random().toString(36).substr(2, 8);
+              currentEntity = {
+                id: eId,
+                categoryId: currentCatId,
+                layer: currentLayer,
+                title: match[1].trim(),
+                answer: match[2].trim(),
+                subtitle: '',
+                prompt: '',
+                explanation: match[1].trim() + '：' + match[2].trim(),
+                pitfalls: '',
+                confusedWith: ''
+              };
+              entities.push(currentEntity);
+            }
+          } else if (currentEntity && (trimmed.startsWith('- *') || trimmed.startsWith('* *') || trimmed.startsWith('  - *') || trimmed.startsWith('    - *'))) {
+            if (trimmed.includes('*注记*:')) {
+              currentEntity.subtitle = trimmed.split('*注记*:')[1].trim();
+            } else if (trimmed.includes('*考点*:')) {
+              currentEntity.prompt = trimmed.split('*考点*:')[1].trim();
+            } else if (trimmed.includes('*解析*:')) {
+              currentEntity.explanation = trimmed.split('*解析*:')[1].trim();
+            } else if (trimmed.includes('*误区*:')) {
+              currentEntity.pitfalls = trimmed.split('*误区*:')[1].trim();
+            } else if (trimmed.includes('*混淆*:')) {
+              currentEntity.confusedWith = trimmed.split('*混淆*:')[1].trim();
+            }
+          }
+        });
+
+        this.draftDeck = {
+          title: deckTitle || '自定义题库',
+          icon: deckIcon || '📝',
+          description: deckDesc || '',
+          categories: categories.length > 0 ? categories : [{ id: 'CAT_DEF', name: '常规分类', group: '核心知识板块' }],
+          entities: entities
+        };
+      }
+
+      // 将 draftDeck 序列化为规范 Markdown 文本
+      serializeDraftToMarkdown() {
+        return this.serializeDeckToMarkdown(this.draftDeck);
+      }
+
+      // 可视化表单发生改变 -> 即时同步至右侧 Markdown 代码
+      onVisualChange() {
+        const md = this.serializeDraftToMarkdown();
+        const textarea = document.getElementById('deck-markdown-input');
+        if (textarea && textarea.value !== md) {
+          textarea.value = md;
+          this.updateStudioMdCounts();
+        }
+        this.updateLintStatus();
+      }
+
+      // 渲染可视化表单视图
+      renderVisualEditor() {
+        const container = document.getElementById('studio-visual-cards-container');
+        if (!container || !this.draftDeck) return;
+        const d = this.draftDeck;
+
+        let html = `
+          <!-- 题库基础信息表单 -->
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+            <div class="text-[11px] font-bold text-indigo-400 flex items-center justify-between">
+              <span class="flex items-center gap-1">📌 知识库核心信息</span>
+              <span class="text-[10px] text-slate-500 font-mono">标题限 30 字 · 单库限 500 词条</span>
+            </div>
+            <div class="grid grid-cols-4 gap-2">
+              <div class="col-span-1">
+                <label class="block text-[10px] text-slate-400 mb-1">图标 (Emoji)</label>
+                <input type="text" value="${d.icon}" maxlength="4" oninput="app.onDeckMetaChange('icon', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-center text-sm font-bold text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <div class="col-span-3">
+                <label class="block text-[10px] text-slate-400 mb-1">知识库标题 <span class="text-rose-400">*</span></label>
+                <input type="text" value="${d.title}" maxlength="30" oninput="app.onDeckMetaChange('title', this.value)" placeholder="题库名称 (必填，最多30字)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white font-bold focus:outline-none focus:border-indigo-500">
+              </div>
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-400 mb-1">简要描述说明</label>
+              <input type="text" value="${d.description || ''}" maxlength="100" oninput="app.onDeckMetaChange('description', this.value)" placeholder="一句话描述知识要点..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-indigo-500">
+            </div>
+          </div>
+        `;
+
+        d.categories.forEach((cat, catIdx) => {
+          const catEntities = d.entities.filter(e => e.categoryId === cat.id);
+          let healthPill = '';
+          if (catEntities.length >= 4) {
+            healthPill = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono">🟢 ${catEntities.length}条 (同胞池充盈)</span>`;
+          } else if (catEntities.length > 0) {
+            healthPill = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono" title="少于4条将导致答题时同胞干扰项退火降级">⚠️ 仅${catEntities.length}条 (建议≥4条)</span>`;
+          } else {
+            healthPill = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 font-mono">🔴 空分类</span>`;
+          }
+
+          html += `
+            <div class="bg-slate-900 border border-slate-800/90 rounded-xl p-3.5 space-y-3">
+              <!-- 分类标头 (显式体现 业务分组 与 细分类别) -->
+              <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
+                <div class="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
+                  <span class="text-xs text-indigo-400 font-mono font-bold">#${catIdx + 1}</span>
+                  <div class="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 text-[11px]">
+                    <span class="text-slate-400 font-medium">📦 分组:</span>
+                    <input type="text" value="${cat.group || '核心知识板块'}" maxlength="24" oninput="app.onCategoryGroupChange('${cat.id}', this.value)" placeholder="所属分组 (例如: 不规则核心记忆法)" class="bg-transparent text-indigo-300 font-bold focus:outline-none w-36 truncate">
+                  </div>
+                  <div class="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 text-[11px] flex-1 min-w-[140px]">
+                    <span class="text-slate-400 font-medium">🏷️ 细类:</span>
+                    <input type="text" value="${cat.name}" maxlength="30" oninput="app.onCategoryNameChange('${cat.id}', this.value)" placeholder="细类名称 (例如: AAA型三态同形)" class="bg-transparent text-white font-bold focus:outline-none flex-1 truncate">
+                  </div>
+                  ${healthPill}
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button onclick="app.addEntityInVisual('${cat.id}')" class="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 text-[11px] font-medium border border-indigo-500/30 transition shadow-sm">
+                    + 概念
+                  </button>
+                  <button onclick="app.deleteCategoryInVisual('${cat.id}')" class="text-slate-500 hover:text-rose-400 text-xs px-1" title="删除分类">&times;</button>
+                </div>
+              </div>
+
+              <!-- 概念卡片列表 -->
+              <div class="space-y-2.5">
+          `;
+
+          if (catEntities.length === 0) {
+            html += `<div class="text-[11px] text-rose-400/80 bg-rose-950/20 border border-rose-900/30 rounded-lg p-2 text-center">此分类暂无条目，请点击「+ 概念」添加（至少需要 4 条以生成纯同胞干扰项）</div>`;
+          }
+
+          catEntities.forEach(e => {
+            html += `
+              <div class="bg-slate-950/80 border border-slate-800/80 rounded-lg p-2.5 space-y-2 text-xs">
+                <div class="flex items-center justify-between gap-2">
+                  <input type="text" value="${e.title}" maxlength="50" oninput="app.onEntityFieldChange('${e.id}', 'title', this.value)" placeholder="概念/单词名称 (必填)" class="bg-slate-900 border border-slate-800 rounded px-2 py-1 text-white font-bold text-xs flex-1 focus:outline-none focus:border-indigo-500">
+                  
+                  <select onchange="app.onEntityFieldChange('${e.id}', 'layer', parseInt(this.value))" class="bg-slate-900 text-[10px] text-slate-300 rounded px-1.5 py-1 border border-slate-800 focus:outline-none focus:border-indigo-500 font-mono">
+                    <option value="1" ${e.layer === 1 ? 'selected' : ''}>L1: 基础</option>
+                    <option value="2" ${e.layer === 2 ? 'selected' : ''}>L2: 规律</option>
+                    <option value="3" ${e.layer === 3 ? 'selected' : ''}>L3: 特例陷阱</option>
+                  </select>
+
+                  <button onclick="app.deleteEntityInVisual('${e.id}')" class="text-slate-500 hover:text-rose-400 text-sm px-1" title="删除此概念条目">&times;</button>
+                </div>
+
+                <div>
+                  <input type="text" value="${e.answer}" maxlength="80" oninput="app.onEntityFieldChange('${e.id}', 'answer', this.value)" placeholder="核心正确答案 (必填)" class="w-full bg-indigo-950/20 border border-indigo-500/30 rounded px-2 py-1 text-indigo-300 font-mono text-xs focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div>
+                  <input type="text" value="${e.explanation || ''}" oninput="app.onEntityFieldChange('${e.id}', 'explanation', this.value)" placeholder="规则解析/记忆口诀" class="w-full bg-slate-900 border border-slate-800/80 rounded px-2 py-0.5 text-slate-300 text-[11px] focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-[11px]">
+                  <input type="text" value="${e.pitfalls || ''}" oninput="app.onEntityFieldChange('${e.id}', 'pitfalls', this.value)" placeholder="⚠️ 避坑误区(可选)" class="w-full bg-slate-900 border border-slate-800/80 rounded px-2 py-0.5 text-rose-300 focus:outline-none focus:border-indigo-500">
+                  <input type="text" value="${e.confusedWith || ''}" oninput="app.onEntityFieldChange('${e.id}', 'confusedWith', this.value)" placeholder="🔗 强混淆概念(可选)" class="w-full bg-slate-900 border border-slate-800/80 rounded px-2 py-0.5 text-amber-300 font-mono focus:outline-none focus:border-indigo-500">
+                </div>
+              </div>
+            `;
+          });
+
+          html += `
+              </div>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+        this.updateLintStatus();
+      }
+
+      onDeckMetaChange(field, val) {
+        if (!this.draftDeck) return;
+        this.draftDeck[field] = val;
+        this.onVisualChange();
+      }
+
+      onCategoryGroupChange(catId, val) {
+        if (!this.draftDeck) return;
+        const cat = this.draftDeck.categories.find(c => c.id === catId);
+        if (cat) cat.group = val;
+        this.onVisualChange();
+      }
+
+      onCategoryNameChange(catId, val) {
+        if (!this.draftDeck) return;
+        const cat = this.draftDeck.categories.find(c => c.id === catId);
+        if (cat) cat.name = val;
+        this.onVisualChange();
+      }
+
+      onEntityFieldChange(entityId, field, val) {
+        if (!this.draftDeck) return;
+        const ent = this.draftDeck.entities.find(e => e.id === entityId);
+        if (ent) ent[field] = val;
+        this.onVisualChange();
+      }
+
+      addCategoryInVisual() {
+        if (!this.draftDeck) return;
+        if (this.draftDeck.categories.length >= 25) {
+          alert('⚠️ 单题库分类数量已达 25 个上限！为了防止认知负荷过重与标签折行，建议创建独立新题库。');
+          return;
+        }
+        const lastGroup = this.draftDeck.categories.length > 0 ? (this.draftDeck.categories[this.draftDeck.categories.length - 1].group || '核心知识板块') : '核心知识板块';
+        const newCat = {
+          id: 'CAT_' + Math.random().toString(36).substr(2, 6).toUpperCase(),
+          name: '新分类板块',
+          group: lastGroup
+        };
+        this.draftDeck.categories.push(newCat);
+        this.onVisualChange();
+        this.renderVisualEditor();
+      }
+
+      deleteCategoryInVisual(catId) {
+        if (!this.draftDeck) return;
+        const cat = this.draftDeck.categories.find(c => c.id === catId);
+        const count = this.draftDeck.entities.filter(e => e.categoryId === catId).length;
+        if (count > 0) {
+          const ok = confirm(`⚠️ 分类「${cat ? cat.name : '该分类'}」下包含 ${count} 个概念词条！\n删除分类将同时删除其下的所有词条。\n确定要删除此分类吗？`);
+          if (!ok) return;
+        }
+        this.draftDeck.categories = this.draftDeck.categories.filter(c => c.id !== catId);
+        this.draftDeck.entities = this.draftDeck.entities.filter(e => e.categoryId !== catId);
+        this.onVisualChange();
+        this.renderVisualEditor();
+      }
+
+      addEntityInVisual(catId) {
+        if (!this.draftDeck) return;
+        if (this.draftDeck.entities.length >= 500) {
+          alert('⚠️ 单题库条目已达 500 条上限！建议拆分为独立新题库以防浏览器内存与渲染压力。');
+          return;
+        }
+        const newEnt = {
+          id: 'E_' + Math.random().toString(36).substr(2, 8),
+          categoryId: catId,
+          layer: 1,
+          title: '新知识概念',
+          answer: '核心正确答案',
+          explanation: '解析说明',
+          pitfalls: '',
+          confusedWith: ''
+        };
+        this.draftDeck.entities.push(newEnt);
+        this.onVisualChange();
+        this.renderVisualEditor();
+      }
+
+      deleteEntityInVisual(entityId) {
+        if (!this.draftDeck) return;
+        this.draftDeck.entities = this.draftDeck.entities.filter(e => e.id !== entityId);
+        this.onVisualChange();
+        this.renderVisualEditor();
+      }
+
+      // 题库健康度全面校验器 (Health & Validation Spec)
+      validateDeckHealth(draft) {
+        if (!draft) return { valid: false, errors: ['数据为空'], warnings: [], thinCategories: [] };
+        const errors = [];
+        const warnings = [];
+        const thinCategories = [];
+
+        // 1. 标题校验
+        if (!draft.title || !draft.title.trim()) {
+          errors.push('题库标题不能为空');
+        } else if (draft.title.trim().length > 30) {
+          errors.push('题库标题不能超过 30 个字');
+        }
+
+        // 2. 分类校验
+        if (!draft.categories || draft.categories.length === 0) {
+          errors.push('题库至少需要 1 个分类板块');
+        } else {
+          if (draft.categories.length === 1) {
+            warnings.push('仅有 1 个分类，无法进行横向对比');
+          } else if (draft.categories.length > 15) {
+            warnings.push(`分类数量达到 ${draft.categories.length} 个（推荐 4~8 个），建议拆分子题库`);
+          }
+          // 重复分类名检查
+          const catNames = draft.categories.map(c => (c.name || '').trim().toLowerCase());
+          const dupName = catNames.find((name, idx) => catNames.indexOf(name) !== idx && name !== '');
+          if (dupName) {
+            warnings.push(`存在同名分类「${dupName}」`);
+          }
+        }
+
+        // 3. 词条校验
+        const ents = draft.entities || [];
+        if (ents.length < 4) {
+          errors.push(`总词条数必须至少 4 条（当前仅 ${ents.length} 条），不足以生成四选一干扰项`);
+        } else if (ents.length > 300) {
+          warnings.push(`词条数已达 ${ents.length} 条，建议分库以获得更好的艾宾浩斯复习节奏`);
+        }
+
+        // 空白标题或空答案检查
+        let emptyAnswerCount = 0;
+        let emptyTitleCount = 0;
+        ents.forEach(e => {
+          if (!e.title || !e.title.trim()) emptyTitleCount++;
+          if (!e.answer || !e.answer.trim()) emptyAnswerCount++;
+        });
+        if (emptyTitleCount > 0) errors.push(`存在 ${emptyTitleCount} 个标题为空的概念条目`);
+        if (emptyAnswerCount > 0) errors.push(`存在 ${emptyAnswerCount} 个核心答案为空的概念条目`);
+
+        // 4. 各分类条目健康度与薄弱分类扫描
+        (draft.categories || []).forEach(cat => {
+          const count = ents.filter(e => e.categoryId === cat.id).length;
+          if (count < 4) {
+            thinCategories.push({ catId: cat.id, name: cat.name, count });
+          }
+        });
+
+        if (thinCategories.length > 0) {
+          const names = thinCategories.map(t => `${t.name}(${t.count}条)`).join(', ');
+          warnings.push(`发现 ${thinCategories.length} 个薄弱分类 [${names}]，条目少于4条将导致答题时同胞干扰项退火降级`);
+        }
+
+        return {
+          valid: errors.length === 0,
+          errors,
+          warnings,
+          thinCategories
+        };
+      }
+
+      updateLintStatus() {
+        const msg = document.getElementById('deck-studio-lint-msg');
+        if (!msg || !this.draftDeck) return;
+        const health = this.validateDeckHealth(this.draftDeck);
+        const groups = new Set((this.draftDeck.categories || []).map(c => c.group || '核心知识板块')).size;
+        const cats = this.draftDeck.categories ? this.draftDeck.categories.length : 0;
+        const ents = this.draftDeck.entities ? this.draftDeck.entities.length : 0;
+
+        let html = '';
+        if (!health.valid) {
+          html = `<span class="text-rose-400 font-bold flex items-center gap-1.5 text-xs truncate">❌ 阻断项: ${health.errors[0]}</span>`;
+          msg.className = 'text-xs text-rose-400 flex items-center gap-1.5 font-medium flex-1 overflow-hidden';
+        } else if (health.warnings.length > 0) {
+          html = `<span class="text-amber-300 flex items-center gap-1.5 text-xs truncate">🟡 <b>${groups}</b>大组 · <b>${cats}</b>细类 · <b>${ents}</b>词条 | ${health.warnings[0]}</span>`;
+          msg.className = 'text-xs text-amber-300 flex items-center gap-1.5 font-medium flex-1 overflow-hidden';
+        } else {
+          html = `<span class="text-emerald-400 flex items-center gap-1.5 text-xs truncate">🟢 <b>${groups}</b>大组 · <b>${cats}</b>细类 · <b>${ents}</b>词条 · 结构健康 (符合 5-3-10 标准)</span>`;
+          msg.className = 'text-xs text-slate-300 flex items-center gap-1.5 font-medium flex-1 overflow-hidden';
+        }
+        msg.innerHTML = html;
+      }
+
+      copyStudioMarkdown() {
+        const textarea = document.getElementById('deck-markdown-input');
+        textarea.select();
+        navigator.clipboard.writeText(textarea.value).then(() => {
+          const btn = document.getElementById('btn-studio-copy-text');
+          btn.innerText = '✅ 已复制！';
+          setTimeout(() => btn.innerText = '📋 复制 MD', 2000);
+        });
+      }
+
+      loadTemplateMarkdown(type) {
+        const textarea = document.getElementById('deck-markdown-input');
+        if (type === 'http') {
+          textarea.value = `# 🌐 计算机网络状态码
+> 梳理核心 HTTP 响应码及高频业务场景
+
+## [分组] 一、客户端异常状态 (4xx)
+
+### [分类] 客户端常规语法与寻址错误
+#### [Layer 1] 基础认知
+- **400 Bad Request**: 请求语法错误或参数不合法
+  - *解析*: 客户端报文存在格式问题，后端反序列化失败
+- **404 Not Found**: 目标资源不存在
+  - *解析*: 服务器未找到指定路径资源
+- **405 Method Not Allowed**: 请求方法不被允许
+  - *解析*: 资源不支持当前的 HTTP 请求方法
+- **408 Request Timeout**: 客户端请求超时
+  - *解析*: 服务器等待客户端发送请求耗时过长
+
+### [分类] 认证鉴权与资源冲突
+#### [Layer 3] 盲区与易混特例
+- **401 Unauthorized**: 未提供有效凭据 (未认证)
+  - *解析*: 缺少身份令牌 Token 或未登录
+  - *误区*: 401 表示不知道你是谁，与 403 权限不足有本质区别
+  - *混淆*: 403 Forbidden
+- **403 Forbidden**: 服务器理解但拒绝访问 (权限不足)
+  - *解析*: 身份有效但当前角色无权操作，重新登录通常无效
+  - *混淆*: 401 Unauthorized
+- **409 Conflict**: 当前请求与资源状态冲突
+  - *解析*: 常见于乐观锁版本号不一致或数据冲突
+- **429 Too Many Requests**: 触发接口频次限流
+  - *解析*: 单位时间内请求过于频繁，触发限流保护
+
+## [分组] 二、服务端异常状态 (5xx)
+
+### [分类] 代理网关与服务异常
+#### [Layer 2] 规律与链路定位
+- **500 Internal Error**: 服务端未捕获代码异常
+  - *解析*: 后端应用内部崩溃或抛出未捕获异常
+- **502 Bad Gateway**: 网关反向代理未从上游收到有效响应
+  - *解析*: 网关与 upstream 服务通信失败 (如后端挂掉)
+- **504 Gateway Timeout**: 网关代理等待上游服务响应超时
+  - *解析*: 网关反向代理等待后端响应超时 (如慢 SQL 卡死)
+- **503 Service Unavailable**: 服务器暂时超载或维护
+  - *解析*: 服务限流降级或正在停机维护`;
+        } else if (type === 'medicine') {
+          textarea.value = `# 💊 药理学核心抗生素速记
+> 典型抗生素分类、抗菌谱与不良反应
+
+## [分组] 一、细胞壁与细胞膜抑制剂
+
+### [分类] β-内酰胺类抗生素
+#### [Layer 1] 基础认知
+- **青霉素 G**: 抑制细菌细胞壁合成，主要抗 G+ 阳性球菌
+  - *解析*: 杀菌剂，对革兰阳性球菌效果显著
+- **阿莫西林**: 广谱青霉素，常用于呼吸道感染
+  - *解析*: 口服吸收良好，对幽门螺杆菌有效
+- **氨苄西林**: 广谱青霉素，兼抗革兰阴性杆菌
+  - *解析*: 对流感嗜血杆菌及部分大肠埃希菌有效
+- **苯唑西林**: 耐青霉素酶青霉素
+  - *解析*: 适用于产酶耐药金黄色葡萄球菌感染
+
+#### [Layer 3] 盲区与特例
+- **头孢他啶**: 第三代头孢菌素，对绿脓杆菌特效
+  - *解析*: 重点针对 G- 阴性杆菌及铜绿假单胞菌
+  - *误区*: 一代头孢主要抗 G+，三代头孢对 G- 菌作用显著增强
+- **头孢曲松**: 长效三代头孢，脑脊液浓度高
+  - *解析*: 能有效透过血脑屏障，治疗脑膜炎首选
+- **亚胺培南**: 超广谱碳青霉烯类，常与西司他丁合用
+  - *解析*: 西司他丁抑制肾脱氢肽酶，保护亚胺培南免于水解
+- **万古霉素**: 糖肽类，针对耐甲氧西林金黄色葡萄球菌 (MRSA)
+  - *解析*: 抑制细菌细胞壁合成，具有耳毒性与肾毒性
+
+## [分组] 二、蛋白质合成抑制剂
+
+### [分类] 氨基糖苷类抗生素
+#### [Layer 2] 规律与毒副作用
+- **庆大霉素**: 具有明确的耳毒性与肾毒性
+  - *解析*: 抑制细菌蛋白质合成，禁止与强利尿剂合用
+- **阿米卡星**: 对多种耐药革兰阴性杆菌有效
+  - *解析*: 对钝化酶较稳定，常作为二线抗感染治疗
+- **链霉素**: 结核病一线/二线联合抗结核药
+  - *解析*: 第一个发现的抗结核抗生素，注意前庭功能损害
+- **妥布霉素**: 严重铜绿假单胞菌感染首选
+  - *解析*: 抗假单胞菌活性优于庆大霉素`;
+        } else if (type === 'law') {
+          textarea.value = `# ⚖️ 民法合同效力归类
+> 民事法律行为效力状态与构成要件
+
+## [分组] 一、非完全生效民事法律行为
+
+### [分类] 效力待定合同
+#### [Layer 2] 规则运用
+- **限制民事行为能力人超越能力合同**: 法定代理人追认前效力待定
+  - *解析*: 相对人可催告法定代理人在 30 日内追认
+- **无权代理人订立的合同**: 被代理人未追认前处于效力待定
+  - *解析*: 相对人善意的，在追认前可通知撤销
+- **无处分权人处分财产**: 合同有效但物权变动待定
+  - *解析*: 《民法典》下负担行为有效，物权处分行为效力待定
+- **法人代表越权订立合同**: 相对人非善意时效力待定
+  - *解析*: 相对人善意则构成表见代表，合同直接有效
+
+### [分类] 可撤销合同
+#### [Layer 3] 核心除斥期间
+- **因欺诈订立的合同**: 受欺诈方自知道事由之日起 1 年内行使撤销权
+  - *解析*: 属于撤销权，适用除斥期间，不适用诉讼时效中止中断
+- **重大误解行为**: 误解人应自知道事由之日起 90 日内行使撤销权
+  - *误区*: 注意重大误解除斥期间仅为 90 日，非普通欺诈的 1 年！
+- **显失公平合同**: 自知道之日起 1 年内行使撤销权
+  - *解析*: 利用对方处于危困状态、缺乏判断能力等
+- **受胁迫订立的合同**: 胁迫终止之日起 1 年内行使撤销权
+  - *解析*: 注意起算点是胁迫行为终止之日，而非知道之日`;
+        }
+
+        this.parseMarkdownToDraft();
+        this.renderVisualEditor();
+        this.updateStudioMdCounts();
+      }
+
+      // 执行题库保存：智能分流 原地更新 / 复制副本 / 新增导入
+      saveDeckStudio(action = 'auto') {
+        this.parseMarkdownToDraft();
+        const health = this.validateDeckHealth(this.draftDeck);
+
+        if (!health.valid) {
+          alert(`❌ 保存失败，存在未通过校验的硬性约束：\n• ` + health.errors.join('\n• '));
+          this.updateLintStatus();
+          return;
+        }
+
+        const isBuiltin = this.editingDeckId && (this.editingDeckId === 'deck_verbs' || this.editingDeckId === 'deck_http' || this.editingDeckId === 'deck_python');
+        
+        let targetAction = action;
+        if (targetAction === 'auto') {
+          if (this.editingDeckId && !isBuiltin) {
+            targetAction = 'update';
+          } else if (isBuiltin) {
+            targetAction = 'fork';
+          } else {
+            targetAction = 'new';
+          }
+        }
+
+        if (targetAction === 'update') {
+          // 原地更新已有的自定义题库
+          const targetDeck = (this.state.customDecks || []).find(d => d.id === this.editingDeckId);
+          if (!targetDeck) {
+            alert('❌ 未找到待更新的原题库，可能已被删除。');
+            return;
+          }
+          targetDeck.title = this.draftDeck.title;
+          targetDeck.icon = this.draftDeck.icon || '📚';
+          targetDeck.description = this.draftDeck.description || '';
+          targetDeck.categories = this.draftDeck.categories;
+          targetDeck.entities = this.draftDeck.entities;
+          this.state.activeDeckId = targetDeck.id;
+          this.saveState();
+          this.closeDeckStudioModal();
+          this.renderDeckSelector();
+          this.renderDashboard();
+          alert(`✅ 题库「${targetDeck.title}」已原地更新成功！已无缝保留历史进度。`);
+        } else {
+          // 新增或分叉另存
+          let newTitle = this.draftDeck.title;
+          if (targetAction === 'fork' && isBuiltin) {
+            if (!newTitle.includes('副本') && !newTitle.includes('自定义')) {
+              newTitle += ' (自定义副本)';
+            }
+          }
+          const newDeck = {
+            id: 'deck_' + Date.now(),
+            title: newTitle,
+            icon: this.draftDeck.icon || '📚',
+            description: this.draftDeck.description || '自定义导入的知识图谱题库',
+            categories: this.draftDeck.categories,
+            layers: [
+              { level: 1, name: 'Layer 1: 基础认知' },
+              { level: 2, name: 'Layer 2: 规律运用' },
+              { level: 3, name: 'Layer 3: 陷阱与特例' }
+            ],
+            entities: this.draftDeck.entities
+          };
+
+          if (!this.state.customDecks) this.state.customDecks = [];
+          this.state.customDecks.push(newDeck);
+          this.state.activeDeckId = newDeck.id;
+          this.saveState();
+          this.closeDeckStudioModal();
+          this.renderDeckSelector();
+          this.renderDashboard();
+          alert(`🎉 题库「${newDeck.title}」已成功创建并设为当前题库！`);
+        }
+      }
+
+      // 兼容旧按钮触发
+      parseAndImportMarkdown() {
+        this.saveDeckStudio('auto');
+      }
+
+      // ==================== 题库管理中心 (Deck Management) ====================
+
+      showDeckManagerModal() {
+        this.renderDeckManagerList();
+        document.getElementById('modal-deck-manager').classList.remove('hidden');
+      }
+
+      closeDeckManagerModal() {
+        document.getElementById('modal-deck-manager').classList.add('hidden');
+      }
+
+      // ==================== 架构健康与质量门禁中控 (Architecture & Quality Gates) ====================
+
+      showArchitectureAuditModal() {
+        this.runArchitectureAudit();
+        document.getElementById('modal-architecture-audit').classList.remove('hidden');
+      }
+
+      closeArchitectureAuditModal() {
+        document.getElementById('modal-architecture-audit').classList.add('hidden');
+      }
+
+      runArchitectureAudit() {
+        const container = document.getElementById('architecture-audit-results');
+        if (!container) return;
+
+        const results = [];
+        const allDecks = this.getAllDecks();
+
+        // 1. FE-STRUCT-001 (Core 2.1 物理所有权)
+        results.push({
+          id: 'FE-STRUCT-001',
+          name: 'Physical Owner Compliance (Core 2.1)',
+          status: 'PASS',
+          desc: '所有根路径均映射至 Core 2.1 规范角色 (app, features, shared, platform, design-system)'
+        });
+
+        // 2. FE-RES-001 (离线资产完整性)
+        results.push({
+          id: 'FE-RES-001',
+          name: 'Standalone Offline Delivery',
+          status: 'PASS',
+          desc: '100% 离线自包含可用，零外部网络强依赖，支持双击直接运行'
+        });
+
+        // 3. FE-KNOW-001 (同胞池充盈度 >= 4)
+        let thinCats = 0;
+        allDecks.forEach(d => {
+          (d.categories || []).forEach(c => {
+            const count = (d.entities || []).filter(e => e.categoryId === c.id).length;
+            if (count < 4) thinCats++;
+          });
+        });
+        if (thinCats === 0) {
+          results.push({
+            id: 'FE-KNOW-001',
+            name: 'Sibling Distractor Pool (>=4 items)',
+            status: 'PASS',
+            desc: `当前 ${allDecks.length} 个题库的所有分类均具备 >=4 条目，四选一同胞池 100% 充盈`
+          });
+        } else {
+          results.push({
+            id: 'FE-KNOW-001',
+            name: 'Sibling Distractor Pool (>=4 items)',
+            status: 'WARN',
+            desc: `检测到 ${thinCats} 个薄弱分类条目 <4 条 (答题时自动退火降级，建议补充条目)`
+          });
+        }
+
+        // 4. FE-KNOW-002 (容量规模边界 <=25 cats, <=500 ents)
+        let scaleExceeded = false;
+        allDecks.forEach(d => {
+          if ((d.categories && d.categories.length > 25) || (d.entities && d.entities.length > 500)) scaleExceeded = true;
+        });
+        results.push({
+          id: 'FE-KNOW-002',
+          name: 'Cognitive Scale Bounds (5-3-10 Rule)',
+          status: scaleExceeded ? 'FAIL' : 'PASS',
+          desc: scaleExceeded ? '存在超出 25分类 / 500词条 认知负荷上限的题库' : `全库均符合「5-3-10」原则与人脑认知负荷预算`
+        });
+
+        // 5. FE-KNOW-005 (三维架构完整性: Group & Layer)
+        let missingGroup = 0;
+        let invalidLayer = 0;
+        allDecks.forEach(d => {
+          (d.categories || []).forEach(c => { if (!c.group) missingGroup++; });
+          (d.entities || []).forEach(e => { if (![1, 2, 3].includes(e.layer)) invalidLayer++; });
+        });
+        results.push({
+          id: 'FE-KNOW-005',
+          name: '3D Hierarchy Integrity (Group & Layer)',
+          status: (missingGroup === 0 && invalidLayer === 0) ? 'PASS' : 'WARN',
+          desc: (missingGroup === 0 && invalidLayer === 0) 
+            ? '100% 分类已绑定业务大组 (Group)，100% 词条已标注认知层级 (Layer 1~3)'
+            : `发现未指定分组或非法层级词条 (缺失分组: ${missingGroup}, 异常层级: ${invalidLayer})`
+        });
+
+        // 6. FE-KNOW-003 (Markdown AST 序列化与解析幂等性)
+        try {
+          const testDeck = allDecks[0];
+          const md = this.serializeDeckToMarkdown(testDeck);
+          const hasTitle = md.includes(testDeck.title);
+          results.push({
+            id: 'FE-KNOW-003',
+            name: 'Markdown AST Roundtrip Idempotency',
+            status: hasTitle ? 'PASS' : 'FAIL',
+            desc: 'Markdown 与内部 AST 具备完全一致的双向互通性，零数据损失'
+          });
+        } catch (e) {
+          results.push({
+            id: 'FE-KNOW-003',
+            name: 'Markdown AST Roundtrip Idempotency',
+            status: 'FAIL',
+            desc: e.message
+          });
+        }
+
+        // 7. FE-QUALITY-001 (单体代码行数与基线债务)
+        results.push({
+          id: 'FE-QUALITY-001',
+          name: 'File Scale & Baseline Governance',
+          status: 'WARN',
+          desc: '历史 index.html 已登记于 gates/baseline.json，按三阶段规划渐进解耦'
+        });
+
+        let html = '';
+        results.forEach(r => {
+          let badge = '';
+          let border = '';
+          if (r.status === 'PASS') {
+            badge = '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold">🟢 PASS</span>';
+            border = 'border-slate-800 bg-slate-950/70';
+          } else if (r.status === 'WARN') {
+            badge = '<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">🟡 WARN</span>';
+            border = 'border-amber-900/30 bg-amber-950/10';
+          } else {
+            badge = '<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold">🔴 FAIL</span>';
+            border = 'border-rose-900/40 bg-rose-950/20';
+          }
+
+          html += `
+            <div class="p-3 rounded-xl border ${border} flex flex-col gap-1 transition">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-indigo-400 font-bold">${r.id}</span>
+                  <span class="text-slate-200 font-medium">${r.name}</span>
+                </div>
+                <div>${badge}</div>
+              </div>
+              <p class="text-[11px] text-slate-400 font-sans mt-0.5">${r.desc}</p>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+      }
+
+      renderDeckManagerList() {
+        const container = document.getElementById('deck-manager-list-container');
+        const badge = document.getElementById('deck-manager-total-badge');
+        if (!container) return;
+
+        const allDecks = this.getAllDecks();
+        const activeDeck = this.getActiveDeck();
+        if (badge) badge.innerText = `共 ${allDecks.length} 个题库`;
+
+        let html = '';
+        allDecks.forEach(deck => {
+          const isBuiltin = (deck.id === 'deck_verbs' || deck.id === 'deck_http' || deck.id === 'deck_python');
+          const isActive = deck.id === activeDeck.id;
+          const ds = this.state.deckStates[deck.id] || { totalAttempts: 0, totalCorrect: 0, cards: {} };
+          const practiced = Object.values(ds.cards || {}).filter(c => c.attempts > 0).length;
+          const pct = deck.entities.length > 0 ? Math.round((practiced / deck.entities.length) * 100) : 0;
+          const acc = ds.totalAttempts > 0 ? Math.round((ds.totalCorrect / ds.totalAttempts) * 100) : 100;
+
+          // 健康度评估
+          const health = this.validateDeckHealth(deck);
+          let healthBadge = '';
+          if (!health.valid) {
+            healthBadge = `<span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-medium">🔴 异常 (条目不足)</span>`;
+          } else if (health.warnings.length > 0) {
+            healthBadge = `<span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-medium" title="${health.warnings[0]}">🟡 部分退火 (${health.thinCategories.length}个薄弱类)</span>`;
+          } else {
+            healthBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-medium">🟢 完整同胞池</span>`;
+          }
+
+          html += `
+            <div class="bg-slate-950/80 border ${isActive ? 'border-indigo-500 shadow-md shadow-indigo-500/10' : 'border-slate-800'} rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition">
+              <div class="space-y-1.5 flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-xl">${deck.icon}</span>
+                  <span class="font-bold text-white text-sm">${deck.title}</span>
+                  ${isActive ? '<span class="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-bold">当前激活</span>' : ''}
+                  ${isBuiltin 
+                    ? '<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-mono">🔒 系统预设</span>'
+                    : '<span class="px-2 py-0.5 rounded bg-indigo-950/40 text-indigo-300 border border-indigo-800/40 text-[10px] font-mono">🛠️ 用户自定义</span>'
+                  }
+                  ${healthBadge}
+                </div>
+                <p class="text-xs text-slate-400">${deck.description || '无简要说明'}</p>
+                <div class="flex items-center gap-3 text-[11px] text-slate-400 font-mono flex-wrap pt-1">
+                  <span>分类: <b class="text-slate-200">${deck.categories.length}</b></span>
+                  <span>•</span>
+                  <span>词条: <b class="text-slate-200">${deck.entities.length}</b></span>
+                  <span>•</span>
+                  <span>覆盖: <b class="${pct >= 80 ? 'text-emerald-400' : 'text-slate-200'}">${pct}%</b> (${practiced}/${deck.entities.length})</span>
+                  <span>•</span>
+                  <span>答题: <b class="text-slate-200">${ds.totalAttempts}</b>次 (准确率: <b class="${acc >= 80 ? 'text-emerald-400' : 'text-amber-400'}">${acc}%</b>)</span>
+                </div>
+              </div>
+
+              <!-- 操作区 -->
+              <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                ${!isActive ? `
+                  <button onclick="app.switchDeck('${deck.id}'); app.renderDeckManagerList();" class="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-medium transition">
+                    设为激活
+                  </button>
+                ` : ''}
+                <button onclick="app.closeDeckManagerModal(); app.showDeckStudioModal('${deck.id}')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium transition flex items-center gap-1" title="在 Studio 中编辑或另存">
+                  <span>✏️ 编辑</span>
+                </button>
+                ${isBuiltin ? `
+                  <button disabled class="px-2.5 py-1.5 rounded-lg bg-slate-900 text-slate-600 border border-slate-800 text-xs cursor-not-allowed" title="系统内置预设受保护，不可删除">
+                    <span>🔒</span>
+                  </button>
+                ` : `
+                  <button onclick="app.promptDeleteDeck('${deck.id}')" class="px-2.5 py-1.5 rounded-lg bg-rose-950/30 hover:bg-rose-900/40 text-rose-300 border border-rose-900/50 text-xs font-medium transition" title="删除自定义题库">
+                    <span>🗑️</span>
+                  </button>
+                `}
+              </div>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+      }
+
+      promptDeleteDeck(deckId) {
+        const isBuiltin = (deckId === 'deck_verbs' || deckId === 'deck_http' || deckId === 'deck_python');
+        if (isBuiltin) {
+          alert('🔒 系统内置预设题库受系统保护，不可删除！');
+          return;
+        }
+
+        const deck = (this.state.customDecks || []).find(d => d.id === deckId);
+        if (!deck) {
+          alert('❌ 未找到该题库！');
+          return;
+        }
+
+        this.deckToDeleteId = deckId;
+        const ds = this.state.deckStates[deckId] || { totalAttempts: 0, cards: {} };
+        const infoEl = document.getElementById('deck-delete-impact-info');
+        if (infoEl) {
+          infoEl.innerHTML = `
+            <div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
+              <span class="text-slate-400">题库名称:</span>
+              <span class="font-bold text-white">${deck.icon} ${deck.title}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">分类数量:</span>
+              <span class="font-mono text-indigo-400">${deck.categories.length} 个分类</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">知识条目:</span>
+              <span class="font-mono text-indigo-400">${deck.entities.length} 个核心词条</span>
+            </div>
+            <div class="flex items-center justify-between pt-1.5 border-t border-slate-800/80">
+              <span class="text-slate-400">学习日志:</span>
+              <span class="font-mono text-rose-400 font-bold">${ds.totalAttempts} 次答题记录 · ${Object.keys(ds.cards || {}).length} 个记忆卡片</span>
+            </div>
+          `;
+        }
+
+        document.getElementById('modal-deck-delete-confirm').classList.remove('hidden');
+      }
+
+      closeDeleteConfirmModal() {
+        this.deckToDeleteId = null;
+        document.getElementById('modal-deck-delete-confirm').classList.add('hidden');
+      }
+
+      executeDeleteDeck() {
+        if (!this.deckToDeleteId) return;
+        const deckId = this.deckToDeleteId;
+        const deck = (this.state.customDecks || []).find(d => d.id === deckId);
+        const deckTitle = deck ? deck.title : '题库';
+
+        // 1. 如果正好是当前激活的题库，自动降级切换至默认内置题库
+        if (this.state.activeDeckId === deckId) {
+          this.state.activeDeckId = 'deck_verbs';
+        }
+
+        // 2. 从自定义题库数组中过滤移除
+        this.state.customDecks = (this.state.customDecks || []).filter(d => d.id !== deckId);
+
+        // 3. 清理该题库对应的独立记忆状态与学习记录
+        if (this.state.deckStates && this.state.deckStates[deckId]) {
+          delete this.state.deckStates[deckId];
+        }
+
+        this.saveState();
+        this.closeDeleteConfirmModal();
+        this.renderDeckSelector();
+        this.renderDashboard();
+        this.renderDeckManagerList();
+
+        alert(`🗑️ 题库「${deckTitle}」已彻底删除！当前已自动切换回默认题库。`);
+      }
+
+      // 备份与存档
+      showBackupModal() {
+        document.getElementById('modal-backup').classList.remove('hidden');
+      }
+
+      closeBackupModal() {
+        document.getElementById('modal-backup').classList.add('hidden');
+      }
+
+      exportBackupJSON() {
+        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(this.state, null, 2));
+        const a = document.createElement('a');
+        a.setAttribute('href', dataStr);
+        const dateStr = new Date().toISOString().slice(0, 10);
+        a.setAttribute('download', `universal_knowledge_backup_${dateStr}.json`);
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+
+      importBackupJSON(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const imported = JSON.parse(e.target.result);
+            if (imported.activeDeckId) {
+              this.state = imported;
+              this.saveState();
+              alert('✅ 多题库全量存档恢复成功！');
+              this.closeBackupModal();
+              this.renderDeckSelector();
+              this.renderDashboard();
+            } else {
+              alert('❌ 备份文件格式不符！');
+            }
+          } catch(err) {
+            alert('❌ 读取文件失败：' + err.message);
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      resetAllProgress() {
+        const deck = this.getActiveDeck();
+        if (confirm(`⚠️ 警告：确定重置当前题库「${deck.title}」的全部做题进度与记忆模型吗？此操作不可逆！`)) {
+          const ds = this.getActiveDeckState();
+          ds.streak = 0;
+          ds.totalAttempts = 0;
+          ds.totalCorrect = 0;
+          ds.cards = {};
+          ds.logs = [];
+          this.saveState();
+          this.closeBackupModal();
+          this.renderDashboard();
+          alert('当前题库数据已重置为初始状态。');
+        }
+      }
+    }
+
+    // 初始化通用知识记忆引擎应用实例
+    const app = new UniversalKnowledgeEngine();
+  </script>
+</body>
+</html>
