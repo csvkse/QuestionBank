@@ -26,7 +26,7 @@ try {
   const allowedRoots = new Set([
     'app', 'features', 'shared', 'design-system', 'platform', 'vendor',
     'gates', 'tests', 'scripts', 'docs', 'archive',
-    'index.html', 'binding.yaml', 'package.json', 'package-lock.json', 'node_modules', 'README.md', '.git', '.gitignore',
+    'index.html', 'favicon.svg', 'binding.yaml', 'package.json', 'package-lock.json', 'node_modules', 'README.md', '.git', '.gitignore',
     'start-dev.bat', 'run.bat'
   ]);
   
