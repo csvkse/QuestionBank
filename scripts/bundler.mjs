@@ -70,6 +70,7 @@ try {
     'features/deck-studio/visual-editor.js',
     'features/deck-studio/markdown-editor.js',
     'features/deck-manager/deck-crud.js',
+    'features/deck-manager/favorites-manager.js',
     'features/review-board/timeline-board.js',
     'features/review-board/radar-chart.js',
     'vendor/ai-sdk/ai-agent-bundle.js',

@@ -23,7 +23,7 @@ import { ModalController } from '../design-system/components/modal.js';
 import { QuizRunner, ComboEffectController, SandboxConfigController, SteppedProgressController } from '../features/arena/index.js';
 import { MatrixConsoleController, TreeRenderer, FocusReaderController } from '../features/study-hub/index.js';
 import { VisualEditorController, MarkdownEditorController } from '../features/deck-studio/index.js';
-import { DeckCrudController } from '../features/deck-manager/index.js';
+import { DeckCrudController, FavoritesManagerController } from '../features/deck-manager/index.js';
 import { TimelineBoardController, RadarChartController } from '../features/review-board/index.js';
 import { AiAgentUIController, REFERENCE_PRESET_PROVIDERS, DEFAULT_PROVIDERS } from '../features/ai-agent/index.js';
 import { JevClient, JevUi } from '../features/jev/index.js';
@@ -82,6 +82,7 @@ export class KnowledgeMasterApp {
     this.aiAgent = new AiAgentUIController(this);
     this.jevClient = new JevClient();
     this.jevUi = new JevUi(this);
+    this.favoritesManager = new FavoritesManagerController(this);
     this._lastJevRecommendation = null;
     this._lastAutoExpandedJevTarget = null;
   }
@@ -90,6 +91,7 @@ export class KnowledgeMasterApp {
     this.loadUserData();
     this.bindEvents();
     this.renderDeckSelector();
+    this.updateFavoritesBadge();
     this.aiAgent.init();
     this.updateSpeechUiState(this.speechSynth.isAutoSpeechEnabled());
     this.router.navigate('dashboard');
@@ -499,8 +501,11 @@ export class KnowledgeMasterApp {
         totalAttempts: 0,
         totalCorrect: 0,
         streak: 0,
-        cards: {}
+        cards: {},
+        favorites: []
       };
+    } else if (!Array.isArray(this.state.deckStates[deckId].favorites)) {
+      this.state.deckStates[deckId].favorites = [];
     }
     return this.state.deckStates[deckId];
   }
@@ -547,6 +552,7 @@ export class KnowledgeMasterApp {
     this.renderStudyHub();
     this.renderReviewBoard();
     this.renderStats();
+    this.updateFavoritesBadge();
   }
 
   calcSpacedRepetitionMetrics() {
@@ -1548,6 +1554,47 @@ export class KnowledgeMasterApp {
     if (queue.length > 0) this.startSession('CATEGORY_DRILL', queue, { filterType: 'single', filterValue: entId });
   }
 
+  // ==================== 题目收藏与专练委托 ====================
+
+  openFavoritesModal() {
+    this.favoritesManager.openModal();
+  }
+
+  closeFavoritesModal() {
+    this.favoritesManager.closeModal();
+  }
+
+  toggleFavorite(entityId) {
+    const isFav = this.favoritesManager.toggleFavorite(entityId);
+    this.updateFavoritesBadge();
+    return isFav;
+  }
+
+  isFavorite(entityId) {
+    return this.favoritesManager.isFavorite(entityId);
+  }
+
+  toggleFavoriteCurrentQuestion() {
+    if (!this.quizQueue || this.currentIndex >= this.quizQueue.length) return;
+    const currentEntity = this.quizQueue[this.currentIndex];
+    if (!currentEntity) return;
+    this.toggleFavorite(currentEntity.id);
+  }
+
+  updateFavoritesBadge() {
+    const badge = document.getElementById('nav-fav-badge');
+    if (!badge) return;
+    const favs = this.favoritesManager ? this.favoritesManager.getFavoritesArray() : [];
+    const count = favs.length;
+    if (count > 0) {
+      badge.innerText = count;
+      badge.classList.remove('hidden');
+    } else {
+      badge.innerText = '0';
+      badge.classList.add('hidden');
+    }
+  }
+
   // ==================== 学习大厅控制委托 ====================
 
   setStudyGroupFilter(grp) { this.matrixConsole.setGroupFilter(grp); }
@@ -2115,6 +2162,13 @@ export class KnowledgeMasterApp {
             this.toggleAutoSpeech();
             return;
           }
+        }
+
+        // 按 F 键快速收藏/取消当前题目
+        if (e.key === 'f' || e.key === 'F') {
+          e.preventDefault();
+          this.toggleFavoriteCurrentQuestion();
+          return;
         }
 
         if (!this.isAnswerLocked) {

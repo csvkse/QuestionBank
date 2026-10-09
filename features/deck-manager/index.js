@@ -4,3 +4,4 @@
  */
 
 export { DeckCrudController } from './deck-crud.js';
+export { FavoritesManagerController } from './favorites-manager.js';

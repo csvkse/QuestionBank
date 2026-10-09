@@ -429,6 +429,14 @@
 
       <!-- 右侧: 全局轻量状态与辅助操作 -->
       <div class="flex items-center space-x-2 shrink-0 text-xs">
+        <button id="nav-btn-favorites" onclick="app.openFavoritesModal()" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-amber-400 border border-slate-800 transition flex items-center gap-1.5" title="我的收藏题目与针对性练习">
+          <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+          </svg>
+          <span class="hidden sm:inline">收藏</span>
+          <span id="nav-fav-badge" class="px-1.5 py-0.2 text-[10px] rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 hidden">0</span>
+        </button>
+
         <button onclick="app.showBackupModal()" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-slate-200 border border-slate-800 transition flex items-center gap-1.5" title="备份与导出进度数据">
           <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
@@ -773,9 +781,16 @@
 
       <!-- 核心题目卡片 (Surface 1 + 明确视觉高程) -->
       <div id="arena-card" class="surface-card rounded-2xl p-6 sm:p-8 shadow-xl text-center relative overflow-hidden transition-all">
-        <!-- 分类/层级标记 -->
-        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-3 bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-mono" id="arena-target-badge">
-          分类: 客户端错误 · Layer 2
+        <!-- 分类/层级标记 与 收藏快捷操作 -->
+        <div class="flex items-center justify-center gap-2 mb-3">
+          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-mono" id="arena-target-badge">
+            分类: 客户端错误 · Layer 2
+          </div>
+          <button id="arena-btn-favorite" onclick="app.toggleFavoriteCurrentQuestion()" title="收藏本题 (快捷键 F)" class="p-1.5 rounded-full bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-amber-400 border border-slate-700 transition active:scale-95" aria-label="收藏题目">
+            <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+          </button>
         </div>
 
         <!-- 考核概念大字 (字阶 3xl / 4xl) 与 语言发音按钮 -->
@@ -1941,6 +1956,74 @@
 
       <!-- 操作按钮组 -->
       <div id="mode-guidance-actions" class="flex flex-col gap-2 pt-2">
+      </div>
+    </div>
+  </div>
+
+  <!-- 我的收藏针对性练习与管理弹窗 (遵循零 Emoji 门禁与 Surface 模态标准) -->
+  <div id="modal-favorites" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+    <div class="surface-modal rounded-2xl w-full max-w-2xl border border-slate-700 shadow-2xl p-6 flex flex-col space-y-4 max-h-[85vh]">
+      <!-- 弹窗顶栏 -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+            <svg class="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
+              <span>收藏题目专练</span>
+              <span id="fav-total-badge" class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono font-normal">共 0 题</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">支持单个精准攻克、批量勾选对战与全部收藏题目强化自测</p>
+          </div>
+        </div>
+        <button type="button" onclick="app.closeFavoritesModal()" class="text-slate-400 hover:text-white transition p-1.5 rounded-lg hover:bg-slate-800" aria-label="关闭">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- 批量操作与控制栏 (有数据时显示) -->
+      <div id="fav-bulk-bar" class="flex flex-wrap items-center justify-between gap-2.5 p-3 rounded-xl surface-inset border border-slate-750 text-xs">
+        <div class="flex items-center gap-2">
+          <label class="flex items-center gap-2 cursor-pointer select-none text-slate-300 hover:text-white font-medium">
+            <input type="checkbox" id="fav-select-all-checkbox" onchange="app.favoritesManager.toggleSelectAll(this.checked)" class="rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-0">
+            <span>全选</span>
+          </label>
+          <span class="text-slate-500 text-xs">已勾选 <span id="fav-selected-count" class="font-mono text-indigo-400 font-bold">0</span> 项</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" id="fav-btn-batch-practice" onclick="app.favoritesManager.practiceBatch()" disabled class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition opacity-50 cursor-not-allowed flex items-center gap-1.5 shadow-sm">
+            <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            <span>批量练习</span>
+          </button>
+          <button type="button" onclick="app.favoritesManager.practiceAll()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition flex items-center gap-1.5 shadow-sm">
+            <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span>全部练习</span>
+          </button>
+          <button type="button" id="fav-btn-batch-delete" onclick="app.favoritesManager.batchRemoveFavorites()" disabled class="px-2.5 py-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-rose-400 hover:border-rose-500/50 transition opacity-50 cursor-not-allowed" title="取消收藏已选项">
+            <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 收藏列表滚动区 -->
+      <div id="fav-list-container" class="space-y-2.5 overflow-y-auto max-h-[46vh] pr-1">
+        <!-- 动态填充 -->
+      </div>
+
+      <!-- 空状态提示 (无收藏时显示) -->
+      <div id="fav-empty-state" class="hidden py-12 text-center space-y-3">
+        <div class="w-12 h-12 mx-auto rounded-2xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center text-slate-500">
+          <svg class="w-6 h-6 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+          </svg>
+        </div>
+        <div class="space-y-1">
+          <p class="text-sm font-semibold text-slate-300">当前题库暂无收藏题目</p>
+          <p class="text-xs text-slate-500 max-w-sm mx-auto">在「竞技场」对战中按快捷键 F，或在「知识精读」中点击星标按钮，即可将关键或重难点题目加入此专属收藏夹</p>
+        </div>
       </div>
     </div>
   </div>
@@ -3420,7 +3503,7 @@ class ModalController {
     const el = document.getElementById(elementId);
     if (el) {
       el.classList.remove('hidden');
-      document.body.classList.add('overflow-hidden');
+      if (document.body?.classList) document.body.classList.add('overflow-hidden');
     }
   }
 
@@ -3428,7 +3511,7 @@ class ModalController {
     const el = document.getElementById(elementId);
     if (el) {
       el.classList.add('hidden');
-      document.body.classList.remove('overflow-hidden');
+      if (document.body?.classList) document.body.classList.remove('overflow-hidden');
     }
   }
 
@@ -3526,6 +3609,14 @@ const ICONS = {
   },
 
   // 状态与辅助
+  star: {
+    viewBox: '0 0 24 24',
+    path: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>'
+  },
+  starFilled: {
+    viewBox: '0 0 24 24',
+    path: '<polygon fill="currentColor" stroke="none" points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>'
+  },
   flame: {
     viewBox: '0 0 24 24',
     path: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9.879z"/>'
@@ -3799,18 +3890,15 @@ class QuizRunner {
     const btnReplay = document.getElementById('btn-replay-speech');
     const speechToggle = document.getElementById('arena-auto-speech-toggle');
     const shortcutHint = document.getElementById('arena-speech-shortcut-hint');
+    [btnReplay, speechToggle, shortcutHint].forEach(el => el && el.classList.toggle('hidden', !isLang));
+    if (isLang && this.app.speechSynth) this.app.speechSynth.speakEntity(currentEntity, deck, true);
 
-    if (isLang) {
-      if (btnReplay) btnReplay.classList.remove('hidden');
-      if (speechToggle) speechToggle.classList.remove('hidden');
-      if (shortcutHint) shortcutHint.classList.remove('hidden');
-      if (this.app.speechSynth) {
-        this.app.speechSynth.speakEntity(currentEntity, deck, true);
-      }
-    } else {
-      if (btnReplay) btnReplay.classList.add('hidden');
-      if (speechToggle) speechToggle.classList.add('hidden');
-      if (shortcutHint) shortcutHint.classList.add('hidden');
+    // 收藏状态联动
+    const isFav = this.app.favoritesManager ? this.app.favoritesManager.isFavorite(currentEntity.id) : false;
+    const favBtn = document.getElementById('arena-btn-favorite');
+    if (favBtn) {
+      favBtn.innerHTML = renderIcon(isFav ? 'starFilled' : 'star', `w-4 h-4 ${isFav ? 'text-amber-400' : 'text-slate-400'}`);
+      favBtn.title = isFav ? '已收藏 (快捷键 F 取消)' : '收藏本题 (快捷键 F)';
     }
 
     // 采样干扰项并渲染
@@ -4588,6 +4676,9 @@ class FocusReaderController {
             </div>
             <div class="shrink-0 flex items-center gap-2">
               ${statusBadge}
+              <button id="focus-btn-favorite" onclick="app.favoritesManager.toggleFavorite('${entity.id}')" class="p-1.5 rounded-lg border border-slate-750 hover:bg-slate-800 transition ${this.app.favoritesManager?.isFavorite(entity.id) ? 'text-amber-400 border-amber-500/40 bg-amber-500/10' : 'text-slate-400 hover:text-amber-400'}" title="${this.app.favoritesManager?.isFavorite(entity.id) ? '已收藏 (点击取消)' : '收藏本题 (点击收藏)'}">
+                ${renderIcon(this.app.favoritesManager?.isFavorite(entity.id) ? 'starFilled' : 'star', `w-3.5 h-3.5 ${this.app.favoritesManager?.isFavorite(entity.id) ? 'text-amber-400' : 'text-slate-400'}`)}
+              </button>
               <button onclick="app.drillSingleEntity('${entity.id}')" class="btn-secondary px-2.5 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1 transition" title="立即针对此考点发起单题测验">
                 ${renderIcon('target', 'w-3 h-3 text-indigo-400')}
                 <span>专项测验</span>
@@ -5375,6 +5466,256 @@ class DeckCrudController {
     document.getElementById('modal-deck-delete-confirm').classList.add('hidden');
     this.renderList();
     this.app.renderAllViews();
+  }
+}
+
+  // --- Module: features/deck-manager/favorites-manager.js ---
+/**
+ * Favorites / Starred Questions Manager Controller
+ * Core: features/deck-manager/favorites-manager.js
+ */
+class FavoritesManagerController {
+  constructor(app) {
+    this.app = app;
+    this.selectedIds = new Set();
+  }
+
+  getFavoritesArray() {
+    const deck = this.app.getActiveDeck();
+    if (!deck) return [];
+    const ds = this.app.getDeckState(deck.id);
+    if (!Array.isArray(ds.favorites)) {
+      ds.favorites = [];
+    }
+    return ds.favorites;
+  }
+
+  isFavorite(entityId) {
+    if (!entityId) return false;
+    const favs = this.getFavoritesArray();
+    return favs.includes(entityId);
+  }
+
+  toggleFavorite(entityId) {
+    if (!entityId) return false;
+    const deck = this.app.getActiveDeck();
+    if (!deck) return false;
+    const ds = this.app.getDeckState(deck.id);
+    if (!Array.isArray(ds.favorites)) {
+      ds.favorites = [];
+    }
+
+    const idx = ds.favorites.indexOf(entityId);
+    let isFav = false;
+    if (idx >= 0) {
+      ds.favorites.splice(idx, 1);
+      this.selectedIds.delete(entityId);
+      isFav = false;
+    } else {
+      ds.favorites.push(entityId);
+      isFav = true;
+    }
+
+    this.app.saveUserData();
+    this.updateVisibleStarButtons(entityId, isFav);
+    if (typeof this.app.updateFavoritesBadge === 'function') {
+      this.app.updateFavoritesBadge();
+    }
+    return isFav;
+  }
+
+  updateVisibleStarButtons(entityId, isFav) {
+    if (typeof document === 'undefined') return;
+    // 1. 竞技场题卡右上角收藏按钮
+    const arenaStarBtn = document.getElementById('arena-btn-favorite');
+    if (arenaStarBtn && this.app.quizQueue && this.app.quizQueue[this.app.currentIndex]?.id === entityId) {
+      arenaStarBtn.innerHTML = renderIcon(isFav ? 'starFilled' : 'star', `w-4 h-4 ${isFav ? 'text-amber-400' : 'text-slate-400'}`);
+      arenaStarBtn.title = isFav ? '已收藏 (快捷键 F 取消)' : '收藏本题 (快捷键 F)';
+    }
+
+    // 2. 知识精读 Focus Reader 收藏按钮
+    const focusStarBtn = document.getElementById('focus-btn-favorite');
+    if (focusStarBtn && this.app.focusReader?.activeEntityId === entityId) {
+      focusStarBtn.innerHTML = renderIcon(isFav ? 'starFilled' : 'star', `w-4 h-4 ${isFav ? 'text-amber-400' : 'text-slate-400'}`);
+      focusStarBtn.title = isFav ? '已收藏 (点击取消)' : '收藏本题 (点击收藏)';
+    }
+
+    // 3. 若收藏弹窗处于开启状态，局部重绘
+    const modal = document.getElementById('modal-favorites');
+    if (modal && !modal.classList.contains('hidden')) {
+      this.renderModal();
+    }
+  }
+
+  getFavoritesList() {
+    const deck = this.app.getActiveDeck();
+    if (!deck || !Array.isArray(deck.entities)) return [];
+    const favs = new Set(this.getFavoritesArray());
+    return deck.entities.filter(e => favs.has(e.id));
+  }
+
+  openModal() {
+    this.selectedIds.clear();
+    this.renderModal();
+    if (typeof document !== 'undefined') ModalController.open('modal-favorites');
+  }
+
+  closeModal() {
+    if (typeof document !== 'undefined') ModalController.close('modal-favorites');
+  }
+
+  toggleSelectAll(isChecked) {
+    const list = this.getFavoritesList();
+    if (isChecked) {
+      list.forEach(e => this.selectedIds.add(e.id));
+    } else {
+      this.selectedIds.clear();
+    }
+    this.renderModal();
+  }
+
+  toggleSelectItem(entityId, isChecked) {
+    if (isChecked) {
+      this.selectedIds.add(entityId);
+    } else {
+      this.selectedIds.delete(entityId);
+    }
+    this.updateBulkActionBar();
+  }
+
+  updateBulkActionBar() {
+    if (typeof document === 'undefined') return;
+    const batchBtn = document.getElementById('fav-btn-batch-practice');
+    const batchDeleteBtn = document.getElementById('fav-btn-batch-delete');
+    const selectedCountEl = document.getElementById('fav-selected-count');
+    const selectAllCb = document.getElementById('fav-select-all-checkbox');
+
+    const totalFavs = this.getFavoritesList().length;
+    const selectedCount = this.selectedIds.size;
+
+    if (selectedCountEl) selectedCountEl.innerText = selectedCount;
+    if (selectAllCb) selectAllCb.checked = (totalFavs > 0 && selectedCount === totalFavs);
+
+    if (batchBtn) {
+      batchBtn.disabled = selectedCount === 0;
+      if (selectedCount > 0) {
+        batchBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      } else {
+        batchBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      }
+    }
+
+    if (batchDeleteBtn) {
+      batchDeleteBtn.disabled = selectedCount === 0;
+      if (selectedCount > 0) {
+        batchDeleteBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      } else {
+        batchDeleteBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      }
+    }
+  }
+
+  renderModal() {
+    if (typeof document === 'undefined') return;
+    const deck = this.getActiveDeckSafe();
+    const list = this.getFavoritesList();
+    const container = document.getElementById('fav-list-container');
+    const totalCountEl = document.getElementById('fav-total-badge');
+    const emptyStateEl = document.getElementById('fav-empty-state');
+    const bulkBarEl = document.getElementById('fav-bulk-bar');
+
+    if (totalCountEl) totalCountEl.innerText = `共 ${list.length} 道收藏题目`;
+
+    if (list.length === 0) {
+      if (container) container.innerHTML = '';
+      if (emptyStateEl) emptyStateEl.classList.remove('hidden');
+      if (bulkBarEl) bulkBarEl.classList.add('hidden');
+      return;
+    }
+
+    if (emptyStateEl) emptyStateEl.classList.add('hidden');
+    if (bulkBarEl) bulkBarEl.classList.remove('hidden');
+
+    if (container) {
+      const cards = this.app.getDeckState(deck.id).cards || {};
+      container.innerHTML = list.map(item => {
+        const isChecked = this.selectedIds.has(item.id);
+        const card = cards[item.id] || { level: 0, attempts: 0 };
+        const cat = (deck.categories || []).find(c => c.id === item.categoryId);
+        const catName = cat ? cat.name : '核心概念';
+
+        return `
+          <div class="p-3 rounded-xl surface-inset border border-slate-750 flex items-center justify-between gap-3 hover:border-slate-700 transition">
+            <div class="flex items-center gap-3 min-w-0 flex-1">
+              <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="app.favoritesManager.toggleSelectItem('${item.id}', this.checked)" class="rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-0 shrink-0">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-bold text-sm text-slate-100 truncate">${item.title}</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">${catName}</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-950/60 text-indigo-300 font-mono border border-indigo-800/40">Layer ${item.layer || 1}</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded ${card.level >= 4 ? 'bg-emerald-950 text-emerald-400' : 'bg-slate-850 text-slate-400'} font-mono">Lv.${card.level || 0}</span>
+                </div>
+                <p class="text-xs text-slate-400 truncate mt-0.5">${item.answer || item.subtitle || item.explanation || ''}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button type="button" onclick="app.favoritesManager.practiceSingle('${item.id}')" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition flex items-center gap-1">
+                ${renderIcon('target', 'w-3 h-3')} 练此题
+              </button>
+              <button type="button" onclick="app.favoritesManager.toggleFavorite('${item.id}')" title="取消收藏" class="p-1 rounded-lg text-amber-400 hover:text-slate-400 hover:bg-slate-800 transition">
+                ${renderIcon('starFilled', 'w-4 h-4 text-amber-400')}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    this.updateBulkActionBar();
+  }
+
+  getActiveDeckSafe() {
+    return this.app.getActiveDeck() || { id: '', categories: [], entities: [] };
+  }
+
+  practiceSingle(entityId) {
+    const deck = this.getActiveDeckSafe();
+    const entity = (deck.entities || []).find(e => e.id === entityId);
+    if (!entity) return;
+    this.closeModal();
+    this.app.startSession('CATEGORY_DRILL', [entity], { origin: 'favorite_single' });
+  }
+
+  practiceBatch() {
+    if (this.selectedIds.size === 0) return;
+    const deck = this.getActiveDeckSafe();
+    const entities = (deck.entities || []).filter(e => this.selectedIds.has(e.id));
+    if (entities.length === 0) return;
+    this.closeModal();
+    this.app.startSession('CATEGORY_DRILL', entities, { origin: 'favorite_batch' });
+  }
+
+  practiceAll() {
+    const list = this.getFavoritesList();
+    if (list.length === 0) return;
+    const shuffled = [...list].sort(() => Math.random() - 0.5);
+    this.closeModal();
+    this.app.startSession('CATEGORY_DRILL', shuffled, { origin: 'favorite_all' });
+  }
+
+  batchRemoveFavorites() {
+    if (this.selectedIds.size === 0) return;
+    const deck = this.getActiveDeckSafe();
+    const ds = this.app.getDeckState(deck.id);
+    if (!Array.isArray(ds.favorites)) return;
+
+    ds.favorites = ds.favorites.filter(id => !this.selectedIds.has(id));
+    this.selectedIds.clear();
+    this.app.saveUserData();
+    this.renderModal();
+    if (typeof this.app.updateFavoritesBadge === 'function') {
+      this.app.updateFavoritesBadge();
+    }
   }
 }
 
@@ -8026,6 +8367,7 @@ class KnowledgeMasterApp {
     this.aiAgent = new AiAgentUIController(this);
     this.jevClient = new JevClient();
     this.jevUi = new JevUi(this);
+    this.favoritesManager = new FavoritesManagerController(this);
     this._lastJevRecommendation = null;
     this._lastAutoExpandedJevTarget = null;
   }
@@ -8034,6 +8376,7 @@ class KnowledgeMasterApp {
     this.loadUserData();
     this.bindEvents();
     this.renderDeckSelector();
+    this.updateFavoritesBadge();
     this.aiAgent.init();
     this.updateSpeechUiState(this.speechSynth.isAutoSpeechEnabled());
     this.router.navigate('dashboard');
@@ -8443,8 +8786,11 @@ class KnowledgeMasterApp {
         totalAttempts: 0,
         totalCorrect: 0,
         streak: 0,
-        cards: {}
+        cards: {},
+        favorites: []
       };
+    } else if (!Array.isArray(this.state.deckStates[deckId].favorites)) {
+      this.state.deckStates[deckId].favorites = [];
     }
     return this.state.deckStates[deckId];
   }
@@ -8491,6 +8837,7 @@ class KnowledgeMasterApp {
     this.renderStudyHub();
     this.renderReviewBoard();
     this.renderStats();
+    this.updateFavoritesBadge();
   }
 
   calcSpacedRepetitionMetrics() {
@@ -9492,6 +9839,47 @@ class KnowledgeMasterApp {
     if (queue.length > 0) this.startSession('CATEGORY_DRILL', queue, { filterType: 'single', filterValue: entId });
   }
 
+  // ==================== 题目收藏与专练委托 ====================
+
+  openFavoritesModal() {
+    this.favoritesManager.openModal();
+  }
+
+  closeFavoritesModal() {
+    this.favoritesManager.closeModal();
+  }
+
+  toggleFavorite(entityId) {
+    const isFav = this.favoritesManager.toggleFavorite(entityId);
+    this.updateFavoritesBadge();
+    return isFav;
+  }
+
+  isFavorite(entityId) {
+    return this.favoritesManager.isFavorite(entityId);
+  }
+
+  toggleFavoriteCurrentQuestion() {
+    if (!this.quizQueue || this.currentIndex >= this.quizQueue.length) return;
+    const currentEntity = this.quizQueue[this.currentIndex];
+    if (!currentEntity) return;
+    this.toggleFavorite(currentEntity.id);
+  }
+
+  updateFavoritesBadge() {
+    const badge = document.getElementById('nav-fav-badge');
+    if (!badge) return;
+    const favs = this.favoritesManager ? this.favoritesManager.getFavoritesArray() : [];
+    const count = favs.length;
+    if (count > 0) {
+      badge.innerText = count;
+      badge.classList.remove('hidden');
+    } else {
+      badge.innerText = '0';
+      badge.classList.add('hidden');
+    }
+  }
+
   // ==================== 学习大厅控制委托 ====================
 
   setStudyGroupFilter(grp) { this.matrixConsole.setGroupFilter(grp); }
@@ -10059,6 +10447,13 @@ class KnowledgeMasterApp {
             this.toggleAutoSpeech();
             return;
           }
+        }
+
+        // 按 F 键快速收藏/取消当前题目
+        if (e.key === 'f' || e.key === 'F') {
+          e.preventDefault();
+          this.toggleFavoriteCurrentQuestion();
+          return;
         }
 
         if (!this.isAnswerLocked) {

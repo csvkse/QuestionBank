@@ -8,7 +8,7 @@ export class ModalController {
     const el = document.getElementById(elementId);
     if (el) {
       el.classList.remove('hidden');
-      document.body.classList.add('overflow-hidden');
+      if (document.body?.classList) document.body.classList.add('overflow-hidden');
     }
   }
 
@@ -16,7 +16,7 @@ export class ModalController {
     const el = document.getElementById(elementId);
     if (el) {
       el.classList.add('hidden');
-      document.body.classList.remove('overflow-hidden');
+      if (document.body?.classList) document.body.classList.remove('overflow-hidden');
     }
   }
 

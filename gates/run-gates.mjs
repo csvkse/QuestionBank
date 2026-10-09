@@ -690,14 +690,15 @@ try {
     'tests/unit/jev-recommendation.test.mjs',
     'tests/unit/speech-synth.test.mjs',
     'tests/unit/dev-proxy.test.mjs',
-    'tests/unit/panorama-collapsible.test.mjs'
+    'tests/unit/panorama-collapsible.test.mjs',
+    'tests/unit/favorites.test.mjs'
   ];
   let allTestsPassed = true;
   for (const t of tests) {
     const testPath = path.join(ROOT_DIR, t);
     await import(pathToFileURL(testPath).href);
   }
-  recordResult('FE-TEST-001', 'Automated Unit Test Suite', 'PASS', `All ${tests.length} unit tests (SM-2, Distractor, AST, Validator, AgentLoop, ArenaModes, QuestionStrategies, JevRecommender, SpeechSynth, DevProxy, PanoramaCollapsible) passed`);
+  recordResult('FE-TEST-001', 'Automated Unit Test Suite', 'PASS', `All ${tests.length} unit tests (SM-2, Distractor, AST, Validator, AgentLoop, ArenaModes, QuestionStrategies, JevRecommender, SpeechSynth, DevProxy, PanoramaCollapsible, Favorites) passed`);
 } catch (err) {
   recordResult('FE-TEST-001', 'Automated Unit Test Suite', 'FAIL', err.message);
 }
