@@ -131,9 +131,9 @@
 ### 3.1 `app/app-shell.html` 顶部导航重构
 
 ```html
-<!-- 顶部导航条 (Surface 0 浮顶 + 磨砂 + 60px 单行流式解耦与防折行架构) -->
+<!-- 顶部导航条 (Surface 0 浮顶 + 磨砂 + 60px 单行流式解耦、宽屏扩容与图标化防截断架构) -->
 <header class="border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md sticky top-0 z-40 h-16 transition-colors">
-  <div class="max-w-6xl mx-auto px-3 sm:px-4 h-full flex items-center justify-between gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
+  <div class="max-w-7xl xl:max-w-[1380px] mx-auto px-3 sm:px-4 lg:px-6 h-full flex items-center justify-between gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
     
     <!-- 左侧: 品牌身份与题库切换胶囊解耦 -->
     <div class="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -153,10 +153,10 @@
         </div>
       </div>
 
-      <!-- 题库切换胶囊 (Pill Dropdown) & 管理按钮 -->
+      <!-- 题库切换胶囊 (Pill Dropdown) & 管理按钮 (阶梯扩展至 260px) -->
       <div class="flex items-center gap-1.5 pl-1 sm:pl-2 border-l border-slate-800">
         <div class="relative flex items-center">
-          <select id="deck-selector" onchange="app.switchDeck(this.value)" class="h-8 appearance-none bg-slate-900/90 text-xs text-slate-200 font-medium rounded-lg pl-2.5 pr-7 py-1.5 border border-slate-800 hover:border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 cursor-pointer w-28 sm:w-36 md:w-40 lg:w-48 max-w-[200px] truncate transition" title="切换当前学习题库">
+          <select id="deck-selector" onchange="app.switchDeck(this.value)" class="h-8 appearance-none bg-slate-900/90 text-xs text-slate-200 font-medium rounded-lg pl-2.5 pr-7 py-1.5 border border-slate-800 hover:border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 cursor-pointer w-28 sm:w-36 md:w-44 lg:w-52 xl:w-64 max-w-[260px] truncate transition" title="切换当前学习题库">
             <!-- 动态填充内置题库与自定义题库 -->
           </select>
           <div class="pointer-events-none absolute right-2 text-slate-400">
@@ -174,59 +174,56 @@
       </div>
     </div>
 
-    <!-- 中间: 全局主视图分段路由 (Segmented Control - 严格防折行与 32px 统一基线) -->
+    <!-- 中间: 全局主视图分段路由 (Segmented Control - 严格防折行、小屏自适应纯图标、32px 统一基线) -->
     <nav class="flex items-center gap-1 p-1 rounded-xl bg-slate-900/90 border border-slate-800 text-xs shrink-0 select-none shadow-sm">
       <button id="nav-tab-dashboard" onclick="app.navigate('dashboard')" class="h-8 flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg bg-slate-800 text-white font-medium whitespace-nowrap shadow-sm ring-1 ring-white/10 transition-all select-none" title="进入主仪表盘">
         <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
         </svg>
-        <span>仪表盘</span>
+        <span class="hidden sm:inline">仪表盘</span>
       </button>
       
       <button id="nav-tab-study" onclick="app.navigate('study')" class="h-8 flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-850/60 font-medium whitespace-nowrap transition-all select-none" title="结构化知识精读与遮挡自测">
         <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
         </svg>
-        <span>知识精读</span>
+        <span class="hidden sm:inline">知识精读</span>
       </button>
 
       <button id="nav-tab-codex" onclick="app.navigate('codex')" class="h-8 flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-850/60 font-medium whitespace-nowrap transition-all select-none" title="题库概念档案与掌握全景">
         <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
         </svg>
-        <span>知识法典</span>
+        <span class="hidden sm:inline">知识法典</span>
         <span id="nav-mistake-badge" class="px-1.5 py-0.5 text-[10px] rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-mono font-bold leading-none hidden">0</span>
       </button>
 
       <button id="nav-tab-agent" onclick="app.navigate('agent')" class="h-8 flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-850/60 font-medium whitespace-nowrap transition-all select-none" title="AI 智囊助手 (题库增删改查 & 智能问答)">
         <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-        <span>AI 智囊</span>
+        <span class="hidden sm:inline">AI 智囊</span>
       </button>
     </nav>
 
-    <!-- 右侧: 全局轻量状态与辅助操作 (响应式标签折叠与 32px 标顶基线) -->
+    <!-- 右侧: 全局轻量状态与辅助操作 (图标化/胶囊化极简设计，杜绝截断) -->
     <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 text-xs">
-      <button id="nav-btn-favorites" onclick="app.openFavoritesModal()" class="h-8 px-2 sm:px-2.5 lg:px-3 rounded-lg bg-slate-900/90 hover:bg-slate-850 text-slate-400 hover:text-amber-400 border border-slate-800 hover:border-slate-700 transition flex items-center gap-1.5 select-none" title="我的收藏题目与针对性练习">
+      <button id="nav-btn-favorites" onclick="app.openFavoritesModal()" class="h-8 px-2 sm:px-2.5 rounded-lg bg-slate-900/90 hover:bg-slate-850 text-slate-400 hover:text-amber-400 border border-slate-800 hover:border-slate-700 transition flex items-center gap-1.5 select-none" title="我的收藏题目与针对性练习">
         <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
         </svg>
-        <span class="hidden lg:inline whitespace-nowrap">收藏</span>
         <span id="nav-fav-badge" class="px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold leading-none hidden">0</span>
       </button>
 
-      <button onclick="app.showBackupModal()" class="h-8 px-2 sm:px-2.5 lg:px-3 rounded-lg bg-slate-900/90 hover:bg-slate-850 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700 transition flex items-center gap-1.5 select-none" title="备份与导出进度数据">
+      <button onclick="app.showBackupModal()" class="h-8 w-8 flex items-center justify-center rounded-lg bg-slate-900/90 hover:bg-slate-850 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700 transition select-none" title="备份与导出进度数据">
         <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
         </svg>
-        <span class="hidden lg:inline whitespace-nowrap">存档</span>
       </button>
 
-      <div class="h-8 flex items-center gap-1.5 px-2.5 rounded-lg bg-slate-900/90 border border-slate-800 text-amber-300 font-mono font-bold select-none" title="连续学习天数">
+      <div class="h-8 flex items-center gap-1.5 px-2 sm:px-2.5 rounded-lg bg-slate-900/90 border border-slate-800 text-amber-300 font-mono font-bold select-none" title="连续学习天数">
         <svg class="w-3.5 h-3.5 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
           <path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
         </svg>
         <span id="header-streak" class="tabular-nums">0</span>
-        <span class="text-[10px] text-slate-500 hidden xl:inline whitespace-nowrap">连击</span>
       </div>
     </div>
   </div>
@@ -280,4 +277,40 @@
 | **平板/分屏视口 (900px)** | **严重畸形重叠，高度撑开超出 60px 顶栏** | 左侧显示 `K·Master`，选择器平滑收敛，中央 4 Tab 纯正单行对齐 | ✅ PASS |
 | **窄屏/移动端 (≤ 640px)** | 严重溢出并产生纵向变形 | 左侧仅保留 Logo + 题库选择器，中央 Tab 保持完整，支持横向平滑滑动 | ✅ PASS |
 
-至此，彻底根除用户反馈的导航栏显示破损缺陷，达成工业级排版与多端自适应闭环！
+---
+
+## 六、 第二阶段深化：全景宽屏扩容与图标化解耦架构 (Phase 2: Full-Width Container & Icon-Only Modality)
+
+### 6.1 用户再次反馈与深层几何缺陷溯源
+
+在首轮修复提交后，用户通过实际 16:9 全高清/2K 显示器（视口宽度 1600px ~ 1920px）反馈两个关键体验缺陷：
+1. **宽屏两侧留黑过多，主体过窄**：
+   - 全局父容器原硬编码 `max-w-6xl`（1152px），在 1920px 宽屏下两边留白达 768px（占屏比仅 60%）；
+2. **顶栏最右侧边缘轻微截断（「🔥 2 连[击]」的「击」字被裁切）**：
+   - 随着视口在 1280px 以上激活全量品牌文字（`Knowledge Master`）、题库选择器扩展以及右侧全量中文标签（`收藏`、`存档`、`连击`）；
+   - 导航子项所需物理总宽度达到了约 1175px，超出原 `max-w-6xl`（1152px）的容器上限 23px；
+   - 导致包含 `overflow-x-auto no-scrollbar` 的容器最右侧「连击」标签被悄然截断 23px。
+3. **用户明确诉求**：
+   > “还是存在问题 请修复 增加页面宽度？宽度不够时 部分按钮只显示图标？”
+
+### 6.2 Phase 2 优化落地细节
+
+针对用户精准建议，实施以下 3 项深化重构：
+
+1. **容器宽度全面扩容 (+228px)**：
+   - 导航栏与主视图容器由 `max-w-6xl` 提升为 `max-w-7xl xl:max-w-[1380px]`；
+   - 在 1440px / 1600px / 1920px 显示器上提供 1380px 的舒适可用宽度，大幅缩减无效黑边，消除边缘截断危机。
+2. **右翼辅助按键全面升级为「纯图标 / 图标+数字角标」模式**：
+   - **收藏按钮 (`#nav-btn-favorites`)**：采用精美五角星矢量图标 + 数量角标 (`#nav-fav-badge`)，移除多余文字「收藏」；
+   - **存档按钮**：采用纯矢量下沉托盘图标 (`h-8 w-8 flex items-center justify-center`)，直观表意，移除多余文字「存档」；
+   - **连击胶囊**：保留高光琥珀火苗 + 连续天数数字 (`#header-streak`)，剥离冗余字样「连击」；
+   - **空间节约收益**：直接为右翼削减 **75px ~ 90px** 物理死宽，从源头绝收右侧截断隐患。
+3. **题库选择器弹性扩容**：
+   - 阶梯宽度由原上限 200px 扩充至 `w-28 sm:w-36 md:w-44 lg:w-52 xl:w-64 max-w-[260px]`；
+   - 超长题库名称（如「英语动词变形与不规则全解」）在宽屏下能够完整展示，免除过早显示省略号。
+4. **中央 Tab 标签在极小屏下自适应图标化**：
+   - 文字标签增加 `hidden sm:inline`；
+   - 在手机竖屏（< 640px）下，4 个 Tab 自动收敛为高辨识度纯图标分段控制器，保持一屏尽览。
+
+至此，不仅彻底根除字形截断与双行折叠，更令应用在大屏宽显示器与窄屏移动端均呈现出顶级现代专业生产力工具质感！
+

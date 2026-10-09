@@ -51,16 +51,16 @@
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
         <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-2">
-          <span>SPEC 29 架构方案预览</span>
+          <span>SPEC 29 架构方案预览 (Phase 2 全景宽屏与图标化模式)</span>
           <span>·</span>
           <span>FE-NAV-002 导航栏防折行与自适应弹性规范</span>
         </div>
         <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
           <span>顶部导航栏自适应排版与视觉优化工作台</span>
-          <span class="text-xs font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-normal">v2.3 升级</span>
+          <span class="text-xs font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-normal">v2.3 扩容</span>
         </h1>
         <p class="text-xs sm:text-sm text-slate-400 mt-1 max-w-4xl leading-relaxed">
-          针对平板/中尺寸笔电（900px~1024px）下中央路由被两翼强占空间导致「仪表\n盘」、「知识精\n读」文字折行与高度撑破的严重问题，通过“优先级空间回收”、“32px标顶基线”与“防折行弹性流式”彻底根治。
+          针对宽屏显示器两侧留黑过多及「🔥 2 连[击]」边缘截断问题，页面全幅扩容至 <code class="text-indigo-300 font-mono">1380px (max-w-7xl)</code>；右翼辅助按键升级为极简「纯图标 / 图标+数字」无截断形态；中央路由 Tab 在小屏自适应纯图标化。
         </p>
       </div>
 
@@ -86,28 +86,31 @@
               <span>模拟视口容器宽度 (Viewport Width)</span>
             </span>
             <span class="text-xs font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-              <span id="current-width-val">960</span> px
+              <span id="current-width-val">1380</span> px
             </span>
           </div>
-          <input type="range" id="width-slider" min="360" max="1280" value="960" step="10" oninput="updateViewportWidth(this.value)" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+          <input type="range" id="width-slider" min="360" max="1600" value="1380" step="10" oninput="updateViewportWidth(this.value)" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
           <div class="flex justify-between text-[10px] font-mono text-slate-500">
             <span>360px (窄屏手机)</span>
             <span>640px (SM)</span>
             <span>768px (MD)</span>
             <span class="text-rose-400 font-bold">960px (故障重现区)</span>
             <span>1024px (LG)</span>
-            <span>1280px (XL 宽屏)</span>
+            <span>1280px (XL)</span>
+            <span class="text-emerald-400 font-bold">1380px (宽屏推荐 ★)</span>
+            <span>1600px (2K)</span>
           </div>
         </div>
 
         <!-- 常用尺寸快捷预设按键 -->
         <div class="flex flex-wrap items-center gap-1.5 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 md:border-l border-slate-800 md:pl-5">
-          <button onclick="setPreset(1280)" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition">1280px 宽屏</button>
-          <button onclick="setPreset(1024)" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition">1024px 笔电</button>
-          <button onclick="setPreset(960)" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-mono bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 transition font-bold">960px 故障区 ★</button>
-          <button onclick="setPreset(768)" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition">768px 平板</button>
-          <button onclick="setPreset(640)" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition">640px 手机横</button>
-          <button onclick="setPreset(420)" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition">420px 手机竖</button>
+          <button onclick="setPreset(1600)" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition">1600px 2K</button>
+          <button onclick="setPreset(1380)" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-mono bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition font-bold">1380px 新标 ★</button>
+          <button onclick="setPreset(1280)" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 transition">1280px 宽屏</button>
+          <button onclick="setPreset(1024)" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 transition">1024px 笔电</button>
+          <button onclick="setPreset(960)" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-mono bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 transition font-bold">960px 故障区</button>
+          <button onclick="setPreset(768)" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 transition">768px 平板</button>
+          <button onclick="setPreset(420)" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-mono bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 transition">420px 手机竖</button>
         </div>
 
       </div>
@@ -155,11 +158,11 @@
 
       <!-- 模拟容器 -->
       <div class="bg-slate-900/40 p-4 rounded-2xl border border-slate-800/80 overflow-x-auto flex justify-center">
-        <div id="frame-after" class="viewport-frame bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-2xl relative" style="width: 960px;">
+        <div id="frame-after" class="viewport-frame bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-2xl relative" style="width: 1380px;">
           
-          <!-- 新导航栏实现 -->
+          <!-- 新导航栏实现 (Phase 2 全景宽屏 + 纯图标化右翼 + 小屏自适应纯图标) -->
           <header class="border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md sticky top-0 z-40 h-16 transition-colors">
-            <div class="max-w-6xl mx-auto px-3 sm:px-4 h-full flex items-center justify-between gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
+            <div class="max-w-7xl xl:max-w-[1380px] mx-auto px-3 sm:px-4 lg:px-6 h-full flex items-center justify-between gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
               
               <!-- 左侧: 品牌身份与题库切换胶囊解耦 -->
               <div class="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -179,10 +182,10 @@
                   </div>
                 </div>
 
-                <!-- 题库切换胶囊 (Pill Dropdown) & 管理按钮 -->
+                <!-- 题库切换胶囊 (Pill Dropdown) & 管理按钮 (最大可扩充至 260px) -->
                 <div class="flex items-center gap-1.5 pl-1 sm:pl-2 border-l border-slate-800">
                   <div class="relative flex items-center">
-                    <select id="preview-deck-selector" class="h-8 appearance-none bg-slate-900/90 text-xs text-slate-200 font-medium rounded-lg pl-2.5 pr-7 py-1.5 border border-slate-800 hover:border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 cursor-pointer w-36 max-w-[200px] truncate transition" title="切换当前学习题库">
+                    <select id="preview-deck-selector" class="h-8 appearance-none bg-slate-900/90 text-xs text-slate-200 font-medium rounded-lg pl-2.5 pr-7 py-1.5 border border-slate-800 hover:border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 cursor-pointer w-44 max-w-[260px] truncate transition" title="切换当前学习题库">
                       <option>📘 英语动词变形与不规则全解</option>
                       <option>🌐 HTTP 核心状态码与网络协议</option>
                       <option>⚖️ 法律常识核心条文与刑民通识</option>
@@ -202,59 +205,56 @@
                 </div>
               </div>
 
-              <!-- 中间: 全局主视图分段路由 (Segmented Control - 严格防折行与 32px 统一基线) -->
+              <!-- 中间: 全局主视图分段路由 (Segmented Control - 严格防折行、小屏自适应纯图标、32px 统一基线) -->
               <nav class="flex items-center gap-1 p-1 rounded-xl bg-slate-900/90 border border-slate-800 text-xs shrink-0 select-none shadow-sm">
                 <button id="after-tab-dashboard" onclick="switchTab('dashboard')" class="h-8 flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-850/60 font-medium whitespace-nowrap transition-all select-none" title="进入主仪表盘">
                   <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                   </svg>
-                  <span>仪表盘</span>
+                  <span class="after-tab-text">仪表盘</span>
                 </button>
                 
                 <button id="after-tab-study" onclick="switchTab('study')" class="h-8 flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg bg-slate-800 text-white font-medium whitespace-nowrap shadow-sm ring-1 ring-white/10 transition-all select-none" title="结构化知识精读与遮挡自测">
                   <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
                   </svg>
-                  <span>知识精读</span>
+                  <span class="after-tab-text">知识精读</span>
                 </button>
 
                 <button id="after-tab-codex" onclick="switchTab('codex')" class="h-8 flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-850/60 font-medium whitespace-nowrap transition-all select-none" title="题库概念档案与掌握全景">
                   <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                   </svg>
-                  <span>知识法典</span>
+                  <span class="after-tab-text">知识法典</span>
                   <span id="after-mistake-badge" class="px-1.5 py-0.5 text-[10px] rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-mono font-bold leading-none">3</span>
                 </button>
 
                 <button id="after-tab-agent" onclick="switchTab('agent')" class="h-8 flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-850/60 font-medium whitespace-nowrap transition-all select-none" title="AI 智囊助手 (题库增删改查 & 智能问答)">
                   <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                  <span>AI 智囊</span>
+                  <span class="after-tab-text">AI 智囊</span>
                 </button>
               </nav>
 
-              <!-- 右侧: 全局轻量状态与辅助操作 (响应式标签折叠与 32px 标顶基线) -->
+              <!-- 右侧: 全局轻量状态与辅助操作 (纯图标/图标+数字模式，绝无文字被截断风险) -->
               <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 text-xs">
-                <button class="h-8 px-2 sm:px-2.5 lg:px-3 rounded-lg bg-slate-900/90 hover:bg-slate-850 text-slate-400 hover:text-amber-400 border border-slate-800 hover:border-slate-700 transition flex items-center gap-1.5 select-none" title="我的收藏题目与针对性练习">
+                <button class="h-8 px-2 sm:px-2.5 rounded-lg bg-slate-900/90 hover:bg-slate-850 text-slate-400 hover:text-amber-400 border border-slate-800 hover:border-slate-700 transition flex items-center gap-1.5 select-none" title="我的收藏题目与针对性练习">
                   <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                   </svg>
-                  <span id="after-fav-text" class="whitespace-nowrap">收藏</span>
                   <span id="after-fav-badge" class="px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold leading-none">1</span>
                 </button>
 
-                <button class="h-8 px-2 sm:px-2.5 lg:px-3 rounded-lg bg-slate-900/90 hover:bg-slate-850 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700 transition flex items-center gap-1.5 select-none" title="备份与导出进度数据">
+                <button class="h-8 w-8 flex items-center justify-center rounded-lg bg-slate-900/90 hover:bg-slate-850 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700 transition select-none" title="备份与导出进度数据">
                   <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
                   </svg>
-                  <span id="after-backup-text" class="whitespace-nowrap">存档</span>
                 </button>
 
-                <div class="h-8 flex items-center gap-1.5 px-2.5 rounded-lg bg-slate-900/90 border border-slate-800 text-amber-300 font-mono font-bold select-none" title="连续学习天数">
+                <div class="h-8 flex items-center gap-1.5 px-2 sm:px-2.5 rounded-lg bg-slate-900/90 border border-slate-800 text-amber-300 font-mono font-bold select-none" title="连续学习天数">
                   <svg class="w-3.5 h-3.5 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
                   </svg>
                   <span class="tabular-nums">2</span>
-                  <span id="after-streak-text" class="text-[10px] text-slate-500 whitespace-nowrap">连击</span>
                 </div>
               </div>
             </div>
@@ -418,10 +418,8 @@
       const brandEl = document.getElementById('after-brand');
       const brandFull = document.getElementById('after-brand-full');
       const brandShort = document.getElementById('after-brand-short');
-      const favText = document.getElementById('after-fav-text');
-      const backupText = document.getElementById('after-backup-text');
-      const streakText = document.getElementById('after-streak-text');
       const deckSel = document.getElementById('preview-deck-selector');
+      const tabTexts = document.querySelectorAll('.after-tab-text');
 
       if (brandEl && brandFull && brandShort) {
         if (val >= 1200) {
@@ -437,14 +435,16 @@
         }
       }
 
-      if (favText) favText.style.display = val >= 1024 ? 'inline' : 'none';
-      if (backupText) backupText.style.display = val >= 1024 ? 'inline' : 'none';
-      if (streakText) streakText.style.display = val >= 1200 ? 'inline' : 'none';
+      // 小屏下自适应纯图标
+      tabTexts.forEach(el => {
+        el.style.display = val >= 640 ? 'inline' : 'none';
+      });
 
       if (deckSel) {
-        if (val >= 1024) deckSel.style.width = '190px';
-        else if (val >= 768) deckSel.style.width = '145px';
-        else deckSel.style.width = '120px';
+        if (val >= 1380) deckSel.style.width = '240px';
+        else if (val >= 1024) deckSel.style.width = '190px';
+        else if (val >= 768) deckSel.style.width = '150px';
+        else deckSel.style.width = '115px';
       }
     }
 
@@ -453,9 +453,9 @@
       updateViewportWidth(val);
     }
 
-    // 初始化运行一次
+    // 初始化运行一次 (默认展示 1380px 宽屏扩容状态)
     window.addEventListener('DOMContentLoaded', () => {
-      updateViewportWidth(960);
+      updateViewportWidth(1380);
     });
 
     // 交互 Tab 切换联动

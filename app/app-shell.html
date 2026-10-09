@@ -118,7 +118,7 @@
 
   <!-- 顶部导航条 (Surface 0 浮顶 + 磨砂 + 60px 单行流式解耦与防折行架构) -->
   <header class="border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md sticky top-0 z-40 h-16 transition-colors">
-    <div class="max-w-6xl mx-auto px-3 sm:px-4 h-full flex items-center justify-between gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
+    <div class="max-w-7xl xl:max-w-[1380px] mx-auto px-3 sm:px-4 lg:px-6 h-full flex items-center justify-between gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
       
       <!-- 左侧: 品牌身份与题库切换胶囊解耦 -->
       <div class="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -129,8 +129,8 @@
           </svg>
         </div>
         
-        <!-- 品牌名称 (大屏完整显示，中屏与小屏保留 Logo 晶体标徽，彻底释放核心路由空间) -->
-        <div class="hidden lg:block cursor-pointer select-none" onclick="app.navigate('dashboard')">
+        <!-- 品牌名称 (大屏完整显示，中屏显示精简名，小屏隐藏文字) -->
+        <div class="hidden md:block cursor-pointer select-none" onclick="app.navigate('dashboard')">
           <div class="font-bold text-sm text-white tracking-wide flex items-center gap-1.5 whitespace-nowrap">
             <span class="hidden xl:inline">Knowledge Master</span>
             <span class="xl:hidden">K·Master</span>
@@ -141,7 +141,7 @@
         <!-- 题库切换胶囊 (Pill Dropdown) & 管理按钮 -->
         <div class="flex items-center gap-1.5 pl-1 sm:pl-2 sm:border-l sm:border-slate-800">
           <div class="relative flex items-center">
-            <select id="deck-selector" onchange="app.switchDeck(this.value)" class="h-8 appearance-none bg-slate-900/90 text-xs text-slate-200 font-medium rounded-lg pl-2.5 pr-7 py-1.5 border border-slate-800 hover:border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 cursor-pointer w-28 sm:w-32 md:w-36 lg:w-48 max-w-[200px] truncate transition" title="切换当前学习题库">
+            <select id="deck-selector" onchange="app.switchDeck(this.value)" class="h-8 appearance-none bg-slate-900/90 text-xs text-slate-200 font-medium rounded-lg pl-2.5 pr-7 py-1.5 border border-slate-800 hover:border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 cursor-pointer w-28 sm:w-36 md:w-40 lg:w-44 xl:w-64 max-w-[260px] truncate transition" title="切换当前学习题库">
               <!-- 动态填充内置题库与自定义题库 -->
             </select>
             <div class="pointer-events-none absolute right-2 text-slate-400">
@@ -165,45 +165,43 @@
           <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
           </svg>
-          <span>仪表盘</span>
+          <span class="hidden sm:inline">仪表盘</span>
         </button>
         
         <button id="nav-tab-study" onclick="app.navigate('study')" class="h-8 flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-850/60 font-medium whitespace-nowrap transition-all select-none" title="结构化知识精读与遮挡自测">
           <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
           </svg>
-          <span>知识精读</span>
+          <span class="hidden sm:inline">知识精读</span>
         </button>
 
         <button id="nav-tab-codex" onclick="app.navigate('codex')" class="h-8 flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-850/60 font-medium whitespace-nowrap transition-all select-none" title="题库概念档案与掌握全景">
           <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
           </svg>
-          <span>知识法典</span>
+          <span class="hidden sm:inline">知识法典</span>
           <span id="nav-mistake-badge" class="px-1.5 py-0.5 text-[10px] rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-mono font-bold leading-none hidden">0</span>
         </button>
 
         <button id="nav-tab-agent" onclick="app.navigate('agent')" class="h-8 flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-850/60 font-medium whitespace-nowrap transition-all select-none" title="AI 智囊助手 (题库增删改查 & 智能问答)">
           <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-          <span>AI 智囊</span>
+          <span class="hidden sm:inline">AI 智囊</span>
         </button>
       </nav>
 
-      <!-- 右侧: 全局轻量状态与辅助操作 (响应式标签折叠与 32px 标顶基线) -->
+      <!-- 右侧: 全局轻量状态与辅助操作 (纯图标极简模式 + 32px 统一标顶基线) -->
       <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 text-xs">
-        <button id="nav-btn-favorites" onclick="app.openFavoritesModal()" class="h-8 px-2 sm:px-2.5 lg:px-3 rounded-lg bg-slate-900/90 hover:bg-slate-850 text-slate-400 hover:text-amber-400 border border-slate-800 hover:border-slate-700 transition flex items-center gap-1.5 select-none" title="我的收藏题目与针对性练习">
+        <button id="nav-btn-favorites" onclick="app.openFavoritesModal()" class="h-8 px-2.5 rounded-lg bg-slate-900/90 hover:bg-slate-850 text-slate-400 hover:text-amber-400 border border-slate-800 hover:border-slate-700 transition flex items-center gap-1.5 select-none" title="我的收藏题目与针对性练习">
           <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
           </svg>
-          <span class="hidden lg:inline whitespace-nowrap">收藏</span>
           <span id="nav-fav-badge" class="px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold leading-none hidden">0</span>
         </button>
 
-        <button onclick="app.showBackupModal()" class="h-8 px-2 sm:px-2.5 lg:px-3 rounded-lg bg-slate-900/90 hover:bg-slate-850 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700 transition flex items-center gap-1.5 select-none" title="备份与导出进度数据">
+        <button onclick="app.showBackupModal()" class="h-8 px-2.5 rounded-lg bg-slate-900/90 hover:bg-slate-850 text-slate-400 hover:text-slate-200 border border-slate-800 hover:border-slate-700 transition flex items-center justify-center select-none" title="备份与导出进度数据">
           <svg class="w-3.5 h-3.5 text-current shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
           </svg>
-          <span class="hidden lg:inline whitespace-nowrap">存档</span>
         </button>
 
         <div class="h-8 flex items-center gap-1.5 px-2.5 rounded-lg bg-slate-900/90 border border-slate-800 text-amber-300 font-mono font-bold select-none" title="连续学习天数">
@@ -211,14 +209,13 @@
             <path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
           </svg>
           <span id="header-streak" class="tabular-nums">0</span>
-          <span class="text-[10px] text-slate-500 hidden xl:inline whitespace-nowrap">连击</span>
         </div>
       </div>
     </div>
   </header>
 
-  <!-- 主容器 (遵循 8-Point 间距步进与路由隔离律) -->
-  <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6">
+  <!-- 主容器 (遵循 8-Point 间距步进与多端宽屏黄金网格律) -->
+  <main class="flex-1 max-w-7xl xl:max-w-[1380px] w-full mx-auto p-4 sm:p-6 lg:p-8">
 
     <!-- 1. 仪表盘视图 (DASHBOARD) -->
     <div id="view-dashboard" class="space-y-6">
