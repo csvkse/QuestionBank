@@ -1657,6 +1657,51 @@
     </div>
   </div>
 
+  <!-- 模式智能引导弹窗 (针对新题库无复习任务或特定模式空队列) -->
+  <div id="modal-mode-guidance" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+    <div class="surface-modal rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl p-6 flex flex-col space-y-4">
+      <!-- 头部：状态与标题 -->
+      <div class="flex items-start justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div>
+            <h3 id="mode-guidance-title" class="text-base font-bold text-slate-100">模式学习指引</h3>
+            <span id="mode-guidance-badge" class="inline-block mt-0.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-950 text-indigo-300 border border-indigo-800/60">尚未开启学习</span>
+          </div>
+        </div>
+        <button type="button" onclick="app.closeModeGuidanceModal()" class="text-slate-400 hover:text-white transition p-1 rounded-lg hover:bg-slate-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- 统计指标小条 -->
+      <div class="grid grid-cols-3 gap-2 p-2.5 rounded-xl surface-inset border border-slate-750 text-center text-xs">
+        <div>
+          <span class="text-slate-500 block text-[10px]">总词条</span>
+          <span id="mode-guidance-total-count" class="font-bold text-slate-200">0</span>
+        </div>
+        <div>
+          <span class="text-slate-500 block text-[10px]">已识记</span>
+          <span id="mode-guidance-learned-count" class="font-bold text-emerald-400">0</span>
+        </div>
+        <div>
+          <span class="text-slate-500 block text-[10px]">待复习</span>
+          <span id="mode-guidance-due-count" class="font-bold text-indigo-400">0</span>
+        </div>
+      </div>
+
+      <!-- 说明内容 -->
+      <div id="mode-guidance-desc" class="text-xs text-slate-300 leading-relaxed surface-inset p-3 rounded-xl border border-slate-800">
+      </div>
+
+      <!-- 操作按钮组 -->
+      <div id="mode-guidance-actions" class="flex flex-col gap-2 pt-2">
+      </div>
+    </div>
+  </div>
+
   <!-- 网页底部版权 -->
   <footer class="border-t border-slate-900 py-4 text-center text-xs text-slate-500">
     <p>Universal Knowledge Master · 通用知识图谱游戏化记忆引擎 · 领域无关架构</p>

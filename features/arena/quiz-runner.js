@@ -21,14 +21,12 @@ export class QuizRunner {
     Object.assign(this.app, { currentIndex: 0, sessionCorrect: 0, sessionCombo: 0, maxComboInSession: 0, lives: 3, isAnswerLocked: false });
 
     if (this.app.quizQueue.length === 0) {
-      const norm = (mode || '').toLowerCase();
-      const msg = (norm.includes('daily') || norm.includes('review'))
-        ? '🎉 太棒了！今日所有艾宾浩斯复习任务均已完成，记忆稳固！'
-        : (norm.includes('weak') || norm.includes('mistake'))
-        ? '🎉 太棒了！当前题库已无薄弱错题盲区，全部掌握！'
-        : '🎉 当前模式下暂无需要复习或考核的词条。';
-      alert(msg);
-      this.app.navigate('dashboard');
+      if (typeof this.app.showModeGuidanceModal === 'function') {
+        this.app.showModeGuidanceModal(mode, sessionContext);
+      } else {
+        alert('当前模式下暂无可考核的词条。');
+        this.app.navigate('dashboard');
+      }
       return;
     }
 
