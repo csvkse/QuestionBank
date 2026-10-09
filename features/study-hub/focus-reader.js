@@ -123,6 +123,9 @@ export class FocusReaderController {
             </div>
             <div class="shrink-0 flex items-center gap-2">
               ${statusBadge}
+              <button id="focus-btn-favorite" onclick="app.favoritesManager.toggleFavorite('${entity.id}')" class="p-1.5 rounded-lg border border-slate-750 hover:bg-slate-800 transition ${this.app.favoritesManager?.isFavorite(entity.id) ? 'text-amber-400 border-amber-500/40 bg-amber-500/10' : 'text-slate-400 hover:text-amber-400'}" title="${this.app.favoritesManager?.isFavorite(entity.id) ? '已收藏 (点击取消)' : '收藏本题 (点击收藏)'}">
+                ${renderIcon(this.app.favoritesManager?.isFavorite(entity.id) ? 'starFilled' : 'star', `w-3.5 h-3.5 ${this.app.favoritesManager?.isFavorite(entity.id) ? 'text-amber-400' : 'text-slate-400'}`)}
+              </button>
               <button onclick="app.drillSingleEntity('${entity.id}')" class="btn-secondary px-2.5 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1 transition" title="立即针对此考点发起单题测验">
                 ${renderIcon('target', 'w-3 h-3 text-indigo-400')}
                 <span>专项测验</span>

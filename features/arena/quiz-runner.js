@@ -109,18 +109,15 @@ export class QuizRunner {
     const btnReplay = document.getElementById('btn-replay-speech');
     const speechToggle = document.getElementById('arena-auto-speech-toggle');
     const shortcutHint = document.getElementById('arena-speech-shortcut-hint');
+    [btnReplay, speechToggle, shortcutHint].forEach(el => el && el.classList.toggle('hidden', !isLang));
+    if (isLang && this.app.speechSynth) this.app.speechSynth.speakEntity(currentEntity, deck, true);
 
-    if (isLang) {
-      if (btnReplay) btnReplay.classList.remove('hidden');
-      if (speechToggle) speechToggle.classList.remove('hidden');
-      if (shortcutHint) shortcutHint.classList.remove('hidden');
-      if (this.app.speechSynth) {
-        this.app.speechSynth.speakEntity(currentEntity, deck, true);
-      }
-    } else {
-      if (btnReplay) btnReplay.classList.add('hidden');
-      if (speechToggle) speechToggle.classList.add('hidden');
-      if (shortcutHint) shortcutHint.classList.add('hidden');
+    // 收藏状态联动
+    const isFav = this.app.favoritesManager ? this.app.favoritesManager.isFavorite(currentEntity.id) : false;
+    const favBtn = document.getElementById('arena-btn-favorite');
+    if (favBtn) {
+      favBtn.innerHTML = renderIcon(isFav ? 'starFilled' : 'star', `w-4 h-4 ${isFav ? 'text-amber-400' : 'text-slate-400'}`);
+      favBtn.title = isFav ? '已收藏 (快捷键 F 取消)' : '收藏本题 (快捷键 F)';
     }
 
     // 采样干扰项并渲染
