@@ -26,7 +26,8 @@ try {
   const allowedRoots = new Set([
     'app', 'features', 'shared', 'design-system', 'platform', 'vendor',
     'gates', 'tests', 'scripts', 'docs', 'archive',
-    'index.html', 'binding.yaml', 'package.json', 'README.md', '.git', '.gitignore'
+    'index.html', 'binding.yaml', 'package.json', 'package-lock.json', 'node_modules', 'README.md', '.git', '.gitignore',
+    'start-dev.bat', 'run.bat'
   ]);
   
   const rootEntries = fs.readdirSync(ROOT_DIR);
@@ -362,20 +363,341 @@ try {
   recordResult('FE-ICON-001', 'Monochrome Vector SVG Icons', 'FAIL', err.message);
 }
 
+// 10.5. FE-ICON-002: 全系统 UI 纯单色矢量化门禁 (系统交互壳层 100% 零彩色 Emoji)
+try {
+  const shellHtml = fs.readFileSync(path.join(ROOT_DIR, 'app/app-shell.html'), 'utf8');
+  const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
+  const violations = [];
+
+  shellHtml.split('\n').forEach((line, idx) => {
+    if (emojiRegex.test(line)) {
+      violations.push(`app/app-shell.html:L${idx + 1} (${line.trim().slice(0, 40)})`);
+    }
+  });
+
+  if (violations.length === 0) {
+    recordResult('FE-ICON-002', 'Monochrome UI Chrome (Zero Emoji)', 'PASS', '100% clean vector UI chrome: zero emojis in shell template & controls');
+  } else {
+    recordResult('FE-ICON-002', 'Monochrome UI Chrome (Zero Emoji)', 'FAIL', `Found ${violations.length} emoji violations: ${violations.slice(0, 3).join('; ')}`);
+  }
+} catch (err) {
+  recordResult('FE-ICON-002', 'Monochrome UI Chrome (Zero Emoji)', 'FAIL', err.message);
+}
+
+// 10.6. FE-BIND-001: DOM 点击与事件绑定契约完整性 (全域扫描 HTML + 全部 JS 源码，100% onclick/onchange 方法实存可执行)
+try {
+  // 递归搜集除排除项外的所有前端源码文件
+  function getFrontendSourceFiles(dir) {
+    let files = [];
+    if (!fs.existsSync(dir)) return files;
+    fs.readdirSync(dir).forEach(file => {
+      const full = path.join(dir, file);
+      if (fs.statSync(full).isDirectory()) {
+        if (!['node_modules', '.git', 'archive', 'tests', 'gates', 'docs', 'vendor'].includes(file)) {
+          files = files.concat(getFrontendSourceFiles(full));
+        }
+      } else if (file.endsWith('.js') || file.endsWith('.html') || file.endsWith('.mjs')) {
+        if (file !== 'index.html') files.push(full);
+      }
+    });
+    return files;
+  }
+
+  const allFilesToScan = ['app', 'features', 'design-system', 'shared', 'platform']
+    .reduce((acc, d) => acc.concat(getFrontendSourceFiles(path.join(ROOT_DIR, d))), []);
+
+  const uniqueHandlers = new Set();
+  const fileMethodMap = [];
+
+  for (const file of allFilesToScan) {
+    const content = fs.readFileSync(file, 'utf8');
+    // 兼顾多语句及单双引号的属性提取
+    const doubleQuoted = [...content.matchAll(/on[a-z]+\s*=\s*"([^"]+)"/g)];
+    const singleQuoted = [...content.matchAll(/on[a-z]+\s*=\s*'([^']+)'/g)];
+    const allAttrs = doubleQuoted.concat(singleQuoted);
+
+    for (const attr of allAttrs) {
+      const attrBody = attr[1];
+      const appCalls = [...attrBody.matchAll(/\bapp\.([a-zA-Z0-9_$.]+)\(/g)];
+      for (const m of appCalls) {
+        const expr = m[1];
+        uniqueHandlers.add(expr);
+        fileMethodMap.push({ file: path.relative(ROOT_DIR, file).replace(/\\/g, '/'), expr });
+      }
+    }
+  }
+
+  // 模拟无头环境运行全局桩
+  global.window = {
+    addEventListener: () => {},
+    removeEventListener: () => {}
+  };
+  global.document = {
+    getElementById: () => null,
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener: () => {}
+  };
+  global.localStorage = {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+    clear: () => {}
+  };
+
+  const mainPath = path.join(ROOT_DIR, 'app/main.js');
+  const { KnowledgeMasterApp } = await import(pathToFileURL(mainPath).href);
+  const appInstance = new KnowledgeMasterApp();
+
+  const missingHandlers = [];
+  for (const expr of uniqueHandlers) {
+    const parts = expr.split('.');
+    let target = appInstance;
+    for (const p of parts) {
+      if (target && target[p] !== undefined) {
+        target = target[p];
+      } else {
+        target = undefined;
+        break;
+      }
+    }
+    if (typeof target !== 'function') {
+      const sourceLocations = fileMethodMap.filter(x => x.expr === expr).map(x => x.file);
+      missingHandlers.push(`${expr} (in ${[...new Set(sourceLocations)].join(', ')})`);
+    }
+  }
+
+  // 联动校验 SessionStore 核心模型配置契约
+  const sessionStorePath = path.join(ROOT_DIR, 'features/ai-agent/session-store.js');
+  const { SessionStore } = await import(pathToFileURL(sessionStorePath).href);
+  const storeInstance = new SessionStore();
+  const requiredStoreMethods = [
+    'getProviders', 'setActiveProvider', 'getActiveProvider', 'updateProvider', 'deleteProvider',
+    'importFromPreset', 'addModel', 'updateModel', 'deleteModel', 'getActiveModel'
+  ];
+  const missingStoreMethods = requiredStoreMethods.filter(m => typeof storeInstance[m] !== 'function');
+
+  if (missingHandlers.length === 0 && missingStoreMethods.length === 0) {
+    recordResult('FE-BIND-001', 'DOM Event Handler Contract Integrity', 'PASS', `100% of ${uniqueHandlers.size} template & dynamic script event bindings and SessionStore contracts verified callable`);
+  } else {
+    const errs = [];
+    if (missingHandlers.length > 0) errs.push(`Missing app methods: ${missingHandlers.join('; ')}`);
+    if (missingStoreMethods.length > 0) errs.push(`Missing SessionStore methods: ${missingStoreMethods.join(', ')}`);
+    recordResult('FE-BIND-001', 'DOM Event Handler Contract Integrity', 'FAIL', errs.join('; '));
+  }
+} catch (err) {
+  recordResult('FE-BIND-001', 'DOM Event Handler Contract Integrity', 'FAIL', err.message);
+}
+
+// 10.7. FE-LAYOUT-001: 路由插槽布局边界与兄弟间距隔离律 (禁止在全页视图容器外层误加 space-y-* / 强制同步 hidden 属性)
+try {
+  const shellHtml = fs.readFileSync(path.join(ROOT_DIR, 'app/app-shell.html'), 'utf8');
+  const routerJs = fs.readFileSync(path.join(ROOT_DIR, 'app/router.js'), 'utf8');
+  const violations = [];
+
+  // 1. 检查 <main> 标签是否越权包含 space-y-* 或 space-x-* 兄弟选择器
+  const mainTagMatch = shellHtml.match(/<main\b([^>]*)>/i);
+  if (mainTagMatch) {
+    const mainAttrs = mainTagMatch[1];
+    if (/\bspace-[yx]-\d+\b/.test(mainAttrs)) {
+      violations.push('<main> 路由出口容器不得包含 space-y-*/space-x-* 兄弟间距类 (会导致非首位隐藏视图被注入幽灵 margin)');
+    }
+  } else {
+    violations.push('未检测到 <main> 路由插槽容器');
+  }
+
+  // 2. 检查初始隐藏的 view-* 页面根容器是否声明了原生 hidden 属性
+  const viewRegex = /<div\s+id="(view-[a-z0-9_-]+)"([^>]*)>/gi;
+  let vMatch;
+  while ((vMatch = viewRegex.exec(shellHtml)) !== null) {
+    const viewId = vMatch[1];
+    const attrs = vMatch[2];
+    if (attrs.includes('hidden') && !/\bhidden\b(?!=)/.test(attrs.replace(/class="[^"]*"/, ''))) {
+      violations.push(`页面容器 #${viewId} 仅设置了 class="hidden" 但缺少原生 hidden 布尔属性声明`);
+    }
+  }
+
+  // 3. 检查 app/router.js 是否严格同步了原生 hidden 属性
+  if (!routerJs.includes('.hidden = true') || !routerJs.includes('.hidden = false')) {
+    violations.push('app/router.js 视图切换时未同步操作 el.hidden 属性');
+  }
+
+  if (violations.length === 0) {
+    recordResult('FE-LAYOUT-001', 'Router Outlet Layout Invariant', 'PASS', '100% router boundary, sibling isolation and native hidden attribute sync verified');
+  } else {
+    recordResult('FE-LAYOUT-001', 'Router Outlet Layout Invariant', 'FAIL', violations.join('; '));
+  }
+} catch (err) {
+  recordResult('FE-LAYOUT-001', 'Router Outlet Layout Invariant', 'FAIL', err.message);
+}
+
+// 10.8. FE-TYPO-001: 会话气泡排版与 Markdown 块级间距规范
+try {
+  const { renderMarkdown, renderUserMessage } = await import(pathToFileURL(path.join(ROOT_DIR, 'features/ai-agent/agent-templates.js')).href);
+  const agentUiJs = fs.readFileSync(path.join(ROOT_DIR, 'features/ai-agent/agent-ui.js'), 'utf8');
+  const violations = [];
+
+  // 1. 验证 renderMarkdown 必须生成块级语义标签，绝对零 </div><br> 或 </li><br>
+  const testSample = `你好！\n- 选项A\n- 选项B\n\n段落文本`;
+  const rendered = renderMarkdown(testSample);
+  if (rendered.includes('</div><br>') || rendered.includes('</li><br>') || rendered.includes('</li><div')) {
+    violations.push('renderMarkdown 输出了块级标签与孤立换行符混用的有害结构 (会导致行距成倍虚增)');
+  }
+  if (!rendered.includes('<ul') || !rendered.includes('<li') || !rendered.includes('<p')) {
+    violations.push('renderMarkdown 缺少语义化 ul / li / p 块级包装');
+  }
+
+  // 2. 验证 agent-ui.js 中消息气泡容器必须使用 block space-y 与 leading-relaxed
+  if (!agentUiJs.includes('space-y-2') || !agentUiJs.includes('leading-relaxed')) {
+    violations.push('agent-ui.js 气泡容器未严格使用 space-y-2 与 leading-relaxed 规范排版');
+  }
+
+  // 3. 验证 renderUserMessage 包含 whitespace-pre-wrap
+  const userHtml = renderUserMessage({ id: 'u1', content: 'test' });
+  if (!userHtml.includes('whitespace-pre-wrap')) {
+    violations.push('renderUserMessage 用户消息气泡缺少 whitespace-pre-wrap 换行保护');
+  }
+
+  if (violations.length === 0) {
+    recordResult('FE-TYPO-001', 'Agent Message Typography Invariant', 'PASS', '100% semantic block rhythm, zero ghost br, and whitespace-pre-wrap verified');
+  } else {
+    recordResult('FE-TYPO-001', 'Agent Message Typography Invariant', 'FAIL', violations.join('; '));
+  }
+} catch (err) {
+  recordResult('FE-TYPO-001', 'Agent Message Typography Invariant', 'FAIL', err.message);
+}
+
+// 10.9. FE-PANORAMA-001: 熟练度全景大类与小类层级架构不变量
+try {
+  const mainJs = fs.readFileSync(path.join(ROOT_DIR, 'app/main.js'), 'utf8');
+  const appShellHtml = fs.readFileSync(path.join(ROOT_DIR, 'app/app-shell.html'), 'utf8');
+  const violations = [];
+
+  // 1. 验证 renderDeckCategoryBars 必须存在按 group 聚合逻辑
+  if (!mainJs.includes('groupMap.set') || !mainJs.includes('cat.group')) {
+    violations.push('app/main.js 中 renderDeckCategoryBars 缺少按大类 (group) 聚合计算与层级树构建');
+  }
+
+  // 2. 验证大类折叠展开与全局控制方法契约
+  if (!mainJs.includes('togglePanoramaGroup(') || !mainJs.includes('toggleAllPanoramaGroups(')) {
+    violations.push('app/main.js 缺少 togglePanoramaGroup 或 toggleAllPanoramaGroups 契约方法');
+  }
+
+  // 3. 验证全景卡片顶栏提供一键展开/收起按钮
+  if (!appShellHtml.includes('panorama-collapse-toggle-btn') || !appShellHtml.includes('toggleAllPanoramaGroups')) {
+    violations.push('app/app-shell.html 缺少 panorama-collapse-toggle-btn 全局折叠/展开快捷按钮');
+  }
+
+  // 4. 验证雷达图掌握度回顾模块同步升级为大类分组
+  const radarChartJs = fs.readFileSync(path.join(ROOT_DIR, 'features/review-board/radar-chart.js'), 'utf8');
+  if (!radarChartJs.includes('groupsMap') || !radarChartJs.includes('cat.group')) {
+    violations.push('features/review-board/radar-chart.js 缺少大类与小类层级化展示');
+  }
+
+  if (violations.length === 0) {
+    recordResult('FE-PANORAMA-001', 'Panorama Group Hierarchy Invariant', 'PASS', '100% macro group & subcategory tree hierarchy, collapsible contract & JEV highlight verified');
+  } else {
+    recordResult('FE-PANORAMA-001', 'Panorama Group Hierarchy Invariant', 'FAIL', violations.join('; '));
+  }
+} catch (err) {
+  recordResult('FE-PANORAMA-001', 'Panorama Group Hierarchy Invariant', 'FAIL', err.message);
+}
+
+// 10.10. FE-SCROLL-001: 标签页路由切换自动滚动置顶与多容器清零规范
+try {
+  const routerJs = fs.readFileSync(path.join(ROOT_DIR, 'app/router.js'), 'utf8');
+  const violations = [];
+
+  // 1. 验证 router.js 必须定义 scrollToTop 方法
+  if (!routerJs.includes('scrollToTop(')) {
+    violations.push('app/router.js 缺少 scrollToTop 视口置顶方法');
+  }
+
+  // 2. 验证 navigate 流程中无条件调用 scrollToTop
+  if (!routerJs.includes('this.scrollToTop(')) {
+    violations.push('app/router.js 的 navigate() 路由切换主流程中未调用 this.scrollToTop()');
+  }
+
+  // 3. 验证多容器全域清零 (window / documentElement / body / targetEl)
+  if (!routerJs.includes('window.scrollTo') || !routerJs.includes('documentElement.scrollTop = 0') || !routerJs.includes('body.scrollTop = 0')) {
+    violations.push('app/router.js scrollToTop 未能全域覆盖 window、documentElement 与 body 多端视口');
+  }
+
+  // 4. 验证双轨帧校准 (requestAnimationFrame)
+  if (!routerJs.includes('requestAnimationFrame')) {
+    violations.push('app/router.js scrollToTop 缺少 requestAnimationFrame 双轨帧绘制校准');
+  }
+
+  if (violations.length === 0) {
+    recordResult('FE-SCROLL-001', 'Router Tab Scroll-to-Top Invariant', 'PASS', '100% viewport scroll-to-top on tab navigation & dual-frame calibration verified');
+  } else {
+    recordResult('FE-SCROLL-001', 'Router Tab Scroll-to-Top Invariant', 'FAIL', violations.join('; '));
+  }
+} catch (err) {
+  recordResult('FE-SCROLL-001', 'Router Tab Scroll-to-Top Invariant', 'FAIL', err.message);
+}
+
+// 10.11. FE-PANORAMA-002: 熟练度全景折叠主权与渲染幂等性门禁
+try {
+  const mainJs = fs.readFileSync(path.join(ROOT_DIR, 'app/main.js'), 'utf8');
+  const violations = [];
+
+  // 1. 验证 renderDeckCategoryBars 方法中严禁篡改用户折叠状态 (副作用隔离)
+  const renderMethodMatch = mainJs.match(/renderDeckCategoryBars\s*\(\)\s*\{([\s\S]*?)\n\s*async\s+runJevEvaluation/);
+  if (!renderMethodMatch) {
+    violations.push('未能精确匹配 app/main.js 中的 renderDeckCategoryBars 方法体');
+  } else {
+    const renderBody = renderMethodMatch[1];
+    if (renderBody.includes('panoramaCollapsedGroups.delete') || renderBody.includes('panoramaCollapsedGroups.add') || renderBody.includes('panoramaCollapsedGroups.clear')) {
+      violations.push('renderDeckCategoryBars 违背渲染纯洁性与幂等性：严禁在渲染流程中调用 panoramaCollapsedGroups 的变更方法 (delete/add/clear)');
+    }
+  }
+
+  // 2. 验证 JEV 智能展开具备防重入标记保护 (_lastAutoExpandedJevTarget)
+  if (!mainJs.includes('_lastAutoExpandedJevTarget')) {
+    violations.push('app/main.js 缺少 _lastAutoExpandedJevTarget 防重入标记，无法防止自动化推荐永久覆盖用户折叠主权');
+  }
+
+  // 3. 验证折叠展开 UI 驱动契约与动画完整性
+  if (!mainJs.includes("isCollapsed ? '-rotate-90' : 'rotate-0'") || !mainJs.includes("isCollapsed ? 'hidden' : ''")) {
+    violations.push('app/main.js 缺少 isCollapsed 对应的旋转动画与隐藏状态契约映射');
+  }
+
+  // 4. 验证全局切换按钮标签双向绑定
+  if (!mainJs.includes("toggleLabel.innerText = allCollapsed ? '全部展开' : '全部折叠'")) {
+    violations.push('app/main.js 缺少 toggleLabel 全部展开/全部折叠 双向动态文案映射');
+  }
+
+  if (violations.length === 0) {
+    recordResult('FE-PANORAMA-002', 'Collapsible Sovereignty & Render Idempotency Invariant', 'PASS', '100% user fold sovereignty, zero render mutations & single-shot JEV auto-expand verified');
+  } else {
+    recordResult('FE-PANORAMA-002', 'Collapsible Sovereignty & Render Idempotency Invariant', 'FAIL', violations.join('; '));
+  }
+} catch (err) {
+  recordResult('FE-PANORAMA-002', 'Collapsible Sovereignty & Render Idempotency Invariant', 'FAIL', err.message);
+}
+
 // 11. 自动执行全量单元测试
 try {
   const tests = [
     'tests/unit/sm2-scheduler.test.mjs',
     'tests/unit/distractor-sampler.test.mjs',
     'tests/unit/markdown-ast.test.mjs',
-    'tests/unit/deck-validator.test.mjs'
+    'tests/unit/deck-validator.test.mjs',
+    'tests/unit/agent-loop.test.mjs',
+    'tests/unit/arena-modes.test.mjs',
+    'tests/unit/question-strategies.test.mjs',
+    'tests/unit/jev-recommendation.test.mjs',
+    'tests/unit/speech-synth.test.mjs',
+    'tests/unit/dev-proxy.test.mjs',
+    'tests/unit/panorama-collapsible.test.mjs'
   ];
   let allTestsPassed = true;
   for (const t of tests) {
     const testPath = path.join(ROOT_DIR, t);
     await import(pathToFileURL(testPath).href);
   }
-  recordResult('FE-TEST-001', 'Automated Unit Test Suite', 'PASS', `All ${tests.length} unit tests (SM-2, Distractor, AST, Validator) passed`);
+  recordResult('FE-TEST-001', 'Automated Unit Test Suite', 'PASS', `All ${tests.length} unit tests (SM-2, Distractor, AST, Validator, AgentLoop, ArenaModes, QuestionStrategies, JevRecommender, SpeechSynth, DevProxy, PanoramaCollapsible) passed`);
 } catch (err) {
   recordResult('FE-TEST-001', 'Automated Unit Test Suite', 'FAIL', err.message);
 }

@@ -47,6 +47,10 @@
 | **v2.2** | `DESIGN_TOKENS` 4层令牌与表面 | 告别“结构不够框来凑”，构建 Surface 0～4 明度阶梯，落实 Rule of One，确立 70%~90% 中性色骨架 | ✅ 已落地 | [v2.2 设计令牌与表面优化记录](./v2.2_DESIGN_TOKENS_AND_SURFACES.md) |
 | **v2.3** | `NAV_ICONS_FOCUS` 导航/图标/焦点 | **导航栏品牌与题库解耦**、**单色矢量SVG图标全面替代彩色Emoji**、**解决Banner与卡片同质争焦与交互闭环** | ✅ 已落地 | [v2.3 导航栏/图标/焦点优化方案](./v2.3_NAVBAR_ICONS_INTERACTION.md) |
 | **v2.4** | `STUDIO_SINGLE_VIEW` 题库工坊单视图 | **修复题库工坊单视图模式不可用**、**DOM 节点 ID 映射修复**、**纯可视化/纯Markdown全宽展开布局**、**三视图切换SVG按钮响应** | ✅ 已落地 | [v2.4 题库工坊单视图模式优化记录](./v2.4_STUDIO_SINGLE_VIEW_MODE.md) |
+| **v2.5** | `BIND_INTEGRITY` 运行时事件契约与门禁 | **平台管理点击无效故障复盘**、**SessionStore 与控制器契约补齐加固**、**增设 `FE-BIND-001` 门禁实现 100% 模板方法实存联防** | ✅ 已落地 | [平台管理点击无效复盘与门禁规约](../15_PLATFORM_CONFIG_CLICK_BUG_POSTMORTEM_AND_GATES.md) |
+| **v2.6** | `CUSTOM_PLATFORMS_MODELS` 接口协议与模型细粒度控制 | **接口类型选择** (OpenAI/Anthropic/Gemini/Ollama)、**平台完全自定义增删**、**模型级【上下文窗口与最大输出】精细配置**、**预设参考解耦** | ✅ 已落地 | [自定义平台与模型配置规约](../16_CUSTOM_PLATFORMS_AND_MODELS_SPEC.md) |
+| **v2.7** | `DECK_SWITCH_INTEGRITY` 题库切换与全域内联门禁 | **修复“设为激活”按钮无响应异常**、**补齐委托方法与自动刷新闭环**、**清洗题库管理弹窗彩色 Emoji**、**升级 `FE-BIND-001` 全域源码多语句内联事件扫描门禁** | ✅ 已落地 | [“设为激活”按钮故障复盘与门禁升级规约](../17_SWITCH_DECK_ACTIVE_BUTTON_BUG_POSTMORTEM_AND_GATES.md) |
+| **v2.8** | `JEV_RECOMMENDER` 熟练度全景评估与模块推荐 | **新增 JEV 推荐接口适配层**、**熟练度全景多维数据向量上报**、**未配置 JEV 时本地启发式降级风险矩阵**、**静默不推荐与降级双轨策略配置**、**一键定向沙盒试炼闭环** | ✅ 已落地 | [JEV 熟练度全景评估与推荐接口规范](../18_JEV_RECOMMENDATION_API_SPEC.md) |
 
 ---
 

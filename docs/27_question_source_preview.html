@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>各模式题库来源设计模式优化与预览方案 (SPEC 27 Preview)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              750: '#293548',
+              850: '#172033',
+              950: '#0b0f19',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .surface-card { background-color: #111827; border: 1px solid #1f2937; }
+    .surface-card-subtle { background-color: #0f172a; border: 1px solid #334155; }
+    .surface-inset { background-color: #0b0f19; border: 1px solid #1e293b; }
+    .btn-primary-cta { background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #ffffff; }
+    .btn-primary-cta:hover { background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%); }
+    .badge-diff-old { background-color: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; }
+    .badge-diff-new { background-color: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #6ee7b7; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 sm:p-8">
+
+  <!-- 顶部标题与规范导航 -->
+  <header class="max-w-7xl mx-auto mb-8 pb-6 border-b border-slate-800">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-2">
+          <span>SPEC 27 架构方案预览</span>
+          <span>·</span>
+          <span>Core 2.5 题目调度与合成引擎</span>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          题库来源调度策略引擎与干扰项管道设计模式工作台
+        </h1>
+        <p class="text-xs sm:text-sm text-slate-400 mt-1 max-w-4xl">
+          采用策略模式 (Strategy)、规约模式 (Specification)、工厂模式 (Factory) 与责任链管道 (Pipeline)，彻底解决题目虚假兜底、错题口径冲突、语法形态失配与沙盒穿透天梯等逻辑隐患。
+        </p>
+      </div>
+      <div class="flex items-center gap-3 shrink-0">
+        <a href="../index.html" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 transition flex items-center gap-2">
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <span>返回主游戏</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto space-y-8">
+
+    <!-- 第一模块：设计模式协作拓扑总览 -->
+    <section class="surface-card rounded-2xl p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
+          <h2 class="text-base font-bold text-white">五大设计模式协同架构矩阵</h2>
+        </div>
+        <span class="text-xs font-mono text-slate-400">Core Architecture Topology</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3.5 text-xs">
+        <div class="p-3.5 rounded-xl bg-slate-900 border border-indigo-500/30 space-y-1.5">
+          <div class="font-bold text-indigo-300 font-mono flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+            1. 策略模式 (Strategy)
+          </div>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            将各模式题目筛选排序抽离为独立策略类。彻底消除大坨 if-else，保证出题算法高聚合、可插拔。
+          </p>
+        </div>
+        <div class="p-3.5 rounded-xl bg-slate-900 border border-cyan-500/30 space-y-1.5">
+          <div class="font-bold text-cyan-300 font-mono flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+            2. 规约模式 (Specification)
+          </div>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            收口“错题”、“到期”、“生锈”判断公式。Dashboard、角标、横幅与出题 100% 共享规约，消除口径打架。
+          </p>
+        </div>
+        <div class="p-3.5 rounded-xl bg-slate-900 border border-emerald-500/30 space-y-1.5">
+          <div class="font-bold text-emerald-300 font-mono flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            3. 管道模式 (Pipeline)
+          </div>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            四级干扰项合成流：强混淆优先注入 $\to$ 同形态同胞对齐 $\to$ 领域自适应退火 $\to$ 洗牌，解决跨时态破绽。
+          </p>
+        </div>
+        <div class="p-3.5 rounded-xl bg-slate-900 border border-amber-500/30 space-y-1.5">
+          <div class="font-bold text-amber-300 font-mono flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            4. 工厂模式 (Factory)
+          </div>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            集中管理策略实例与别名归一化（如 daily / daily_review），支持开闭原则扩展自定义模式。
+          </p>
+        </div>
+        <div class="p-3.5 rounded-xl bg-slate-900 border border-rose-500/30 space-y-1.5">
+          <div class="font-bold text-rose-300 font-mono flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+            5. 快照隔离模式 (Snapshot)
+          </div>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            保存会话上下文使“再来一局”不丢失专项范围；沙盒分层打上隔离标，防止越权解锁主线天梯。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 第二模块：交互式策略调试与边界仿真器 (Live Interactive Runner) -->
+    <section class="surface-card rounded-2xl p-6 space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <span>策略模式出题调度演练台</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono">Live Simulator</span>
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">实时选择题库与策略，注入极端场景模拟验证排队结果与防御有效性</p>
+        </div>
+
+        <!-- 题库切换 -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-mono text-slate-400">选择当前题库:</span>
+          <select id="sim-deck-select" onchange="simulator.switchDeck(this.value)" class="bg-slate-900 border border-slate-750 text-slate-200 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500 font-medium">
+            <option value="deck_verbs">英语动词形态与变异法则 (29 词条)</option>
+            <option value="deck_http">HTTP 状态码与网络协议 (20 词条)</option>
+            <option value="deck_python">Python 内存模型与经典避坑 (7 词条)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 快速场景注入按钮 -->
+      <div class="flex flex-wrap items-center gap-2 pt-1">
+        <span class="text-xs text-slate-400 font-mono shrink-0">场景预设注入:</span>
+        <button onclick="simulator.applyScenario('normal')" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs transition border border-slate-700">标准常规状态</button>
+        <button onclick="simulator.applyScenario('zero_due')" class="px-3 py-1 rounded-lg bg-amber-950/40 hover:bg-amber-900/50 text-amber-300 text-xs transition border border-amber-500/30">⚡ 0 到期题目 (验证防假兜底)</button>
+        <button onclick="simulator.applyScenario('zero_weak')" class="px-3 py-1 rounded-lg bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 text-xs transition border border-rose-500/30">⚡ 0 错题盲区 (验证防假兜底)</button>
+        <button onclick="simulator.applyScenario('overflow_due')" class="px-3 py-1 rounded-lg bg-blue-950/40 hover:bg-blue-900/50 text-blue-300 text-xs transition border border-blue-500/30">⚡ 50+ 题到期积压 (验证上限截断)</button>
+        <button onclick="simulator.applyScenario('sandbox_stepped')" class="px-3 py-1 rounded-lg bg-purple-950/40 hover:bg-purple-900/50 text-purple-300 text-xs transition border border-purple-500/30">⚡ 沙盒分层自测 (验证天梯隔离)</button>
+      </div>
+
+      <!-- 模式策略选择卡片网格 -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        <button id="btn-mode-daily" onclick="simulator.selectStrategy('DAILY_REVIEW')" class="p-3 rounded-xl border border-indigo-500 bg-indigo-600/20 text-white text-left transition select-none flex flex-col justify-between">
+          <span class="text-[10px] font-mono text-indigo-400">STRATEGY 1</span>
+          <span class="font-bold text-xs mt-1">每日艾宾浩斯复习</span>
+          <span class="text-[10px] text-slate-400 mt-1">Due Card 规约过滤</span>
+        </button>
+        <button id="btn-mode-weakness" onclick="simulator.selectStrategy('WEAKNESS')" class="p-3 rounded-xl border border-slate-750 bg-slate-900 hover:bg-slate-800 text-slate-300 text-left transition select-none flex flex-col justify-between">
+          <span class="text-[10px] font-mono text-slate-500">STRATEGY 2</span>
+          <span class="font-bold text-xs mt-1">弱点歼灭战</span>
+          <span class="text-[10px] text-slate-400 mt-1">Mistake 规约加权</span>
+        </button>
+        <button id="btn-mode-stepped" onclick="simulator.selectStrategy('CAMPAIGN_STEPPED')" class="p-3 rounded-xl border border-slate-750 bg-slate-900 hover:bg-slate-800 text-slate-300 text-left transition select-none flex flex-col justify-between">
+          <span class="text-[10px] font-mono text-slate-500">STRATEGY 3</span>
+          <span class="font-bold text-xs mt-1">分层阶梯战役</span>
+          <span class="text-[10px] text-slate-400 mt-1">Bloom Layer 洗牌</span>
+        </button>
+        <button id="btn-mode-speed" onclick="simulator.selectStrategy('SPEED_SPRINT')" class="p-3 rounded-xl border border-slate-750 bg-slate-900 hover:bg-slate-800 text-slate-300 text-left transition select-none flex flex-col justify-between">
+          <span class="text-[10px] font-mono text-slate-500">STRATEGY 4</span>
+          <span class="font-bold text-xs mt-1">极速生存模式</span>
+          <span class="text-[10px] text-slate-400 mt-1">限时抢答+阵亡隔离</span>
+        </button>
+        <button id="btn-mode-drill" onclick="simulator.selectStrategy('CATEGORY_DRILL')" class="p-3 rounded-xl border border-slate-750 bg-slate-900 hover:bg-slate-800 text-slate-300 text-left transition select-none flex flex-col justify-between">
+          <span class="text-[10px] font-mono text-slate-500">STRATEGY 5</span>
+          <span class="font-bold text-xs mt-1">专项速刷下钻</span>
+          <span class="text-[10px] text-slate-400 mt-1">快照上下文记忆</span>
+        </button>
+        <button id="btn-mode-sandbox" onclick="simulator.selectStrategy('SANDBOX_CUSTOM')" class="p-3 rounded-xl border border-slate-750 bg-slate-900 hover:bg-slate-800 text-slate-300 text-left transition select-none flex flex-col justify-between">
+          <span class="text-[10px] font-mono text-slate-500">STRATEGY 6</span>
+          <span class="font-bold text-xs mt-1">自由沙盒试炼</span>
+          <span class="text-[10px] text-slate-400 mt-1">多维交叉组合</span>
+        </button>
+      </div>
+
+      <!-- 实时计算结果面板 -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
+        <!-- 左侧：策略执行流水线元数据 -->
+        <div class="space-y-4">
+          <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+            <h3 class="text-xs font-bold text-white uppercase tracking-wider font-mono">策略调度指标与规约状态</h3>
+            <div class="space-y-2 text-xs font-mono">
+              <div class="flex justify-between py-1 border-b border-slate-800">
+                <span class="text-slate-400">激活策略:</span>
+                <span id="res-strategy-name" class="text-indigo-400 font-bold">DailyReviewQueueStrategy</span>
+              </div>
+              <div class="flex justify-between py-1 border-b border-slate-800">
+                <span class="text-slate-400">规约过滤器:</span>
+                <span id="res-spec-name" class="text-cyan-400">DueCardSpecification</span>
+              </div>
+              <div class="flex justify-between py-1 border-b border-slate-800">
+                <span class="text-slate-400">题库实体总数:</span>
+                <span id="res-total-ents" class="text-slate-200">29 条目</span>
+              </div>
+              <div class="flex justify-between py-1 border-b border-slate-800">
+                <span class="text-slate-400">满足规约候选池:</span>
+                <span id="res-matched-count" class="text-amber-400 font-bold">5 题</span>
+              </div>
+              <div class="flex justify-between py-1 border-b border-slate-800">
+                <span class="text-slate-400">防疲劳配额限制:</span>
+                <span id="res-quota-limit" class="text-slate-300">上限 20 题</span>
+              </div>
+              <div class="flex justify-between py-1 border-b border-slate-800">
+                <span class="text-slate-400">主线天梯晋级许可:</span>
+                <span id="res-promotion-allowed" class="text-emerald-400 font-bold">否 (已严格隔离)</span>
+              </div>
+              <div class="flex justify-between py-1">
+                <span class="text-slate-400">最终出题队列长度:</span>
+                <span id="res-final-queue-len" class="text-indigo-300 font-bold text-sm">5 题</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 旧版 vs 新版行为对比警示 -->
+          <div id="res-comparison-card" class="p-4 rounded-xl border text-xs space-y-2">
+            <!-- 动态渲染 -->
+          </div>
+        </div>
+
+        <!-- 右侧：生成题目的队列清单预览 (Queue Output) -->
+        <div class="lg:col-span-2 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold text-white uppercase tracking-wider font-mono">
+              生成题目队列清单 (<span id="res-queue-count-badge">5</span> 题)
+            </h3>
+            <span class="text-[11px] text-slate-500 font-mono">按策略定义顺序与权重编排</span>
+          </div>
+
+          <div id="res-queue-list" class="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+            <!-- 动态渲染题目卡片 -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 第三模块：四选一干扰项合成管道 (Pipeline Pattern) 对比验证 -->
+    <section class="surface-card rounded-2xl p-6 space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <span>干扰项合成管道对照比对台</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">Pipeline Pattern</span>
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">直观比对【旧版算法（易跨时态/荒谬伪项）】与【新版责任链管道（形态对齐/强混淆注入）】生成的选项</p>
+        </div>
+
+        <!-- 目标测试条目选择 -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-mono text-slate-400">测试目标词条:</span>
+          <select id="pipeline-entity-select" onchange="pipelineDemo.renderComparison(this.value)" class="bg-slate-900 border border-slate-750 text-slate-200 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-emerald-500 font-medium">
+            <!-- 动态注入 options -->
+          </select>
+        </div>
+      </div>
+
+      <!-- 四级管道阶段执行脉络 -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs font-mono">
+        <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+          <span class="text-[10px] text-indigo-400 font-bold">STAGE 1</span>
+          <div class="text-slate-200 font-bold">强混淆关联实体注入</div>
+          <p class="text-[11px] text-slate-500">读取 confusedWith & presetDistractors</p>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+          <span class="text-[10px] text-indigo-400 font-bold">STAGE 2</span>
+          <div class="text-slate-200 font-bold">同形态约束同胞采样</div>
+          <p class="text-[11px] text-slate-500">考 -ing 必同采 -ing；考 -ed 同采 -ed</p>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+          <span class="text-[10px] text-indigo-400 font-bold">STAGE 3</span>
+          <div class="text-slate-200 font-bold">领域自适应规则退火</div>
+          <p class="text-[11px] text-slate-500">语法高仿变异，杜绝非英语拼接 +s/+ed</p>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+          <span class="text-[10px] text-indigo-400 font-bold">STAGE 4</span>
+          <div class="text-slate-200 font-bold">Fisher-Yates 乱序输出</div>
+          <p class="text-[11px] text-slate-500">生成 1 个正确项 + 3 个优质干扰项</p>
+        </div>
+      </div>
+
+      <!-- 并排对比卡片 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+        <!-- 左侧：旧版实现效果 -->
+        <div class="p-5 rounded-2xl bg-rose-950/20 border border-rose-500/30 space-y-4">
+          <div class="flex items-center justify-between pb-2 border-b border-rose-500/20">
+            <span class="badge-diff-old px-2.5 py-0.5 rounded-full font-bold text-xs">旧版算法 (Raw Sibling Sampling)</span>
+            <span class="text-xs text-rose-300 font-mono">存在逻辑破绽</span>
+          </div>
+          <div id="pipe-target-info-old" class="text-xs text-slate-300 space-y-1"></div>
+          <div>
+            <div class="text-xs font-mono text-slate-400 mb-2">生成选项呈现 (四选一):</div>
+            <div id="pipe-options-old" class="space-y-2"></div>
+          </div>
+          <div id="pipe-critique-old" class="p-3 rounded-xl bg-slate-900/80 border border-rose-500/30 text-xs text-rose-300 leading-relaxed font-mono"></div>
+        </div>
+
+        <!-- 右侧：新版责任链管道生成效果 -->
+        <div class="p-5 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-4">
+          <div class="flex items-center justify-between pb-2 border-b border-emerald-500/20">
+            <span class="badge-diff-new px-2.5 py-0.5 rounded-full font-bold text-xs">新版责任链管道 (Distractor Pipeline)</span>
+            <span class="text-xs text-emerald-300 font-mono">高混淆度与形态一致</span>
+          </div>
+          <div id="pipe-target-info-new" class="text-xs text-slate-300 space-y-1"></div>
+          <div>
+            <div class="text-xs font-mono text-slate-400 mb-2">生成选项呈现 (四选一):</div>
+            <div id="pipe-options-new" class="space-y-2"></div>
+          </div>
+          <div id="pipe-critique-new" class="p-3 rounded-xl bg-slate-900/80 border border-emerald-500/30 text-xs text-emerald-300 leading-relaxed font-mono"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 模拟数据与交互控制脚本 -->
+  <script>
+    // 1. 模拟题库数据
+    const DECKS = {
+      deck_verbs: {
+        id: 'deck_verbs',
+        title: '英语动词形态与变异法则',
+        isLanguage: true,
+        categories: [
+          { id: 'CAT_IC_SPECIAL', name: '⭐ -ic 结尾加 k 必考特例' },
+          { id: 'CAT_ING_RULES', name: '🌀 现在分词四规律' },
+          { id: 'CAT_ED_RULES', name: '🛡️ 规则过去式四变化' },
+          { id: 'CAT_IRREG_AAA', name: '⚡ 不规则: AAA 型' },
+          { id: 'CAT_IRREG_ABB', name: '⚡ 不规则: ABB 型' }
+        ],
+        entities: [
+          { id: 'v_panic', categoryId: 'CAT_IC_SPECIAL', layer: 3, title: 'panic', subtitle: '惊慌', prompt: '转化为现在分词 (-ing)：', answer: 'panicking', confusedWith: 'v_picnic' },
+          { id: 'v_picnic', categoryId: 'CAT_IC_SPECIAL', layer: 3, title: 'picnic', subtitle: '野餐', prompt: '转化为过去式 (-ed)：', answer: 'picnicked', confusedWith: 'v_panic' },
+          { id: 'v_mimic', categoryId: 'CAT_IC_SPECIAL', layer: 3, title: 'mimic', subtitle: '模仿', prompt: '转化为过去分词 (-ed)：', answer: 'mimicked' },
+          { id: 'v_frolic', categoryId: 'CAT_IC_SPECIAL', layer: 3, title: 'frolic', subtitle: '嬉戏', prompt: '转化为现在分词 (-ing)：', answer: 'frolicking' },
+          { id: 'v_traffic', categoryId: 'CAT_IC_SPECIAL', layer: 3, title: 'traffic', subtitle: '非法交易', prompt: '转化为过去式 (-ed)：', answer: 'trafficked' },
+          { id: 'v_work', categoryId: 'CAT_ING_RULES', layer: 1, title: 'work', subtitle: '工作', prompt: '转化为现在分词 (-ing)：', answer: 'working' },
+          { id: 'v_write', categoryId: 'CAT_ING_RULES', layer: 2, title: 'write', subtitle: '写作', prompt: '转化为现在分词 (-ing)：', answer: 'writing' },
+          { id: 'v_run', categoryId: 'CAT_ING_RULES', layer: 2, title: 'run', subtitle: '奔跑', prompt: '转化为现在分词 (-ing)：', answer: 'running' },
+          { id: 'v_lie', categoryId: 'CAT_ING_RULES', layer: 3, title: 'lie', subtitle: '躺/说谎', prompt: '转化为现在分词 (-ing)：', answer: 'lying' },
+          { id: 'v_die', categoryId: 'CAT_ING_RULES', layer: 3, title: 'die', subtitle: '死亡', prompt: '转化为现在分词 (-ing)：', answer: 'dying' },
+          { id: 'v_love', categoryId: 'CAT_ED_RULES', layer: 1, title: 'love', subtitle: '爱', prompt: '转化为过去式 (-ed)：', answer: 'loved' },
+          { id: 'v_stop', categoryId: 'CAT_ED_RULES', layer: 2, title: 'stop', subtitle: '停止', prompt: '转化为过去式 (-ed)：', answer: 'stopped' },
+          { id: 'v_study', categoryId: 'CAT_ED_RULES', layer: 2, title: 'study', subtitle: '学习', prompt: '转化为过去式 (-ed)：', answer: 'studied' },
+          { id: 'v_cost', categoryId: 'CAT_IRREG_AAA', layer: 1, title: 'cost', subtitle: '花费', prompt: '转化为过去式：', answer: 'cost' },
+          { id: 'v_put', categoryId: 'CAT_IRREG_AAA', layer: 1, title: 'put', subtitle: '放置', prompt: '转化为过去分词：', answer: 'put' },
+          { id: 'v_read', categoryId: 'CAT_IRREG_AAA', layer: 3, title: 'read', subtitle: '阅读', prompt: '转化为过去式：', answer: 'read' },
+          { id: 'v_find', categoryId: 'CAT_IRREG_ABB', layer: 2, title: 'find', subtitle: '发现', prompt: '转化为过去式：', answer: 'found' },
+          { id: 'v_teach', categoryId: 'CAT_IRREG_ABB', layer: 3, title: 'teach', subtitle: '教授', prompt: '转化为过去式：', answer: 'taught' },
+          { id: 'v_think', categoryId: 'CAT_IRREG_ABB', layer: 3, title: 'think', subtitle: '思考', prompt: '转化为过去式：', answer: 'thought' }
+        ]
+      },
+      deck_http: {
+        id: 'deck_http',
+        title: 'HTTP 状态码与网络协议',
+        isLanguage: false,
+        categories: [
+          { id: 'CAT_4XX', name: '4xx 客户端异常族' },
+          { id: 'CAT_5XX', name: '5xx 服务端异常族' },
+          { id: 'CAT_3XX', name: '3xx 重定向与缓存' }
+        ],
+        entities: [
+          { id: 'http_401', categoryId: 'CAT_4XX', layer: 3, title: '401 Unauthorized', subtitle: '未认证', prompt: '其核心定义是？', answer: '缺少有效身份凭证 (未携带 Token 或未登录)', confusedWith: 'http_403' },
+          { id: 'http_403', categoryId: 'CAT_4XX', layer: 3, title: '403 Forbidden', subtitle: '禁止访问', prompt: '其核心定义是？', answer: '服务器理解请求但拒绝执行，即使提供有效凭据也无权访问', confusedWith: 'http_401' },
+          { id: 'http_404', categoryId: 'CAT_4XX', layer: 1, title: '404 Not Found', subtitle: '资源未找到', prompt: '其核心定义是？', answer: '服务器无法在请求的 URI 上找到对应资源' },
+          { id: 'http_500', categoryId: 'CAT_5XX', layer: 1, title: '500 Internal Server Error', subtitle: '服务器内部错误', prompt: '其核心定义是？', answer: '服务器在处理请求时发生未捕获的内部程序异常' },
+          { id: 'http_502', categoryId: 'CAT_5XX', layer: 3, title: '502 Bad Gateway', subtitle: '错误网关', prompt: '其架构诱因是？', answer: '反向代理从上游服务器收到了无效响应', confusedWith: 'http_504' },
+          { id: 'http_504', categoryId: 'CAT_5XX', layer: 3, title: '504 Gateway Timeout', subtitle: '网关超时', prompt: '其核心特征是？', answer: '代理服务器等待上游服务响应超时', confusedWith: 'http_502' }
+        ]
+      },
+      deck_python: {
+        id: 'deck_python',
+        title: 'Python 内存模型与避坑指南',
+        isLanguage: false,
+        categories: [
+          { id: 'CAT_MUTABLE', name: '可变对象模型' },
+          { id: 'CAT_PITFALLS', name: '运行时经典陷阱' }
+        ],
+        entities: [
+          { id: 'py_list', categoryId: 'CAT_MUTABLE', layer: 1, title: '列表 (list)', subtitle: '动态连续数组', prompt: '其核心特征是？', answer: '可变序列，支持原地追加修改，append 时间复杂度为 O(1)' },
+          { id: 'py_def_arg', categoryId: 'CAT_PITFALLS', layer: 3, title: 'def f(x=[]): 默认参数陷阱', subtitle: '共享对象', prompt: '其根本缺陷是？', answer: '默认参数在函数定义时完成求值，所有调用共享同一个列表对象' }
+        ]
+      }
+    };
+
+    // 2. 模拟器控制器
+    class SimulatorController {
+      constructor() {
+        this.currentDeckId = 'deck_verbs';
+        this.currentStrategy = 'DAILY_REVIEW';
+        this.mockCards = {};
+        this.initMockCards();
+      }
+
+      initMockCards() {
+        const deck = DECKS[this.currentDeckId];
+        this.mockCards = {};
+        deck.entities.forEach((e, idx) => {
+          // 默认部分卡片到期，部分有错题
+          this.mockCards[e.id] = {
+            level: (idx % 3) + 1,
+            attempts: 5,
+            correct: 4,
+            wrong: (idx % 4 === 0) ? 2 : 0,
+            nextReviewAt: (idx % 2 === 0) ? Date.now() - 3600000 : Date.now() + 86400000 * 3
+          };
+        });
+      }
+
+      switchDeck(deckId) {
+        this.currentDeckId = deckId;
+        this.initMockCards();
+        this.runStrategy();
+        pipelineDemo.initEntitiesDropdown();
+      }
+
+      applyScenario(type) {
+        const deck = DECKS[this.currentDeckId];
+        if (type === 'normal') {
+          this.initMockCards();
+        } else if (type === 'zero_due') {
+          // 所有卡片未到期 (未来3天复习)
+          Object.values(this.mockCards).forEach(c => {
+            c.nextReviewAt = Date.now() + 86400000 * 3;
+          });
+        } else if (type === 'zero_weak') {
+          // 0 错题
+          Object.values(this.mockCards).forEach(c => {
+            c.wrong = 0;
+            c.level = 4;
+          });
+        } else if (type === 'overflow_due') {
+          // 全部到期
+          Object.values(this.mockCards).forEach(c => {
+            c.nextReviewAt = Date.now() - 3600000;
+          });
+        } else if (type === 'sandbox_stepped') {
+          this.selectStrategy('SANDBOX_CUSTOM');
+          return;
+        }
+        this.runStrategy();
+      }
+
+      selectStrategy(mode) {
+        this.currentStrategy = mode;
+        ['daily', 'weakness', 'stepped', 'speed', 'drill', 'sandbox'].forEach(m => {
+          const btn = document.getElementById(`btn-mode-${m}`);
+          if (!btn) return;
+          const isTarget = (
+            (m === 'daily' && mode === 'DAILY_REVIEW') ||
+            (m === 'weakness' && mode === 'WEAKNESS') ||
+            (m === 'stepped' && mode === 'CAMPAIGN_STEPPED') ||
+            (m === 'speed' && mode === 'SPEED_SPRINT') ||
+            (m === 'drill' && mode === 'CATEGORY_DRILL') ||
+            (m === 'sandbox' && mode === 'SANDBOX_CUSTOM')
+          );
+          btn.className = isTarget
+            ? 'p-3 rounded-xl border border-indigo-500 bg-indigo-600/20 text-white text-left transition select-none flex flex-col justify-between'
+            : 'p-3 rounded-xl border border-slate-750 bg-slate-900 hover:bg-slate-800 text-slate-300 text-left transition select-none flex flex-col justify-between';
+        });
+        this.runStrategy();
+      }
+
+      runStrategy() {
+        const deck = DECKS[this.currentDeckId];
+        const all = deck.entities;
+        const endOfToday = new Date().setHours(23, 59, 59, 999);
+        let matched = [];
+        let finalQueue = [];
+        let specName = 'None';
+        let quota = '无限制';
+        let allowPromo = '否 (已严格隔离)';
+        let comparisonHtml = '';
+
+        if (this.currentStrategy === 'DAILY_REVIEW') {
+          specName = 'DueCardSpecification';
+          quota = '安全上限 20 题';
+          matched = all.filter(e => {
+            const c = this.mockCards[e.id];
+            return c && c.nextReviewAt && c.nextReviewAt <= endOfToday;
+          });
+          // 新设计：为0时不兜底，直接返回空数组
+          finalQueue = matched.length > 0 ? [...matched].sort(() => Math.random() - 0.5).slice(0, 20) : [];
+
+          const oldBehaviorCount = matched.length > 0 ? matched.length : 10;
+          comparisonHtml = `
+            <div class="font-bold text-amber-300 flex items-center gap-1.5">
+              <span>⚠️ 艾宾浩斯复习调度行为对比</span>
+            </div>
+            <div class="text-[11px] text-slate-300 space-y-1 pt-1 font-mono">
+              <p><span class="text-rose-400">旧版漏洞：</span>若到期为0，强行抽全库前10题塞给用户，导致空提示成为死代码；无上限截取引发过载。</p>
+              <p><span class="text-emerald-400">新版策略：</span>到期为0时返回 [] 触发“今日已完成”鼓励反馈；海量到期自动截取前 20 题防疲劳。</p>
+            </div>
+          `;
+        } else if (this.currentStrategy === 'WEAKNESS') {
+          specName = 'MistakeCardSpecification';
+          quota = '上限 15 题';
+          matched = all.filter(e => {
+            const c = this.mockCards[e.id];
+            if (!c || c.attempts === 0 || !c.wrong) return false;
+            return c.wrong > 0 && (c.wrong / c.attempts >= 0.25 || c.level <= 1);
+          });
+          // 加权排序
+          finalQueue = matched.length > 0 ? [...matched].sort((a, b) => {
+            const cA = this.mockCards[a.id];
+            const cB = this.mockCards[b.id];
+            return (cB.wrong - cA.wrong) || (cA.level - cB.level);
+          }).slice(0, 15) : [];
+
+          comparisonHtml = `
+            <div class="font-bold text-rose-300 flex items-center gap-1.5">
+              <span>⚠️ 弱点歼灭战口径对比</span>
+            </div>
+            <div class="text-[11px] text-slate-300 space-y-1 pt-1 font-mono">
+              <p><span class="text-rose-400">旧版漏洞：</span>Dashboard 公式与弱点出题公式冲突；0错题时强塞题库前10题当做“错题”。</p>
+              <p><span class="text-emerald-400">新版策略：</span>100% 共享 MistakeCardSpecification 规约；0错题时安全返回 [] 弹出全通关勋章。</p>
+            </div>
+          `;
+        } else if (this.currentStrategy === 'CAMPAIGN_STEPPED') {
+          specName = 'BloomLayerSpecification';
+          quota = '固定配额 8 题';
+          allowPromo = '是 (主线战役专属许可)';
+          matched = all.filter(e => e.layer === 1);
+          finalQueue = [...matched].sort(() => Math.random() - 0.5).slice(0, 8);
+
+          comparisonHtml = `
+            <div class="font-bold text-indigo-300 flex items-center gap-1.5">
+              <span>🛡️ 阶梯天梯模式隔离对比</span>
+            </div>
+            <div class="text-[11px] text-slate-300 space-y-1 pt-1 font-mono">
+              <p><span class="text-emerald-400">新版策略：</span>仅在此主战役策略下附带 allowPromotion: true；同层题目 Fisher-Yates 洗牌，摆脱死板顺序。</p>
+            </div>
+          `;
+        } else if (this.currentStrategy === 'SPEED_SPRINT') {
+          specName = 'AllDeckEntitiesSpecification';
+          quota = '限时抢答 / 3点生命';
+          matched = [...all];
+          finalQueue = [...matched].sort(() => Math.random() - 0.5).slice(0, 30);
+
+          comparisonHtml = `
+            <div class="font-bold text-emerald-300 flex items-center gap-1.5">
+              <span>⚡ 极速生存模式结算对比</span>
+            </div>
+            <div class="text-[11px] text-slate-300 space-y-1 pt-1 font-mono">
+              <p><span class="text-rose-400">旧版漏洞：</span>固定切片15题违背无尽连击；生命扣光阵亡误播 victory 胜利音效并误算错误率。</p>
+              <p><span class="text-emerald-400">新版策略：</span>题量扩展至连击上限；阵亡触发 Game Over 专属生命耗尽结算。</p>
+            </div>
+          `;
+        } else if (this.currentStrategy === 'CATEGORY_DRILL') {
+          specName = 'CategoryContextSpecification';
+          quota = '分类全集';
+          const cat = deck.categories[0];
+          matched = all.filter(e => e.categoryId === cat.id);
+          finalQueue = [...matched].sort(() => Math.random() - 0.5);
+
+          comparisonHtml = `
+            <div class="font-bold text-cyan-300 flex items-center gap-1.5">
+              <span>🎯 专项速刷会话快照对比</span>
+            </div>
+            <div class="text-[11px] text-slate-300 space-y-1 pt-1 font-mono">
+              <p><span class="text-rose-400">旧版漏洞：</span>点击“再来一局”后丢失参数，退化为全库随机抽15题。</p>
+              <p><span class="text-emerald-400">新版策略：</span>SessionSnapshot 保留分类与大组上下文，再来一局 100% 还原原题源。</p>
+            </div>
+          `;
+        } else if (this.currentStrategy === 'SANDBOX_CUSTOM') {
+          specName = 'SandboxIntersectionSpecification';
+          quota = '用户自选 10 题';
+          allowPromo = '否 (严格沙盒隔离)';
+          matched = all.filter(e => e.layer <= 2);
+          finalQueue = [...matched].sort(() => Math.random() - 0.5).slice(0, 10);
+
+          comparisonHtml = `
+            <div class="font-bold text-purple-300 flex items-center gap-1.5">
+              <span>🧪 自由沙盒天梯隔离对比</span>
+            </div>
+            <div class="text-[11px] text-slate-300 space-y-1 pt-1 font-mono">
+              <p><span class="text-rose-400">旧版漏洞：</span>沙盒选 STEPPED 派发 CAMPAIGN，答完3题篡改主战役解锁状态。</p>
+              <p><span class="text-emerald-400">新版策略：</span>沙盒打上 isSandbox 隔离标记，天梯晋级评估完全屏蔽沙盒自测。</p>
+            </div>
+          `;
+        }
+
+        // 更新 UI
+        document.getElementById('res-strategy-name').innerText = this.currentStrategy;
+        document.getElementById('res-spec-name').innerText = specName;
+        document.getElementById('res-total-ents').innerText = `${all.length} 条目`;
+        document.getElementById('res-matched-count').innerText = `${matched.length} 题`;
+        document.getElementById('res-quota-limit').innerText = quota;
+        document.getElementById('res-promotion-allowed').innerText = allowPromo;
+        document.getElementById('res-final-queue-len').innerText = `${finalQueue.length} 题`;
+        document.getElementById('res-queue-count-badge').innerText = finalQueue.length;
+        document.getElementById('res-comparison-card').innerHTML = comparisonHtml;
+
+        const queueContainer = document.getElementById('res-queue-list');
+        if (finalQueue.length === 0) {
+          queueContainer.innerHTML = `
+            <div class="p-8 rounded-2xl border border-dashed border-slate-750 text-center space-y-2">
+              <div class="text-2xl">🎉</div>
+              <div class="font-bold text-white text-sm">队列为空 · 触发优雅空状态防御</div>
+              <p class="text-xs text-slate-400 max-w-md mx-auto">
+                规约判定无匹配词条（如今日无到期或无错题）。系统已阻止虚假塞入无辜词条，在游戏中将弹窗鼓励并安全返回主看板。
+              </p>
+            </div>
+          `;
+        } else {
+          queueContainer.innerHTML = finalQueue.map((item, idx) => {
+            const card = this.mockCards[item.id] || {};
+            const cat = deck.categories.find(c => c.id === item.categoryId);
+            return `
+              <div class="p-3 rounded-xl surface-card-subtle flex items-center justify-between gap-3 text-xs">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="w-5 h-5 rounded-md bg-slate-900 border border-slate-700 flex items-center justify-center font-mono text-[10px] text-slate-400 shrink-0">
+                    ${idx + 1}
+                  </span>
+                  <div class="truncate">
+                    <span class="font-bold text-white">${item.title}</span>
+                    <span class="text-slate-400 font-mono text-[11px] ml-1">(${item.subtitle || ''})</span>
+                    <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 ml-1.5 font-mono">${cat ? cat.name : ''} · L${item.layer}</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3 shrink-0 font-mono text-[11px]">
+                  <span class="text-slate-400">错: <b class="${card.wrong > 0 ? 'text-rose-400' : 'text-slate-500'}">${card.wrong || 0}</b></span>
+                  <span class="text-slate-400">Lv: <b class="text-indigo-400">${card.level || 0}</b></span>
+                  <span class="text-emerald-400 font-semibold truncate max-w-[140px] hidden sm:inline" title="${item.answer}">答: ${item.answer}</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+    }
+
+    // 3. 干扰项管道演示控制器
+    class PipelineDemoController {
+      initEntitiesDropdown() {
+        const deck = DECKS[simulator.currentDeckId];
+        const select = document.getElementById('pipeline-entity-select');
+        select.innerHTML = deck.entities.map(e => `
+          <option value="${e.id}">${e.title} (${e.prompt || '考核'})</option>
+        `).join('');
+        this.renderComparison(deck.entities[0].id);
+      }
+
+      renderComparison(entityId) {
+        const deck = DECKS[simulator.currentDeckId];
+        const entity = deck.entities.find(e => e.id === entityId) || deck.entities[0];
+        const all = deck.entities;
+
+        // 模拟旧版算法
+        const oldDistractors = new Set();
+        const siblings = all.filter(e => e.categoryId === entity.categoryId && e.id !== entity.id && e.answer !== entity.answer);
+        siblings.forEach(s => { if (oldDistractors.size < 3) oldDistractors.add(s.answer); });
+        if (oldDistractors.size < 3) {
+          all.filter(e => e.id !== entity.id && e.answer !== entity.answer).forEach(o => {
+            if (oldDistractors.size < 3) oldDistractors.add(o.answer);
+          });
+        }
+        if (oldDistractors.size < 3) {
+          oldDistractors.add(entity.answer + 's');
+          oldDistractors.add(entity.answer + 'ed');
+          oldDistractors.add('None of the above');
+        }
+        const oldOptions = [entity.answer, ...Array.from(oldDistractors).slice(0, 3)].sort(() => Math.random() - 0.5);
+
+        // 模拟新版 Pipeline
+        const newDistractors = new Set();
+        // Stage 1: 强混淆注入
+        if (entity.confusedWith) {
+          const cf = all.find(e => e.id === entity.confusedWith);
+          if (cf && cf.answer !== entity.answer) newDistractors.add(cf.answer);
+        }
+        // Stage 2: 同形态约束同胞池
+        if (deck.isLanguage) {
+          const isIng = entity.answer.endsWith('ing');
+          const isEd = entity.answer.endsWith('ed');
+          siblings.forEach(s => {
+            if (newDistractors.size >= 3) return;
+            if (isIng && !s.answer.endsWith('ing')) return;
+            if (isEd && !s.answer.endsWith('ed')) return;
+            newDistractors.add(s.answer);
+          });
+        } else {
+          siblings.forEach(s => {
+            if (newDistractors.size < 3) newDistractors.add(s.answer);
+          });
+        }
+        // Stage 3: 领域感知退火
+        if (newDistractors.size < 3) {
+          if (deck.isLanguage) {
+            // 生成高仿拼写变体 (如 panic 漏加k)
+            if (entity.answer === 'panicking') newDistractors.add('panicing (漏加k)');
+            if (entity.answer === 'panicking') newDistractors.add('panikking (错双写)');
+            if (entity.answer === 'picnicked') newDistractors.add('picniced (漏加k)');
+            if (entity.answer === 'picnicked') newDistractors.add('picniked (拼写错)');
+            newDistractors.add(entity.answer + 'ing');
+          } else {
+            // 技术概念题库：从同层其他分类借用概念，严禁无意义拼接 +s/+ed
+            all.filter(e => e.layer === entity.layer && e.id !== entity.id).forEach(o => {
+              if (newDistractors.size < 3) newDistractors.add(o.answer);
+            });
+          }
+        }
+        const newOptions = [entity.answer, ...Array.from(newDistractors).slice(0, 3)].sort(() => Math.random() - 0.5);
+
+        // 渲染目标题干信息
+        const targetHtml = `
+          <div class="flex items-center gap-2">
+            <span class="text-white font-bold text-sm">${entity.title}</span>
+            <span class="text-slate-400 font-mono">· ${entity.prompt || ''}</span>
+          </div>
+          <div class="text-[11px] text-emerald-400 font-mono">正确答案: <b>${entity.answer}</b></div>
+        `;
+        document.getElementById('pipe-target-info-old').innerHTML = targetHtml;
+        document.getElementById('pipe-target-info-new').innerHTML = targetHtml;
+
+        // 渲染选项列表
+        document.getElementById('pipe-options-old').innerHTML = oldOptions.map((opt, i) => {
+          const isCorrect = opt === entity.answer;
+          return `
+            <div class="p-2.5 rounded-lg ${isCorrect ? 'bg-emerald-950/40 border border-emerald-500/50 text-emerald-200' : 'bg-slate-900 border border-slate-800 text-slate-300'} text-xs font-mono flex items-center justify-between">
+              <span>[${i + 1}] ${opt}</span>
+              ${isCorrect ? '<span class="text-[10px] text-emerald-400">正确答案</span>' : ''}
+            </div>
+          `;
+        }).join('');
+
+        document.getElementById('pipe-options-new').innerHTML = newOptions.map((opt, i) => {
+          const isCorrect = opt === entity.answer;
+          const isConfused = entity.confusedWith && all.find(e => e.id === entity.confusedWith)?.answer === opt;
+          return `
+            <div class="p-2.5 rounded-lg ${isCorrect ? 'bg-emerald-950/40 border border-emerald-500/50 text-emerald-200' : 'bg-slate-900 border border-slate-800 text-slate-300'} text-xs font-mono flex items-center justify-between">
+              <span class="truncate max-w-[85%]">[${i + 1}] ${opt}</span>
+              ${isCorrect ? '<span class="text-[10px] text-emerald-400 shrink-0">正确答案</span>' : (isConfused ? '<span class="text-[10px] text-amber-400 border border-amber-500/30 px-1 rounded shrink-0">强混淆注入</span>' : '')}
+            </div>
+          `;
+        }).join('');
+
+        // 渲染点评
+        const hasFormMismatch = deck.isLanguage && entity.answer.endsWith('ing') && oldOptions.some(o => o.endsWith('ed'));
+        const hasAbsurdSuffix = oldOptions.some(o => o.includes('None of') || o.endsWith('s') && !deck.isLanguage);
+        document.getElementById('pipe-critique-old').innerHTML = `
+          ❌ 破绽分析：${hasFormMismatch ? '选项中混入了 -ed 过去式，题目问的是 -ing 分词，答题者无需语法辨析直接看后缀即可秒杀！' : (hasAbsurdSuffix ? '非语言概念题库触发了硬编码拼接 +s 或 None of the above，破坏了题目严肃性。' : '同分类盲目抽取，未注入高价值强混淆关联。')}
+        `;
+        document.getElementById('pipe-critique-new').innerHTML = `
+          ✅ 管道优化：同形态后缀严格对齐；成功优先激活 confusedWith 关联对${entity.confusedWith ? ` (${entity.confusedWith})` : ''}；退火采用真实高仿考点变异，选项具备真实区分度！
+        `;
+      }
+    }
+
+    const simulator = new SimulatorController();
+    const pipelineDemo = new PipelineDemoController();
+
+    window.onload = () => {
+      simulator.runStrategy();
+      pipelineDemo.initEntitiesDropdown();
+    };
+  </script>
+
+</body>
+</html>
