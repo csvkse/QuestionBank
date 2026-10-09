@@ -1155,6 +1155,204 @@ export class KnowledgeMasterApp {
   openSteppedCampaignModal() { this.steppedProgress.showRoadmapModal(); }
   closeSteppedCampaignModal() { this.steppedProgress.closeRoadmapModal(); }
 
+  showModeGuidanceModal(mode, sessionContext = {}) {
+    const deck = this.getActiveDeck();
+    const ds = this.getDeckState(deck ? deck.id : '');
+    const entities = deck?.entities || [];
+    const cards = ds?.cards || {};
+
+    const learnedEntities = entities.filter(e => {
+      const c = cards[e.id];
+      return c && (c.attempts > 0 || c.reps > 0 || c.nextReviewAt);
+    });
+    const learnedCount = learnedEntities.length;
+    const totalCount = entities.length;
+    const unlearnedCount = Math.max(0, totalCount - learnedCount);
+
+    const norm = (mode || '').toUpperCase();
+    const isDaily = norm.includes('DAILY') || norm.includes('REVIEW') || norm.includes('EBBINGHAUS');
+    const isWeakness = norm.includes('WEAK') || norm.includes('MISTAKE');
+
+    const modal = document.getElementById('modal-mode-guidance');
+    const titleEl = document.getElementById('mode-guidance-title');
+    const badgeEl = document.getElementById('mode-guidance-badge');
+    const descEl = document.getElementById('mode-guidance-desc');
+    const totalEl = document.getElementById('mode-guidance-total-count');
+    const learnedEl = document.getElementById('mode-guidance-learned-count');
+    const dueEl = document.getElementById('mode-guidance-due-count');
+    const actionsEl = document.getElementById('mode-guidance-actions');
+
+    if (!modal) {
+      if (isDaily && learnedCount === 0) {
+        alert(`新题库初次学习指引：\n当前题库「${deck?.title}」尚未开启初次识记（已学 0 / 未学 ${totalCount}）。\n艾宾浩斯复习需要先建立初次识记基线。建议前往「自由试炼」或「知识精读」开始初次学习！`);
+      } else if (isDaily) {
+        alert(`今日所有艾宾浩斯复习任务均已完成（已巩固 ${learnedCount} 个词条），记忆稳固！\n如需加练可前往「弱点攻坚」或「自由试炼」。`);
+      } else {
+        alert('当前模式下暂无可复习或考核的词条。');
+      }
+      this.navigate('dashboard');
+      return;
+    }
+
+    if (totalEl) totalEl.innerText = totalCount;
+    if (learnedEl) learnedEl.innerText = learnedCount;
+    if (dueEl) dueEl.innerText = 0;
+
+    let title = '';
+    let badge = '';
+    let badgeClass = '';
+    let descHtml = '';
+    let buttonsHtml = '';
+
+    if (isDaily) {
+      if (learnedCount === 0) {
+        title = '新题库初次学习指引';
+        badge = '新题库 · 待开启';
+        badgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+        descHtml = `
+          <div class="space-y-2">
+            <p class="font-medium text-slate-200">当前题库「<span class="text-indigo-400 font-semibold">${deck?.title || '当前题库'}</span>」尚未开启初次识记。</p>
+            <p class="text-slate-400 leading-relaxed">艾宾浩斯记忆模型是基于已学词条的记忆稳定度进行动态间隔排程的。新题库尚未建立记忆基线，因此暂无可供复习的到期卡片。</p>
+            <div class="p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-800/40 text-[11px] text-indigo-300">
+              <strong>建议第一步</strong>：开启前 15 道新词初次自测，或进入精读中心通读概念，系统将自动开始计算遗忘衰减并安排每日复习。
+            </div>
+          </div>
+        `;
+        buttonsHtml = `
+          <button type="button" onclick="app.startFirstStudySession()" class="btn-primary-cta w-full py-2.5 rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5">
+            立即开启初次识记 (15题自测)
+          </button>
+          <button type="button" onclick="app.navigateToStudyHub()" class="btn-secondary w-full py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5">
+            前往知识精读 (浏览大纲与概念)
+          </button>
+          <button type="button" onclick="app.closeModeGuidanceModal()" class="w-full py-2 text-xs text-slate-400 hover:text-slate-200 transition">
+            返回主仪表盘
+          </button>
+        `;
+      } else {
+        title = '今日艾宾浩斯复习已达成';
+        badge = '记忆稳固 · 任务清空';
+        badgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+        descHtml = `
+          <div class="space-y-2">
+            <p class="font-medium text-slate-200">太棒了！已学 <span class="text-emerald-400 font-bold">${learnedCount}</span> 个词条，今日暂无到期复习任务。</p>
+            <p class="text-slate-400 leading-relaxed">当前已学知识点的艾宾浩斯记忆稳定度良好，建议保持每天打卡节奏，避免过度疲劳。</p>
+            <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-400">
+              如需继续强化，推荐进入<strong>弱点攻坚</strong>清除历史错题，或在<strong>自由沙盒</strong>中自选范围演练。
+            </div>
+          </div>
+        `;
+        buttonsHtml = `
+          <button type="button" onclick="app.closeModeGuidanceModal(); app.startMode('WEAKNESS');" class="btn-primary-cta w-full py-2.5 rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5">
+            弱点攻坚练习
+          </button>
+          <button type="button" onclick="app.closeModeGuidanceModal(); app.openSandboxConfigModal();" class="btn-secondary w-full py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5">
+            自由沙盒定制试炼
+          </button>
+          <button type="button" onclick="app.closeModeGuidanceModal()" class="w-full py-2 text-xs text-slate-400 hover:text-slate-200 transition">
+            好的，返回主仪表盘
+          </button>
+        `;
+      }
+    } else if (isWeakness) {
+      if (learnedCount === 0) {
+        title = '弱点题库尚未建立';
+        badge = '新题库 · 暂无错题';
+        badgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+        descHtml = `
+          <div class="space-y-2">
+            <p class="font-medium text-slate-200">当前题库尚未产生答题记录，暂无薄弱错题。</p>
+            <p class="text-slate-400 leading-relaxed">在对战和自测过程中，若出现失误或掌握度较低，系统会自动收录至弱点歼灭池供随时突击。</p>
+          </div>
+        `;
+        buttonsHtml = `
+          <button type="button" onclick="app.startFirstStudySession()" class="btn-primary-cta w-full py-2.5 rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5">
+            开启初次识记自测
+          </button>
+          <button type="button" onclick="app.closeModeGuidanceModal()" class="w-full py-2 text-xs text-slate-400 hover:text-slate-200 transition">
+            返回主仪表盘
+          </button>
+        `;
+      } else {
+        title = '无薄弱盲区，掌握牢固';
+        badge = '表现优异 · 零错题';
+        badgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+        descHtml = `
+          <div class="space-y-2">
+            <p class="font-medium text-slate-200">太棒了！已学的 <span class="text-emerald-400 font-bold">${learnedCount}</span> 个词条目前准确率极佳，暂无需要攻坚的薄弱盲区！</p>
+            <p class="text-slate-400 leading-relaxed">你可以挑战更高层级的分层递进天梯，或在自由沙盒中探索未学过的新分类。</p>
+          </div>
+        `;
+        buttonsHtml = `
+          <button type="button" onclick="app.closeModeGuidanceModal(); app.openSteppedCampaignModal();" class="btn-primary-cta w-full py-2.5 rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5">
+            挑战分层天梯
+          </button>
+          <button type="button" onclick="app.closeModeGuidanceModal()" class="w-full py-2 text-xs text-slate-400 hover:text-slate-200 transition">
+            返回主仪表盘
+          </button>
+        `;
+      }
+    } else {
+      title = '当前模式暂无匹配题目';
+      badge = '题列为空';
+      badgeClass = 'bg-slate-700 text-slate-300 border-slate-600';
+      descHtml = `
+        <div class="space-y-2">
+          <p class="text-slate-300 leading-relaxed">当前筛选条件下未匹配到符合考核条件的知识点。请检查分类范围选择或先完成前置知识学习。</p>
+        </div>
+      `;
+      buttonsHtml = `
+        <button type="button" onclick="app.closeModeGuidanceModal(); app.openSandboxConfigModal();" class="btn-primary-cta w-full py-2.5 rounded-xl text-xs font-bold shadow-md transition">
+          打开沙盒配置调整
+        </button>
+        <button type="button" onclick="app.closeModeGuidanceModal()" class="w-full py-2 text-xs text-slate-400 hover:text-slate-200 transition">
+          返回主仪表盘
+        </button>
+      `;
+    }
+
+    if (titleEl) titleEl.innerText = title;
+    if (badgeEl) {
+      badgeEl.innerText = badge;
+      badgeEl.className = `inline-block mt-0.5 px-2 py-0.5 rounded text-[11px] font-semibold border ${badgeClass}`;
+    }
+    if (descEl) descEl.innerHTML = descHtml;
+    if (actionsEl) actionsEl.innerHTML = buttonsHtml;
+
+    ModalController.open('modal-mode-guidance');
+  }
+
+  closeModeGuidanceModal() {
+    ModalController.close('modal-mode-guidance');
+  }
+
+  startFirstStudySession() {
+    this.closeModeGuidanceModal();
+    const deck = this.getActiveDeck();
+    const ds = this.getDeckState(deck ? deck.id : '');
+    const entities = deck?.entities || [];
+    const cards = ds?.cards || {};
+
+    let unlearned = entities.filter(e => {
+      const c = cards[e.id];
+      return !c || (c.attempts === 0 && !c.nextReviewAt);
+    });
+
+    if (unlearned.length === 0) unlearned = entities;
+
+    const shuffled = [...unlearned].sort(() => Math.random() - 0.5).slice(0, 15);
+    if (shuffled.length > 0) {
+      this.startSession('CATEGORY_DRILL', shuffled, { origin: 'first_study' });
+    } else {
+      this.openSandboxConfigModal();
+    }
+  }
+
+  navigateToStudyHub() {
+    this.closeModeGuidanceModal();
+    this.navigate('study');
+  }
+
 
   nextQuestion() {
     this.currentIndex++;
