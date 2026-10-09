@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JEV 接口全景诊断与模块推荐方案交互预览 - Knowledge Arena</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              750: '#293548',
+              850: '#172033',
+              950: '#0a0f1d'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    .surface-card {
+      background-color: #111827;
+      border: 1px solid #1f2937;
+    }
+    .surface-inset {
+      background-color: #0d1322;
+      border: 1px solid #1e293b;
+    }
+    .surface-overlay {
+      background-color: #151f32;
+      border: 1px solid #334155;
+    }
+    .btn-primary-cta {
+      background-color: #4f46e5;
+      color: #ffffff;
+    }
+    .btn-primary-cta:hover {
+      background-color: #4338ca;
+    }
+  </style>
+</head>
+<body class="p-4 sm:p-8 max-w-4xl mx-auto space-y-6">
+
+  <!-- 头部介绍 -->
+  <header class="border-b border-slate-800 pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-mono mb-2">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        <span>SPEC PREVIEW · v2.8 JEV RECOMMENDER</span>
+      </div>
+      <h1 class="text-xl sm:text-2xl font-bold text-white">JEV 接口全景诊断与模块推荐方案交互预览</h1>
+      <p class="text-xs sm:text-sm text-slate-400 mt-1">根据用户当前各分类板块熟练度全景输出推荐意见，未配置时支持“不推荐”与“降级方案”双轨策略。</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="openConfigModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold border border-slate-700 text-slate-200 flex items-center gap-1.5 transition">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        <span>JEV 接口配置</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 模拟测试控制器 -->
+  <section class="surface-card rounded-2xl p-4 sm:p-5 space-y-3">
+    <div class="text-xs font-bold text-slate-300 flex items-center justify-between">
+      <span class="flex items-center gap-1.5">
+        <svg class="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        <span>快速切换 JEV 接口运行态模式 (Simulator Bar)</span>
+      </span>
+      <span class="text-[11px] text-slate-400 font-mono">当前配置响应耗时: <span id="sim-latency" class="text-indigo-400 font-bold">0ms (本地)</span></span>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+      <button onclick="setSimulationState('heuristic')" id="btn-state-heuristic" class="p-3 rounded-xl border text-left transition flex flex-col justify-between bg-indigo-950/40 border-indigo-500/60 ring-1 ring-indigo-500/40">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-white">1. 未配置 - 降级方案 (默认)</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300">本地启发式</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-1">未填写远程端点，根据遗忘度/错题率本地计算最高风险模块并输出建议。</p>
+      </button>
+
+      <button onclick="setSimulationState('silent')" id="btn-state-silent" class="p-3 rounded-xl border text-left transition flex flex-col justify-between bg-slate-900 border-slate-800 hover:border-slate-700">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-200">2. 未配置 - 不推荐 (静默)</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">安静模式</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-1">未配置 JEV 时不进行推荐，彻底隐藏建议横幅，仅保留轻量状态。</p>
+      </button>
+
+      <button onclick="setSimulationState('remote')" id="btn-state-remote" class="p-3 rounded-xl border text-left transition flex flex-col justify-between bg-slate-900 border-slate-800 hover:border-slate-700">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-200">3. JEV 远程接口已连接</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">REST 200 OK</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-1">已连接企业级 JEV 评测微服务，返回精准的深度认知建议与突击策略。</p>
+      </button>
+    </div>
+  </section>
+
+  <!-- 核心区域：各分类板块熟练度全景卡片 (主界面对应视图) -->
+  <section class="surface-card rounded-2xl p-5 sm:p-6 space-y-4 shadow-lg">
+    <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        <span class="text-sm font-bold text-slate-200">各分类板块熟练度全景</span>
+        <span class="text-[11px] text-slate-400 font-mono">(共 5 个知识模块 · 118 词条)</span>
+      </div>
+
+      <!-- 右侧控制组 -->
+      <div class="flex items-center gap-2">
+        <span id="jev-status-pill" class="text-[11px] px-2.5 py-0.5 rounded-full border flex items-center gap-1 font-medium bg-amber-500/10 text-amber-300 border-amber-500/30">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+          <span>JEV: 启发式降级</span>
+        </span>
+        <button onclick="refreshDiagnosis()" title="刷新 JEV 研判" class="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        </button>
+        <button onclick="openConfigModal()" title="JEV 推荐设置" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium hover:underline flex items-center gap-1">
+          <span>设置</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- JEV 推荐意见横幅容器 (由 JS 动态装载) -->
+    <div id="jev-recommendation-container"></div>
+
+    <!-- 分类进度条列表 -->
+    <div id="deck-category-bars" class="space-y-2.5 text-xs">
+      <!-- 动态填充 -->
+    </div>
+  </section>
+
+  <!-- JEV 配置弹窗 (Modal) -->
+  <div id="modal-jev-config" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="surface-overlay rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-700/80 pb-3">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          <h3 class="text-base font-bold text-white">JEV 全景评估与模块推荐接口配置</h3>
+        </div>
+        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white text-lg">&times;</button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <!-- 启用远程 JEV 接口开关 -->
+        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800">
+          <div>
+            <div class="font-bold text-slate-200">启用远程 JEV 推荐接口</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">向外部或企业部署的 JEV 评测微服务上报熟练度全景并获取个性化建议</div>
+          </div>
+          <input type="checkbox" id="cfg-enabled" onchange="toggleConfigFields()" class="w-4 h-4 rounded text-indigo-600 bg-slate-800 border-slate-700">
+        </div>
+
+        <div id="cfg-remote-fields" class="space-y-3 hidden opacity-75">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">JEV 接口端点 (Endpoint URL)</label>
+            <input type="text" id="cfg-endpoint" value="https://api.example.com/v1/jev/recommend" placeholder="https://your-api.com/v1/jev/recommend"
+              class="w-full bg-slate-900 border border-slate-750 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">认证令牌 (API Key / Token)</label>
+            <input type="password" id="cfg-token" value="jev-live-sk-demo-9921" placeholder="Bearer Token (可选)"
+              class="w-full bg-slate-900 border border-slate-750 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none">
+          </div>
+        </div>
+
+        <!-- 降级策略选择 -->
+        <div class="space-y-2 pt-1">
+          <label class="block text-slate-300 font-semibold">未配置 JEV 或连接异常时的策略 (Fallback Policy)</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="p-3 rounded-xl border border-slate-800 bg-slate-900 cursor-pointer flex items-start gap-2 hover:border-slate-700">
+              <input type="radio" name="cfg-fallback" value="heuristic" checked class="mt-0.5 text-indigo-600">
+              <div>
+                <span class="font-bold text-slate-200 block">采用降级方案 (推荐)</span>
+                <span class="text-[10px] text-slate-400 leading-tight block mt-0.5">本地艾宾浩斯与错题风险矩阵自动计算</span>
+              </div>
+            </label>
+            <label class="p-3 rounded-xl border border-slate-800 bg-slate-900 cursor-pointer flex items-start gap-2 hover:border-slate-700">
+              <input type="radio" name="cfg-fallback" value="silent" class="mt-0.5 text-indigo-600">
+              <div>
+                <span class="font-bold text-slate-200 block">不推荐 (安静模式)</span>
+                <span class="text-[10px] text-slate-400 leading-tight block mt-0.5">未配置时不打扰，完全隐藏推荐卡片</span>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-slate-700/80">
+        <button onclick="testConnection()" class="px-3 py-1.5 rounded-lg border border-slate-750 text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-semibold transition">
+          测试接口连接
+        </button>
+        <div class="flex gap-2">
+          <button onclick="closeConfigModal()" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">取消</button>
+          <button onclick="saveConfigFromModal()" class="btn-primary-cta px-4 py-1.5 rounded-lg text-xs font-bold shadow-md transition">保存生效</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 模拟全景板块数据
+    const mockCategories = [
+      { id: 'cat_irr_abb', name: '不规则动词 (ABB型)', group: '不规则变形', total: 35, learned: 15, mastered: 4, dueCount: 6, mistakeCount: 5, pct: 43 },
+      { id: 'cat_double', name: '重读闭音节双写', group: '规则变形', total: 20, learned: 18, mastered: 12, dueCount: 1, mistakeCount: 0, pct: 90 },
+      { id: 'cat_irr_abc', name: '不规则动词 (ABC型)', group: '不规则变形', total: 28, learned: 10, mastered: 2, dueCount: 4, mistakeCount: 3, pct: 36 },
+      { id: 'cat_ie_y', name: 'ie结尾变y变ing', group: '分词特殊规则', total: 15, learned: 14, mastered: 10, dueCount: 0, mistakeCount: 1, pct: 93 },
+      { id: 'cat_ic_k', name: 'ic结尾加k规则', group: '分词特殊规则', total: 20, learned: 6, mastered: 1, dueCount: 2, mistakeCount: 1, pct: 30 }
+    ];
+
+    let currentState = 'heuristic'; // 'heuristic' | 'silent' | 'remote'
+
+    function renderCategoryBars(highlightId) {
+      const container = document.getElementById('deck-category-bars');
+      container.innerHTML = mockCategories.map(cat => {
+        const isTarget = cat.id === highlightId;
+        return `
+          <div class="space-y-1.5 p-3 rounded-xl border transition-all ${isTarget ? 'bg-indigo-950/40 border-indigo-500/70 shadow-md ring-1 ring-indigo-500/30' : 'bg-slate-900 border-slate-800'}">
+            <div class="flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2">
+                <span class="font-medium ${isTarget ? 'text-indigo-200 font-bold' : 'text-slate-300'} truncate">${cat.name}</span>
+                ${isTarget ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-indigo-500 text-white font-bold animate-pulse">★ JEV 首选推荐</span>' : ''}
+              </div>
+              <div class="flex items-center gap-3 font-mono text-[11px] text-slate-400">
+                <span>到期: <b class="${cat.dueCount > 0 ? 'text-amber-400' : 'text-slate-500'}">${cat.dueCount}</b></span>
+                <span>错题: <b class="${cat.mistakeCount > 0 ? 'text-rose-400' : 'text-slate-500'}">${cat.mistakeCount}</b></span>
+                <span>${cat.learned}/${cat.total} (${cat.pct}%)</span>
+              </div>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div class="h-full rounded-full transition-all duration-300 ${isTarget ? 'bg-indigo-400' : 'bg-indigo-600'}" style="width: ${cat.pct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderRecommendation() {
+      const bannerContainer = document.getElementById('jev-recommendation-container');
+      const pill = document.getElementById('jev-status-pill');
+      const latency = document.getElementById('sim-latency');
+
+      if (currentState === 'silent') {
+        latency.innerText = '0ms (未配置)';
+        pill.className = 'text-[11px] px-2.5 py-0.5 rounded-full border flex items-center gap-1 font-medium bg-slate-800 text-slate-400 border-slate-700';
+        pill.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span><span>JEV: 未启用 (不推荐)</span>';
+        
+        bannerContainer.innerHTML = `
+          <div class="p-3 rounded-xl bg-slate-900/60 border border-dashed border-slate-800 flex items-center justify-between text-xs text-slate-400">
+            <span>未配置 JEV 远程推荐接口，当前设为“不推荐”静默模式。</span>
+            <button onclick="openConfigModal()" class="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline">去配置 &rarr;</button>
+          </div>
+        `;
+        renderCategoryBars(null);
+        return;
+      }
+
+      if (currentState === 'heuristic') {
+        latency.innerText = '1ms (本地计算)';
+        pill.className = 'text-[11px] px-2.5 py-0.5 rounded-full border flex items-center gap-1 font-medium bg-amber-500/10 text-amber-300 border-amber-500/30';
+        pill.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span><span>JEV: 本地降级推荐</span>';
+
+        const targetCat = mockCategories[0]; // cat_irr_abb 风险最高
+        bannerContainer.innerHTML = `
+          <div class="p-4 rounded-xl bg-gradient-to-r from-amber-950/30 via-slate-900 to-slate-900 border border-amber-500/40 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/></svg>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40">启发式降级推荐</span>
+                  <span class="text-sm font-bold text-white">优先突破【${targetCat.name}】</span>
+                </div>
+                <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                  多维风险指数 <b class="text-amber-400">86分</b>：当前掌握度仅 43%，且存在 6 个词条到达艾宾浩斯遗忘临界，历史错题集中。
+                </p>
+              </div>
+            </div>
+            <button onclick="simulateAction('${targetCat.id}', '${targetCat.name}')" class="btn-primary-cta px-4 py-2 rounded-xl text-xs font-bold shrink-0 shadow-md hover:shadow-lg transition flex items-center justify-center gap-1.5">
+              <span>立即沙盒定向突破</span>
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </button>
+          </div>
+        `;
+        renderCategoryBars(targetCat.id);
+        return;
+      }
+
+      if (currentState === 'remote') {
+        latency.innerText = '120ms (REST API 响应)';
+        pill.className = 'text-[11px] px-2.5 py-0.5 rounded-full border flex items-center gap-1 font-medium bg-emerald-500/10 text-emerald-300 border-emerald-500/30';
+        pill.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span>JEV: 云端协同 (Online)</span>';
+
+        const targetCat = mockCategories[0];
+        bannerContainer.innerHTML = `
+          <div class="p-4 rounded-xl bg-gradient-to-r from-indigo-950/40 via-slate-900 to-slate-900 border border-indigo-500/40 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/40">JEV 云端智能诊断</span>
+                  <span class="text-sm font-bold text-white">权威建议：重点突破【${targetCat.name}】</span>
+                </div>
+                <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                  JEV 评估向量判定该板块同胞干扰项混淆度高达 0.74，正处于记忆塌陷窗口，建议开启 10 题沙盒强化训练。
+                </p>
+              </div>
+            </div>
+            <button onclick="simulateAction('${targetCat.id}', '${targetCat.name}')" class="btn-primary-cta px-4 py-2 rounded-xl text-xs font-bold shrink-0 shadow-md hover:shadow-lg transition flex items-center justify-center gap-1.5">
+              <span>立即沙盒定向突破</span>
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </button>
+          </div>
+        `;
+        renderCategoryBars(targetCat.id);
+      }
+    }
+
+    function setSimulationState(state) {
+      currentState = state;
+      ['heuristic', 'silent', 'remote'].forEach(s => {
+        const btn = document.getElementById(`btn-state-${s}`);
+        if (s === state) {
+          btn.className = 'p-3 rounded-xl border text-left transition flex flex-col justify-between bg-indigo-950/40 border-indigo-500/60 ring-1 ring-indigo-500/40';
+        } else {
+          btn.className = 'p-3 rounded-xl border text-left transition flex flex-col justify-between bg-slate-900 border-slate-800 hover:border-slate-700';
+        }
+      });
+      renderRecommendation();
+    }
+
+    function refreshDiagnosis() {
+      const container = document.getElementById('jev-recommendation-container');
+      container.innerHTML = '<div class="p-4 text-center text-xs text-slate-400">正在向 JEV 接口提交熟练度全景数据进行即时评估...</div>';
+      setTimeout(() => {
+        renderRecommendation();
+      }, 300);
+    }
+
+    function simulateAction(catId, catName) {
+      alert(`[交互闭环] 已自动切换至自由沙盒试炼模式，并为您自动选中了：【${catName}】！`);
+    }
+
+    function openConfigModal() {
+      document.getElementById('modal-jev-config').classList.remove('hidden');
+      const isEnabled = currentState === 'remote';
+      document.getElementById('cfg-enabled').checked = isEnabled;
+      toggleConfigFields();
+      const radios = document.getElementsByName('cfg-fallback');
+      for (const r of radios) {
+        if (r.value === (currentState === 'silent' ? 'silent' : 'heuristic')) r.checked = true;
+      }
+    }
+
+    function closeConfigModal() {
+      document.getElementById('modal-jev-config').classList.add('hidden');
+    }
+
+    function toggleConfigFields() {
+      const checked = document.getElementById('cfg-enabled').checked;
+      const fields = document.getElementById('cfg-remote-fields');
+      if (checked) {
+        fields.classList.remove('hidden');
+      } else {
+        fields.classList.add('hidden');
+      }
+    }
+
+    function testConnection() {
+      alert('JEV 接口握手成功！\n端点: https://api.example.com/v1/jev/recommend\n延迟: 88ms\n协议状态: 200 OK');
+    }
+
+    function saveConfigFromModal() {
+      const isEnabled = document.getElementById('cfg-enabled').checked;
+      const radios = document.getElementsByName('cfg-fallback');
+      let fallback = 'heuristic';
+      for (const r of radios) if (r.checked) fallback = r.value;
+
+      if (isEnabled) {
+        setSimulationState('remote');
+      } else if (fallback === 'silent') {
+        setSimulationState('silent');
+      } else {
+        setSimulationState('heuristic');
+      }
+      closeConfigModal();
+    }
+
+    // 初始化运行
+    renderRecommendation();
+  </script>
+</body>
+</html>

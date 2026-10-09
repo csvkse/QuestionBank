@@ -1,11 +1,26 @@
 /**
- * 3-Tier Card Tree Renderer (Group -> Category -> Layer -> Entity)
+ * Study Hub Tree Renderer & Layout Controller
  * Core: features/study-hub/tree-renderer.js
+ * 
+ * Manages dual-mode display:
+ * 1. Focus Mode (Default): Left outline tree + Right 3-phase single-focus card
+ * 2. Overview Mode: Multi-card matrix view
  */
+
+import { renderIcon } from '../../design-system/icons/icons.js';
 
 export class TreeRenderer {
   constructor(app) {
     this.app = app;
+    this.studyViewMode = 'focus'; // 'focus' | 'overview'
+  }
+
+  setStudyViewMode(mode) {
+    this.studyViewMode = mode;
+    this.renderCards();
+    if (this.app?.router?.scrollToTop) {
+      this.app.router.scrollToTop();
+    }
   }
 
   renderCards() {
@@ -13,10 +28,11 @@ export class TreeRenderer {
     if (!container) return;
 
     const deck = this.app.getActiveDeck();
+    if (!deck) return;
+
     const ds = this.app.getDeckState(deck.id);
     const searchInput = document.getElementById('study-search-input');
     const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
-    const endOfToday = new Date().setHours(23, 59, 59, 999);
 
     // 1. 筛选词条列表
     const filteredEntities = (deck.entities || []).filter(item => {
@@ -34,12 +50,35 @@ export class TreeRenderer {
       return true;
     });
 
+    // 顶部模式切换栏
+    const modeToggleBar = `
+      <div class="flex items-center justify-between pb-1 text-xs">
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400 font-medium">视图模式:</span>
+          <div class="flex items-center p-0.5 rounded-lg bg-slate-900 border border-slate-800">
+            <button onclick="app.treeRenderer.setStudyViewMode('focus')" class="px-2.5 py-1 rounded-md text-xs font-medium transition flex items-center gap-1.5 ${this.studyViewMode === 'focus' ? 'bg-indigo-600 text-white font-bold shadow-sm' : 'text-slate-400 hover:text-slate-200'}">
+              ${renderIcon('target', 'w-3.5 h-3.5')}
+              <span>聚焦精读模式</span>
+            </button>
+            <button onclick="app.treeRenderer.setStudyViewMode('overview')" class="px-2.5 py-1 rounded-md text-xs font-medium transition flex items-center gap-1.5 ${this.studyViewMode === 'overview' ? 'bg-indigo-600 text-white font-bold shadow-sm' : 'text-slate-400 hover:text-slate-200'}">
+              ${renderIcon('book', 'w-3.5 h-3.5')}
+              <span>全景大纲模式</span>
+            </button>
+          </div>
+        </div>
+        <span class="text-[11px] text-slate-500 font-mono">共匹配 ${filteredEntities.length} 个考点</span>
+      </div>
+    `;
+
     if (filteredEntities.length === 0) {
       container.innerHTML = `
+        ${modeToggleBar}
         <div class="p-12 text-center bg-slate-900/60 rounded-2xl border border-slate-800 text-slate-400 space-y-3">
-          <div class="text-3xl">🔍</div>
+          <div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 mx-auto">
+            ${renderIcon('search', 'w-5 h-5')}
+          </div>
           <p class="text-sm">未匹配到符合当前筛选条件的概念词条</p>
-          <button onclick="app.resetStudyFilters()" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition">
+          <button onclick="app.resetStudyFilters()" class="btn-primary-cta px-4 py-1.5 rounded-lg text-xs font-medium transition">
             重置所有筛选
           </button>
         </div>
@@ -47,194 +86,145 @@ export class TreeRenderer {
       return;
     }
 
-    // 2. 组装三层结构树: tree[groupName][catId].layers[layerNum] = [...]
+    if (this.studyViewMode === 'focus') {
+      this.renderFocusLayout(container, modeToggleBar, deck, ds, filteredEntities);
+    } else {
+      this.renderOverviewLayout(container, modeToggleBar, deck, ds, filteredEntities);
+    }
+  }
+
+  renderFocusLayout(container, modeToggleBar, deck, ds, filteredEntities) {
+    const activeId = this.app.focusReader.activeEntityId || filteredEntities[0].id;
+    if (!this.app.focusReader.activeEntityId) {
+      this.app.focusReader.activeEntityId = activeId;
+    }
+
+    // 组装树形导航
     const tree = {};
     filteredEntities.forEach(item => {
       const cat = deck.categories.find(c => c.id === item.categoryId) || { id: 'unknown', name: '未知分类', group: '核心知识板块' };
       const grpName = cat.group || '核心知识板块';
-
       if (!tree[grpName]) tree[grpName] = {};
       if (!tree[grpName][cat.id]) {
-        tree[grpName][cat.id] = {
-          category: cat,
-          layers: { 1: [], 2: [], 3: [] }
-        };
+        tree[grpName][cat.id] = { category: cat, entities: [] };
       }
-      const l = item.layer || 1;
-      if (!tree[grpName][cat.id].layers[l]) tree[grpName][cat.id].layers[l] = [];
-      tree[grpName][cat.id].layers[l].push(item);
+      tree[grpName][cat.id].entities.push(item);
     });
 
-    // 3. 递归渲染 Group 容器 -> Category 容器 -> Layer 色带 -> Entity 卡片
-    let html = '';
+    let navHtml = '';
     Object.keys(tree).forEach(grpName => {
-      const catsObj = tree[grpName];
-      let groupTotalEnts = 0;
-      Object.values(catsObj).forEach(cObj => {
-        [1, 2, 3].forEach(l => { groupTotalEnts += cObj.layers[l].length; });
-      });
-
-      html += `
-        <div class="bg-slate-900/80 border border-slate-800/90 rounded-2xl p-4 sm:p-5 space-y-5 shadow-lg">
-          <!-- 📦 顶级大组标头 -->
-          <div class="flex items-center justify-between pb-3 border-b border-slate-800/80 flex-wrap gap-2">
-            <div class="flex items-center gap-2.5">
-              <span class="w-8 h-8 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-sm">
-                📦
-              </span>
-              <div>
-                <h3 class="text-base font-black text-white tracking-wide">${grpName}</h3>
-                <p class="text-xs text-slate-400 font-mono">共包含 ${Object.keys(catsObj).length} 个细分类别 · ${groupTotalEnts} 个考点词条</p>
-              </div>
-            </div>
-            <button onclick="app.drillGroup('${grpName.replace(/'/g, "\\'")}')" class="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-bold transition flex items-center gap-1 shadow-sm">
-              <span>🚀 专项练习此大组 (${groupTotalEnts})</span>
-            </button>
+      const cats = tree[grpName];
+      navHtml += `
+        <div class="space-y-2">
+          <div class="text-[11px] font-bold text-slate-400 font-mono flex items-center gap-1 px-1">
+            ${renderIcon('layers', 'w-3 h-3 text-indigo-400')}
+            <span>${grpName}</span>
           </div>
-
-          <!-- 分类列表 -->
-          <div class="space-y-6">
+          <div class="space-y-2 pl-1.5 border-l border-slate-800">
       `;
 
-      Object.keys(catsObj).forEach(catId => {
-        const { category, layers } = catsObj[catId];
-        let catTotalEnts = layers[1].length + layers[2].length + layers[3].length;
-
-        html += `
-          <div class="bg-slate-950/60 border border-slate-800/70 rounded-xl p-3.5 sm:p-4 space-y-4">
-            <!-- 🏷️ 二级分类标头 -->
-            <div class="flex items-center justify-between flex-wrap gap-2">
-              <div class="flex items-center gap-2">
-                <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-indigo-300 font-bold font-mono border border-slate-700">🏷️ ${category.name}</span>
-                <span class="text-xs text-slate-500 font-mono">(${catTotalEnts} 词条)</span>
-              </div>
-              <button onclick="app.drillCategory('${category.id}')" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition flex items-center gap-1">
-                <span>练习此分类 &rarr;</span>
-              </button>
+      Object.keys(cats).forEach(catId => {
+        const { category, entities } = cats[catId];
+        navHtml += `
+          <div class="space-y-1">
+            <div class="text-[10px] font-semibold text-slate-500 uppercase px-1.5 py-0.5">
+              ${category.name} (${entities.length})
             </div>
-
-            <!-- 三级层级色带与卡片流 -->
-            <div class="space-y-4">
+            <div class="space-y-0.5">
         `;
 
-        [1, 2, 3].forEach(lNum => {
-          const items = layers[lNum];
-          if (!items || items.length === 0) return;
+        entities.forEach(ent => {
+          const isActive = ent.id === activeId;
+          const cardState = ds.cards[ent.id] || { level: 0, attempts: 0 };
+          let dotColor = 'bg-slate-600';
+          if (cardState.attempts > 0) {
+            dotColor = cardState.level >= 4 ? 'bg-emerald-400' : 'bg-indigo-400';
+          }
 
-          const lIcon = lNum === 1 ? '🌱' : (lNum === 2 ? '🌿' : '🔥');
-          const lName = lNum === 1 ? '基础认知' : (lNum === 2 ? '规律运用' : '陷阱与特例');
-          const lColor = lNum === 1 
-            ? 'bg-sky-500/15 text-sky-300 border-sky-500/30' 
-            : (lNum === 2 ? 'bg-purple-500/15 text-purple-300 border-purple-500/30' : 'bg-rose-500/15 text-rose-300 border-rose-500/30');
-
-          html += `
-            <div class="space-y-2.5">
-              <!-- 层级标头 -->
-              <div class="flex items-center gap-2 pt-1">
-                <span class="text-[11px] font-bold px-2.5 py-0.5 rounded border font-mono ${lColor} flex items-center gap-1.5 shadow-sm">
-                  <span>${lIcon}</span>
-                  <span>Layer ${lNum}: ${lName}</span>
-                  <span class="opacity-80">(${items.length} 词条)</span>
-                </span>
-                <div class="h-px bg-slate-800/80 flex-1"></div>
-                <button onclick="app.drillLayer(${lNum})" class="text-[10px] text-slate-500 hover:text-slate-300 transition">只练此层 &rarr;</button>
+          navHtml += `
+            <div id="study-tree-node-${ent.id}" onclick="app.focusReader.setActiveEntity('${ent.id}')"
+              class="group flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition select-none ${isActive ? 'bg-indigo-600/20 text-indigo-200 border border-indigo-500/50 font-bold' : 'hover:bg-slate-850 text-slate-300 hover:text-white border border-transparent'}">
+              <div class="flex items-center gap-2 min-w-0 pr-1">
+                <span class="w-1.5 h-1.5 rounded-full ${dotColor} shrink-0"></span>
+                <span class="truncate">${ent.title}</span>
               </div>
-
-              <!-- 词条卡片网格 -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          `;
-
-          items.forEach(item => {
-            const card = ds.cards[item.id] || { level: 0, attempts: 0, correct: 0, wrong: 0 };
-            
-            // 记忆状态标签
-            let stateBadge = '';
-            if (card.attempts === 0) {
-              stateBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400">未学习</span>';
-            } else if (card.level >= 4) {
-              stateBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">🟢 稳固掌握</span>';
-            } else if (card.nextReviewAt && card.nextReviewAt <= endOfToday) {
-              stateBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30">🟡 今日到期</span>';
-            } else {
-              stateBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30">🔵 记忆冷却中</span>';
-            }
-
-            // 核心答案样式 (支持遮挡自测)
-            const answerClass = this.app.isAnswerMasked 
-              ? 'filter blur-[5px] hover:filter-none transition-all cursor-pointer select-none bg-slate-800 px-2 py-0.5 rounded text-indigo-400 hover:text-indigo-200 border border-slate-700 inline-block font-mono'
-              : 'text-indigo-300 font-mono font-bold bg-indigo-500/10 border border-indigo-500/30 px-2.5 py-0.5 rounded inline-block';
-
-            html += `
-              <div class="bg-slate-950/70 border border-slate-800 hover:border-slate-700 rounded-xl p-4 flex flex-col justify-between space-y-3 transition shadow-sm">
-                <div>
-                  <div class="flex items-start justify-between gap-2">
-                    <div>
-                      <h4 class="text-base font-black text-white tracking-wide">${item.title}</h4>
-                      <p class="text-xs text-slate-400 font-mono mt-0.5">${item.subtitle || ''}</p>
-                    </div>
-                    <div class="flex flex-col items-end gap-1 shrink-0">
-                      <span class="text-[10px] px-2 py-0.5 rounded border font-mono ${lColor}">L${item.layer}</span>
-                      ${stateBadge}
-                    </div>
-                  </div>
-
-                  <!-- 核心答案与考核目标 -->
-                  <div class="mt-3 p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs space-y-1">
-                    <div class="text-slate-400 text-[11px] font-medium">${item.prompt || '核心对应与特征：'}</div>
-                    <div>
-                      <span class="${answerClass}" title="${this.app.isAnswerMasked ? '点击或鼠标悬停查看答案' : ''}">${item.answer}</span>
-                    </div>
-                  </div>
-
-                  <!-- 规则精要 -->
-                  <div class="mt-3 text-xs leading-relaxed text-slate-300">
-                    <span class="text-indigo-400 font-bold">【规则精要】:</span> ${item.explanation}
-                  </div>
-
-                  <!-- 避坑提醒 -->
-                  ${item.pitfalls ? `
-                    <div class="mt-2 text-xs text-rose-300 leading-relaxed bg-rose-950/20 border border-rose-900/30 rounded-lg p-2">
-                      <span class="font-bold">⚠️ 【易错避坑】:</span> ${item.pitfalls}
-                    </div>
-                  ` : ''}
-
-                  <!-- 混淆同胞 -->
-                  ${item.confusedWith ? `
-                    <div class="mt-2 text-[11px] text-amber-300/90 font-mono">
-                      <span>🔗 强辨析同胞:</span> <span class="underline">${item.confusedWith}</span>
-                    </div>
-                  ` : ''}
-                </div>
-
-                <!-- 底部做题记录与专项突破 -->
-                <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
-                  <span>历史做题: <b class="text-emerald-400">${card.correct}</b>对 / <b class="text-rose-400">${card.wrong}</b>错</span>
-                  <button onclick="app.drillSingleEntity('${item.id}')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white transition font-medium">
-                    🎯 专项突破
-                  </button>
-                </div>
-              </div>
-            `;
-          });
-
-          html += `
-              </div>
+              <span class="text-[10px] font-mono text-slate-500 shrink-0">L${ent.layer}</span>
             </div>
           `;
         });
 
-        html += `
-            </div>
-          </div>
-        `;
+        navHtml += `</div></div>`;
       });
 
-      html += `
+      navHtml += `</div></div>`;
+    });
+
+    container.innerHTML = `
+      <div class="space-y-3">
+        ${modeToggleBar}
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+          
+          <!-- 左侧目录树导航侧边栏 -->
+          <div class="md:col-span-4 surface-card rounded-2xl border border-slate-800 p-3.5 max-h-[640px] overflow-y-auto space-y-4 shadow-md">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800/80 text-[11px] text-slate-400 font-mono">
+              <span>知识大纲目录</span>
+              <span>${filteredEntities.length} 项</span>
+            </div>
+            <div class="space-y-3 text-xs">
+              ${navHtml}
+            </div>
+          </div>
+
+          <!-- 右侧单点聚焦卡片容器 -->
+          <div id="study-focus-card-pane" class="md:col-span-8 min-h-[520px]">
+            <!-- 由 app.focusReader.render() 填充 -->
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    this.app.focusReader.render();
+  }
+
+  renderOverviewLayout(container, modeToggleBar, deck, ds, filteredEntities) {
+    let cardsHtml = '';
+    filteredEntities.forEach(item => {
+      const cat = deck.categories.find(c => c.id === item.categoryId) || { name: '通用考点', group: '核心体系' };
+      const cardState = ds.cards[item.id] || { level: 0, attempts: 0 };
+      const isMasked = this.app.isAnswerMasked;
+      const maskClass = isMasked ? 'filter blur-sm select-none hover:filter-none transition-all cursor-pointer' : '';
+
+      cardsHtml += `
+        <div class="surface-card rounded-xl border border-slate-800 p-4 space-y-3 shadow-sm hover:border-slate-700 transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-xs text-slate-400 font-mono pb-2 border-b border-slate-800/60">
+              <span class="truncate text-indigo-400">${cat.name}</span>
+              <span class="px-1.5 py-0.2 rounded bg-slate-800 text-[10px]">L${item.layer}</span>
+            </div>
+            <h4 class="font-bold text-white text-base mt-2.5">${item.title}</h4>
+            <div class="mt-2 p-2.5 surface-inset rounded-lg text-sm text-indigo-300 font-semibold ${maskClass}">
+              ${item.answer}
+            </div>
+            ${item.explanation ? `<p class="mt-2 text-xs text-slate-400 line-clamp-3">${item.explanation}</p>` : ''}
+          </div>
+          <div class="pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs">
+            <span class="text-[11px] text-slate-500 font-mono">熟练度 Lv.${cardState.level}</span>
+            <button onclick="app.drillSingleEntity('${item.id}')" class="text-indigo-400 hover:text-indigo-300 font-medium transition flex items-center gap-1">
+              <span>单题测验 &rarr;</span>
+            </button>
           </div>
         </div>
       `;
     });
 
-    container.innerHTML = html;
+    container.innerHTML = `
+      <div class="space-y-4">
+        ${modeToggleBar}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${cardsHtml}
+        </div>
+      </div>
+    `;
   }
 }

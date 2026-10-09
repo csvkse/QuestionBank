@@ -174,6 +174,11 @@
           <span>知识法典</span>
           <span id="nav-mistake-badge" class="px-1.5 py-0.2 text-[10px] rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 hidden">0</span>
         </button>
+
+        <button id="nav-tab-agent" onclick="app.navigate('agent')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 font-medium transition" title="AI 智囊助手 (题库增删改查 & 智能问答)">
+          <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <span>AI 智囊</span>
+        </button>
       </nav>
 
       <!-- 右侧: 全局轻量状态与辅助操作 -->
@@ -196,8 +201,8 @@
     </div>
   </header>
 
-  <!-- 主容器 (遵循 8-Point 间距步进) -->
-  <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-6">
+  <!-- 主容器 (遵循 8-Point 间距步进与路由隔离律) -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6">
 
     <!-- 1. 仪表盘视图 (DASHBOARD) -->
     <div id="view-dashboard" class="space-y-6">
@@ -451,10 +456,34 @@
       </div>
 
       <!-- 分类图谱掌握度全景矩阵 (Surface 1) -->
-      <div class="surface-card rounded-2xl p-5">
-        <h3 class="text-sm font-bold text-slate-200 mb-3.5 flex items-center gap-2">
-          <span>📊 各分类板块熟练度全景</span>
-        </h3>
+      <div class="surface-card rounded-2xl p-5 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+            <svg class="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            <span>各分类板块熟练度全景</span>
+          </h3>
+          <div class="flex items-center flex-wrap gap-2">
+            <button type="button" id="panorama-collapse-toggle-btn" onclick="app.toggleAllPanoramaGroups()" class="text-xs px-2.5 py-1 rounded-lg surface-inset hover:bg-slate-800 border border-slate-750 text-slate-300 hover:text-white transition flex items-center gap-1 font-medium" title="一键全部折叠或展开所有大类">
+              <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
+              <span id="panorama-toggle-all-label">全部折叠</span>
+            </button>
+            <span id="jev-status-pill" class="text-[11px] px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 font-medium bg-slate-800 text-slate-400 border-slate-750">
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+              <span>JEV: 检测中</span>
+            </span>
+            <button type="button" onclick="app.refreshJevRecommendation()" title="重新运行 JEV 诊断研判" class="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            </button>
+            <button type="button" onclick="app.showJevConfigModal()" class="text-xs px-2.5 py-1 rounded-lg surface-inset hover:bg-slate-800 border border-slate-750 text-slate-300 hover:text-white transition flex items-center gap-1 font-medium">
+              <svg class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+              <span>JEV 推荐配置</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- JEV 推荐模块智能意见横幅 -->
+        <div id="jev-recommendation-container"></div>
+
         <div id="deck-category-bars" class="space-y-3 text-xs">
           <!-- 由 JS 填充各分类进度条 -->
         </div>
@@ -462,7 +491,7 @@
     </div>
 
     <!-- 2. 战斗答题竞技场视图 (ARENA) -->
-    <div id="view-arena" class="hidden space-y-6 max-w-2xl mx-auto">
+    <div id="view-arena" class="hidden space-y-6 max-w-2xl mx-auto" hidden>
       <!-- 竞技场顶部状态栏 (Surface 1) -->
       <div class="flex items-center justify-between surface-card rounded-xl px-4 py-3">
         <button onclick="app.exitArena()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition">
@@ -475,9 +504,18 @@
           <div class="text-xs font-mono px-2 py-1 rounded bg-slate-850 text-slate-300 border border-slate-750">
             进度: <span id="arena-progress-text" class="text-indigo-400 font-bold">1 / 10</span>
           </div>
+          <!-- 语言题库自动发音开关 -->
+          <button id="arena-auto-speech-toggle" onclick="app.toggleAutoSpeech()" title="切换自动发音开/关 (快捷键 S)" class="hidden flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-850 hover:bg-slate-800 text-xs text-slate-300 border border-slate-750 transition font-mono">
+            <svg id="arena-speech-icon" class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+            </svg>
+            <span id="arena-speech-status-text" class="text-indigo-400 font-bold">发音: 开</span>
+          </button>
         </div>
         <div class="flex items-center gap-1 text-xs font-bold text-amber-400 font-mono">
-          <span>🔥</span>
+          <svg class="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="currentColor"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
           <span id="arena-combo-text">0 Combo</span>
         </div>
       </div>
@@ -494,10 +532,20 @@
           分类: 客户端错误 · Layer 2
         </div>
 
-        <!-- 考核概念大字 (字阶 3xl / 4xl) -->
-        <div class="space-y-1 my-3">
-          <div id="arena-base-word" class="text-3xl sm:text-4xl font-extrabold text-white tracking-wide">
-            401 Unauthorized
+        <!-- 考核概念大字 (字阶 3xl / 4xl) 与 语言发音按钮 -->
+        <div class="space-y-1.5 my-3">
+          <div class="inline-flex items-center justify-center gap-3 flex-wrap">
+            <span id="arena-base-word" class="text-3xl sm:text-4xl font-extrabold text-white tracking-wide">
+              401 Unauthorized
+            </span>
+            <!-- 语言类题目发音播放按钮 (单色矢量 SVG) -->
+            <button id="btn-replay-speech" onclick="app.speakCurrentWord()" title="播放发音 (快捷键 P)" class="hidden p-2 rounded-xl bg-slate-800/90 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-slate-700 hover:border-indigo-500 transition shadow-sm active:scale-95 group" aria-label="朗读发音">
+              <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+              </svg>
+            </button>
           </div>
           <div class="flex items-center justify-center gap-2 text-slate-400 text-xs sm:text-sm">
             <span id="arena-phonetic" class="font-mono"></span>
@@ -505,9 +553,23 @@
           </div>
         </div>
 
-        <!-- 针对概念的特别问题提示语 -->
-        <div id="arena-prompt-text" class="my-3 text-xs sm:text-sm text-indigo-300 font-medium">
-          请选择最准确的含义或目标对应项：
+        <!-- 核心答题任务醒目高亮指令卡 (显著提升题目可见度) -->
+        <div id="arena-prompt-banner" class="my-4 mx-auto max-w-xl px-4 py-3 rounded-xl bg-slate-850/90 border border-indigo-500/40 shadow-md shadow-indigo-950/40 flex items-center justify-center gap-3 transition-all">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/30">
+            <svg class="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </div>
+          <div class="text-left flex-1 min-w-0">
+            <div class="text-[10px] font-bold tracking-wider uppercase text-indigo-400 font-mono">
+              考查任务 · QUESTION DIRECTIVE
+            </div>
+            <div id="arena-prompt-text" class="text-sm sm:text-base font-extrabold text-white tracking-wide mt-0.5 leading-snug">
+              请选择最准确的含义或目标对应项：
+            </div>
+          </div>
         </div>
 
         <!-- 四选一选项矩阵 (由同胞采样算法动态生成) -->
@@ -517,7 +579,7 @@
 
         <!-- 快捷键引导提示 -->
         <div class="mt-4 text-[11px] text-slate-500 font-mono">
-          键盘可按数字键 <span class="px-1.5 py-0.5 rounded bg-slate-850 text-slate-300 border border-slate-750">1</span> <span class="px-1.5 py-0.5 rounded bg-slate-850 text-slate-300 border border-slate-750">2</span> <span class="px-1.5 py-0.5 rounded bg-slate-850 text-slate-300 border border-slate-750">3</span> <span class="px-1.5 py-0.5 rounded bg-slate-850 text-slate-300 border border-slate-750">4</span> 秒速作答
+          键盘可按数字键 <span class="px-1.5 py-0.5 rounded bg-slate-850 text-slate-300 border border-slate-750">1</span> <span class="px-1.5 py-0.5 rounded bg-slate-850 text-slate-300 border border-slate-750">2</span> <span class="px-1.5 py-0.5 rounded bg-slate-850 text-slate-300 border border-slate-750">3</span> <span class="px-1.5 py-0.5 rounded bg-slate-850 text-slate-300 border border-slate-750">4</span> 秒速作答 <span id="arena-speech-shortcut-hint" class="hidden">· 按 <span class="px-1.5 py-0.5 rounded bg-slate-850 text-indigo-300 border border-slate-750 font-bold">P</span> 朗读</span>
         </div>
       </div>
 
@@ -525,7 +587,9 @@
       <div id="arena-feedback-drawer" class="hidden surface-overlay rounded-2xl p-5 shadow-2xl transition-all border border-slate-800">
         <div class="flex items-start justify-between">
           <div class="flex items-center gap-2.5">
-            <span id="feedback-icon" class="text-2xl">✨</span>
+            <span id="feedback-icon" class="w-6 h-6 flex items-center justify-center text-emerald-400">
+              <svg class="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
+            </span>
             <div>
               <h4 id="feedback-title" class="font-bold text-sm text-white">回答正确！</h4>
               <p id="feedback-subtitle" class="text-xs text-slate-400 mt-0.5">连续答对 · 记忆稳定度持续提升</p>
@@ -552,8 +616,10 @@
     </div>
 
     <!-- 3. 结算成绩单视图 (SUMMARY) -->
-    <div id="view-summary" class="hidden max-w-lg mx-auto surface-card rounded-2xl p-6 sm:p-8 text-center space-y-5 shadow-xl">
-      <div class="text-5xl" id="summary-icon">🎉</div>
+    <div id="view-summary" class="hidden max-w-lg mx-auto surface-card rounded-2xl p-6 sm:p-8 text-center space-y-5 shadow-xl" hidden>
+      <div class="w-12 h-12 mx-auto flex items-center justify-center text-amber-400" id="summary-icon">
+        <svg class="w-10 h-10 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 16l-3-9 7 4 3-6 3 6 7-4-3 9H5z"/></svg>
+      </div>
       <div>
         <h2 class="text-2xl font-black text-white" id="summary-title">试炼完成！</h2>
         <p class="text-xs text-slate-400 mt-1" id="summary-subtitle">本次学习数据已成功记入该知识库的艾宾浩斯模型</p>
@@ -585,7 +651,7 @@
     </div>
 
     <!-- 4. 知识图谱法典与错题本视图 (CODEX) -->
-    <div id="view-codex" class="hidden space-y-5">
+    <div id="view-codex" class="hidden space-y-5" hidden>
       <div class="flex items-center justify-between surface-card rounded-2xl p-4 sm:p-5">
         <div>
           <h2 class="text-lg font-bold text-white flex items-center gap-2">
@@ -639,7 +705,7 @@
     </div>
 
     <!-- 5. 原始知识点精读与自测学习页面 (STUDY HUB) -->
-    <div id="view-study" class="hidden space-y-6">
+    <div id="view-study" class="hidden space-y-6" hidden>
       <!-- 页面顶部横幅与控制栏 (Surface 1) -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 surface-card rounded-2xl p-5 shadow">
         <div>
@@ -742,6 +808,122 @@
         <!-- 动态渲染各板块及板块下实体卡片 -->
       </div>
     </div>
+
+    <!-- 6. AI 智囊智能体工作台视图 (AI AGENT WORKBENCH) -->
+    <div id="view-agent" class="hidden h-[calc(100vh-8.5rem)] flex flex-col md:flex-row rounded-2xl surface-card border border-slate-800 overflow-hidden shadow-2xl" hidden>
+      
+      <!-- 左栏：多会话列表管理侧边栏 (260px) -->
+      <aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-slate-800 bg-slate-950/60 flex flex-col shrink-0">
+        <!-- 新建对话按钮 -->
+        <div class="p-3 border-b border-slate-800/80">
+          <button onclick="app.aiAgent.createNewSession()" class="w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition">
+            <span>+</span>
+            <span>新建智能对话</span>
+          </button>
+        </div>
+
+        <!-- 会话历史滚动列表 -->
+        <div id="ai-session-list" class="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
+          <!-- 动态渲染会话项 -->
+        </div>
+
+        <!-- 底部会话数与清空 -->
+        <div class="p-3 border-t border-slate-800/80 bg-slate-950/40 flex items-center justify-between text-[11px] text-slate-400">
+          <span id="ai-session-count-badge">共 1 个会话</span>
+          <button onclick="app.aiAgent.clearAllSessions()" class="text-rose-400/80 hover:text-rose-300 transition" title="清空全部会话">清空</button>
+        </div>
+      </aside>
+
+      <!-- 右栏：对话核心视口 (顶部状态 + 消息流 + 输入区) -->
+      <main class="flex-1 flex flex-col surface-canvas overflow-hidden relative">
+        
+        <!-- 顶部状态指示条 (模型名称 + 思考等级选择 + 配置按钮) -->
+        <div class="h-12 border-b border-slate-800/80 surface-card px-4 flex items-center justify-between text-xs shrink-0">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              <span class="font-bold text-white" id="ai-active-model-name">deepseek-reasoner</span>
+            </div>
+            <span class="text-slate-700">|</span>
+            <!-- 思考等级下拉调节 -->
+            <div class="flex items-center gap-1.5 surface-inset px-2 py-0.5 rounded-md border border-slate-750">
+              <span class="text-[11px] text-slate-400">思考等级:</span>
+              <select id="ai-reasoning-effort-select" onchange="app.aiAgent.updateReasoningEffort(this.value)"
+                class="bg-transparent text-amber-300 font-mono text-[11px] outline-none cursor-pointer">
+                <option value="none" class="bg-slate-900 text-slate-300">关闭 (None)</option>
+                <option value="low" class="bg-slate-900 text-slate-300">浅层 (Low)</option>
+                <option value="medium" selected class="bg-slate-900 text-amber-300">平衡 (Medium - 推荐)</option>
+                <option value="high" class="bg-slate-900 text-amber-400">深度 (High)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="app.showAiConfigModal()" class="px-2.5 py-1 rounded-lg surface-inset hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-750 text-[11px] transition flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span>平台与模型配置</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 消息流容器 -->
+        <div id="ai-messages-stream" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          <!-- 动态注入聊天卡片 -->
+        </div>
+
+        <!-- 底部输入与操作区 -->
+        <footer class="p-3 sm:p-4 border-t border-slate-800/80 surface-card shrink-0">
+          <div class="max-w-4xl mx-auto space-y-2">
+            <!-- 快捷平台与模型选择器工具条 -->
+            <div class="flex items-center justify-between pb-0.5 text-xs">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] text-slate-400 font-mono flex items-center gap-1">
+                  <svg class="w-3 h-3 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                  <span>切换模型:</span>
+                </span>
+                <select id="ai-quick-model-select" onchange="app.aiAgent.onQuickModelChange(this.value)"
+                  class="bg-slate-900 border border-slate-750 text-indigo-300 font-mono text-[11px] rounded-lg px-2 py-0.5 outline-none cursor-pointer hover:border-slate-600 transition">
+                  <!-- 动态填充 -->
+                </select>
+              </div>
+              <button onclick="app.showAiConfigModal()" class="text-[11px] text-slate-400 hover:text-indigo-300 transition flex items-center gap-1 font-mono">
+                <span>管理平台</span>
+                <span>&rarr;</span>
+              </button>
+            </div>
+
+            <!-- 快捷提示词药丸 -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] text-slate-300 font-mono">
+              <span class="text-slate-500 shrink-0">快捷指令:</span>
+              <button onclick="app.aiAgent.handleSendMessage('帮我查询当前系统内所有题库列表与词条总数')" class="px-2 py-0.5 rounded-full surface-inset hover:bg-slate-800 border border-slate-750 shrink-0 transition">
+                查询系统题库
+              </button>
+              <button onclick="app.aiAgent.handleSendMessage('为我创建一套《Docker 容器实战》考题题库，包含 2 个分类，每类至少 4 条词条')" class="px-2 py-0.5 rounded-full surface-inset hover:bg-slate-800 border border-slate-750 shrink-0 transition">
+                自动构建 Docker 题库
+              </button>
+              <button onclick="app.aiAgent.handleSendMessage('检查当前激活的英语动词题库，指出有哪些考点容易混淆并补齐解析')" class="px-2 py-0.5 rounded-full surface-inset hover:bg-slate-800 border border-slate-750 shrink-0 transition">
+                诊断动词易混考点
+              </button>
+            </div>
+
+            <!-- 输入框与发送区 -->
+            <div class="surface-inset border border-slate-700/80 rounded-xl focus-within:border-indigo-500/80 transition p-2">
+              <textarea id="ai-chat-input" rows="2" placeholder="与 AI 智囊交谈，支持题库增删改查、考点润色、架构梳理... (按 Enter 发送，Shift+Enter 换行)"
+                class="w-full bg-transparent text-xs sm:text-sm text-slate-100 placeholder-slate-500 outline-none resize-none px-1"></textarea>
+              <div class="flex items-center justify-between pt-1">
+                <span class="text-[11px] text-slate-500 font-mono">引擎：Microsoft fetch-event-source + partial-json</span>
+                <button id="ai-send-btn" onclick="app.aiAgent.handleSendMessage()" class="btn-primary-cta px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                  <span>发送</span>
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </footer>
+
+      </main>
+
+    </div>
   </main>
 
   <!-- 5. 可视化 / MD 双视图联动知识工坊 (DUAL-VIEW DECK STUDIO MODAL) (Surface 4 浮层) -->
@@ -752,7 +934,7 @@
       <div class="px-5 py-3.5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 shrink-0">
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-base font-bold shadow-md shadow-indigo-600/30">
-            ✨
+            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
           </div>
           <div>
             <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
@@ -804,7 +986,7 @@
         <div id="studio-visual-pane" class="w-1/2 flex flex-col border-r border-slate-800 bg-slate-900/40 overflow-hidden transition-all">
           <div class="p-3 border-b border-slate-800/80 bg-slate-900/70 flex items-center justify-between shrink-0">
             <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-slate-200">🎨 可视化知识架构</span>
+              <span class="text-xs font-bold text-slate-200">可视化知识架构</span>
               <span class="text-[10px] text-slate-500 font-mono">(修改后右侧代码即时更新)</span>
             </div>
             <div class="flex items-center gap-2">
@@ -824,7 +1006,7 @@
         <div id="studio-markdown-pane" class="w-1/2 flex flex-col bg-slate-950 overflow-hidden transition-all">
           <div class="px-4 py-3 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between shrink-0 text-xs text-slate-400">
             <div class="flex items-center gap-2">
-              <span class="font-mono font-bold text-slate-300">📝 Markdown 语法编辑器</span>
+              <span class="font-mono font-bold text-slate-300">Markdown 语法编辑器</span>
               <span class="text-[10px] text-slate-500">(输入时左侧视图毫秒级解析)</span>
             </div>
             <div class="font-mono text-[11px] text-indigo-400" id="studio-md-line-count">
@@ -849,14 +1031,15 @@
       <!-- 工坊底部状态条与导入执行 (Rule of One: 唯一主CTA) -->
       <div class="px-5 py-3 border-t border-slate-800 bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 text-xs">
         <div id="deck-studio-lint-msg" class="text-slate-400 flex items-center gap-1.5 font-medium flex-1 overflow-hidden">
-          <span>🟢 语法实时双向同步就绪</span>
+          <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
+          <span>语法实时双向同步就绪</span>
         </div>
         <div class="flex items-center gap-2 w-full sm:w-auto shrink-0" id="studio-save-btn-container">
           <button onclick="app.copyStudioMarkdown()" class="btn-secondary px-3.5 py-2 rounded-xl transition flex items-center gap-1 font-medium">
-            <span id="btn-studio-copy-text">📋 复制 MD</span>
+            <span id="btn-studio-copy-text">复制 MD</span>
           </button>
           <button onclick="app.saveDeckStudio('auto')" class="btn-primary-cta flex-1 sm:flex-none px-5 py-2 rounded-xl font-bold transition flex items-center justify-center gap-1.5 shadow-md">
-            <span>🚀 保存题库</span>
+            <span>保存题库</span>
           </button>
         </div>
       </div>
@@ -868,7 +1051,7 @@
     <div class="surface-overlay rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-800">
       <div class="flex justify-between items-center">
         <h3 class="text-base font-bold text-white flex items-center gap-2">
-          <span>💾 学习数据与存档管理</span>
+          <span>学习数据与存档管理</span>
         </h3>
         <button onclick="app.closeBackupModal()" class="text-slate-400 hover:text-white">&times;</button>
       </div>
@@ -878,16 +1061,16 @@
 
       <div class="space-y-2 pt-2">
         <button onclick="app.exportBackupJSON()" class="btn-primary-cta w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-md">
-          <span>📥 导出完整多题库存档 (JSON)</span>
+          <span>导出完整多题库存档 (JSON)</span>
         </button>
 
         <label class="btn-secondary w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer">
-          <span>📤 导入备份恢复文件</span>
+          <span>导入备份恢复文件</span>
           <input type="file" id="backup-file-input" accept=".json" class="hidden" onchange="app.importBackupJSON(event)">
         </label>
 
         <button onclick="app.resetAllProgress()" class="w-full py-2.5 px-4 rounded-xl bg-rose-950/25 hover:bg-rose-900/35 text-rose-300 border border-rose-900/40 text-xs font-bold transition">
-          ⚠️ 重置当前题库的所有进度
+          重置当前题库的所有进度
         </button>
       </div>
 
@@ -904,7 +1087,7 @@
       <div class="flex justify-between items-center">
         <div>
           <h3 class="text-base font-bold text-white flex items-center gap-2">
-            <span>📋 原始知识大纲 (Markdown)</span>
+            <span>原始知识大纲 (Markdown)</span>
           </h3>
           <p class="text-xs text-slate-400">当前知识库的结构化 Markdown 原文，可一键复制到本地笔记软件中</p>
         </div>
@@ -919,7 +1102,7 @@
         <span class="text-xs text-slate-500 font-mono" id="raw-markdown-stats">共 0 字</span>
         <div class="flex gap-2">
           <button onclick="app.copyRawMarkdown()" class="btn-primary-cta px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-md">
-            <span id="copy-markdown-btn-text">📋 一键复制全文</span>
+            <span id="copy-markdown-btn-text">一键复制全文</span>
           </button>
           <button onclick="app.closeRawMarkdownModal()" class="btn-secondary px-4 py-2 rounded-xl text-xs font-medium">
             关闭
@@ -936,7 +1119,7 @@
       <div class="flex items-center justify-between pb-4 border-b border-slate-800 shrink-0">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-lg shadow-inner">
-            ⚙️
+            <svg class="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
           </div>
           <div>
             <h3 class="text-base font-bold text-white flex items-center gap-2">
@@ -948,7 +1131,7 @@
         </div>
         <div class="flex items-center gap-2">
           <button onclick="app.closeDeckManagerModal(); app.showDeckStudioModal(null)" class="btn-primary-cta px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-md">
-            <span>➕ 新建/导入题库</span>
+            <span>新建/导入题库</span>
           </button>
           <button onclick="app.closeDeckManagerModal()" class="w-8 h-8 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-lg transition">&times;</button>
         </div>
@@ -968,7 +1151,7 @@
         </div>
         <div class="flex items-center gap-2">
           <button onclick="app.showArchitectureAuditModal()" class="px-2.5 py-1 rounded-lg bg-indigo-950/40 hover:bg-indigo-900/50 text-indigo-300 border border-indigo-500/30 text-[11px] font-mono transition flex items-center gap-1 shadow-sm">
-            <span>🛡️ 架构与门禁中控 (Core 2.1)</span>
+            <span>架构与门禁中控 (Core 2.1)</span>
           </button>
           <span>遵循「5-3-10」原则 · 本地安全持久化</span>
         </div>
@@ -981,7 +1164,7 @@
     <div class="surface-overlay rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-rose-900/50">
       <div class="flex items-center gap-3 text-rose-400">
         <div class="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-xl">
-          ⚠️
+          <svg class="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         </div>
         <div>
           <h4 class="text-base font-bold text-white">确定彻底删除此题库？</h4>
@@ -998,7 +1181,7 @@
           取消
         </button>
         <button id="btn-confirm-delete-deck" onclick="app.executeDeleteDeck()" class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-lg shadow-rose-600/30">
-          🗑️ 确认彻底删除
+          确认彻底删除
         </button>
       </div>
     </div>
@@ -1011,7 +1194,7 @@
       <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl shadow-inner">
-            🛡️
+            <svg class="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           </div>
           <div>
             <h3 class="text-base font-bold text-white flex items-center gap-2">
@@ -1033,8 +1216,440 @@
       <div class="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400 shrink-0">
         <span class="text-[11px] text-slate-500">终端运行: <code class="text-indigo-400">node gates/run-gates.mjs</code></span>
         <button onclick="app.runArchitectureAudit()" class="btn-primary-cta px-4 py-1.5 rounded-xl font-bold transition shadow-md flex items-center gap-1">
-          <span>🔄 重新扫描全量门禁</span>
+          <span>重新扫描全量门禁</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 11. AI 平台与模型配置弹窗 (MODAL AI CONFIG) (Surface 4) -->
+  <div id="modal-ai-config" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[60] flex items-center justify-center p-3 sm:p-4 hidden">
+    <div class="surface-overlay rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] flex flex-col border border-indigo-900/50">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
+            <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">AI 平台与模型配置</h3>
+            <p class="text-xs text-slate-400">选择接口协议，自定义平台与模型列表，精细控制上下文窗口与最大输出</p>
+          </div>
+        </div>
+        <button onclick="app.closeAiConfigModal()" class="w-8 h-8 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-lg transition">&times;</button>
+      </div>
+
+      <div class="space-y-4 text-xs overflow-y-auto flex-1 pr-1">
+        <!-- 1. 平台选择与操作工具栏 -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label class="font-bold text-slate-300">服务平台选择与操作</label>
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="app.addNewAiProvider()" class="px-2 py-1 rounded-lg bg-indigo-600/25 hover:bg-indigo-600/35 text-indigo-300 border border-indigo-500/30 font-bold transition flex items-center gap-1 shadow-sm">
+                <span>+ 新建平台</span>
+              </button>
+              <button type="button" onclick="app.deleteCurrentAiProvider()" class="px-2 py-1 rounded-lg bg-rose-950/25 hover:bg-rose-900/35 text-rose-300 border border-rose-900/40 font-medium transition" title="删除当前平台">
+                <span>删除平台</span>
+              </button>
+              <button type="button" onclick="app.togglePresetDropdown()" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 font-medium transition flex items-center gap-1">
+                <span>从参考预设导入 ▾</span>
+              </button>
+            </div>
+          </div>
+          <select id="modal-ai-cfg-provider-select" onchange="app.onAiConfigProviderChange(this.value)"
+            class="w-full surface-inset border border-slate-750 rounded-lg p-2 text-slate-200 outline-none focus:border-indigo-500 font-mono text-xs">
+            <!-- 动态填充 -->
+          </select>
+
+          <!-- 预设快速导入卡片 (默认隐藏) -->
+          <div id="modal-ai-cfg-preset-dropdown" class="hidden surface-inset p-2.5 rounded-xl border border-indigo-500/30 grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <!-- 动态填充预设按钮 -->
+          </div>
+        </div>
+
+        <!-- 2. 平台基础参数 (网格布局) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl surface-inset border border-slate-800">
+          <div class="space-y-1">
+            <label class="font-bold text-slate-300">平台显示名称</label>
+            <input id="modal-ai-cfg-provider-name" type="text" placeholder="例如: DeepSeek 官方"
+              class="w-full bg-slate-900 border border-slate-750 rounded-lg p-2 text-slate-200 outline-none focus:border-indigo-500">
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex items-center justify-between">
+              <label class="font-bold text-slate-300">接口协议类型 (API Protocol)</label>
+              <span class="text-[10px] text-indigo-400 font-mono">通用协议适配</span>
+            </div>
+            <select id="modal-ai-cfg-api-type"
+              class="w-full bg-slate-900 border border-slate-750 rounded-lg p-2 text-slate-200 font-mono outline-none focus:border-indigo-500">
+              <option value="openai">OpenAI Compatible (Chat Completions: /v1/chat/completions)</option>
+              <option value="anthropic">Anthropic Claude (Messages: /v1/messages)</option>
+              <option value="gemini">Google Gemini (GenerateContent: /v1beta/models/...)</option>
+              <option value="ollama">Ollama Native (/api/chat)</option>
+            </select>
+          </div>
+
+          <div class="space-y-1">
+            <label class="font-bold text-slate-300">API 基础端点 (Base URL)</label>
+            <input id="modal-ai-cfg-base-url" type="text" placeholder="https://api.deepseek.com/v1"
+              class="w-full bg-slate-900 border border-slate-750 rounded-lg p-2 font-mono text-slate-200 outline-none focus:border-indigo-500">
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex items-center justify-between">
+              <label class="font-bold text-slate-300">API 密钥 (API Key)</label>
+              <span class="text-[10px] text-emerald-400 font-mono">纯浏览器本地存储</span>
+            </div>
+            <input id="modal-ai-cfg-api-key" type="password" placeholder="sk-..."
+              class="w-full bg-slate-900 border border-slate-750 rounded-lg p-2 font-mono text-slate-200 outline-none focus:border-indigo-500">
+          </div>
+        </div>
+
+        <!-- 3. 自定义模型列表与细粒度参数配置 -->
+        <div class="space-y-2 pt-1 border-t border-slate-800">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-200">平台模型列表与细粒度参数</span>
+                <span class="text-[10px] text-slate-400">（现有模型仅作为参考，可自由增减与配置参数）</span>
+              </div>
+              <p class="text-[10px] text-slate-400">精确配置各模型的【上下文窗口 Context Window】与【单次最大输出 Max Output Tokens】</p>
+            </div>
+            <button type="button" onclick="app.addAiModelToCurrentProvider()" class="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-bold transition flex items-center gap-1 shadow-sm">
+              <span>+ 添加模型</span>
+            </button>
+          </div>
+
+          <div id="modal-ai-cfg-models-container" class="surface-inset rounded-xl border border-slate-800 overflow-x-auto max-h-48 overflow-y-auto">
+            <!-- 动态渲染模型列表 -->
+          </div>
+        </div>
+
+        <!-- 4. 全局首选项 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+          <div class="space-y-1">
+            <label class="font-bold text-slate-300">默认思考等级 (Reasoning Effort)</label>
+            <select id="modal-ai-cfg-effort" class="w-full surface-inset border border-slate-750 rounded-lg p-2 text-slate-200 outline-none focus:border-indigo-500">
+              <option value="none">关闭 (None) - 极速响应</option>
+              <option value="low">浅层 (Low) - 快速归纳</option>
+              <option value="medium">平衡 (Medium) - 推荐平衡深度</option>
+              <option value="high">深度 (High) - 全面推演</option>
+            </select>
+          </div>
+
+          <div class="space-y-1 flex flex-col justify-center pt-3">
+            <div class="flex items-center gap-2">
+              <input id="modal-ai-cfg-auto-approve" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0">
+              <label for="modal-ai-cfg-auto-approve" class="text-slate-300 cursor-pointer">自动批准写操作 (跳过确认卡片)</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 系统提示词 -->
+        <div class="space-y-1 pt-1">
+          <label class="font-bold text-slate-300">系统提示词 (System Prompt)</label>
+          <textarea id="modal-ai-cfg-system-prompt" rows="2"
+            class="w-full surface-inset border border-slate-750 rounded-lg p-2 text-[11px] text-slate-300 outline-none focus:border-indigo-500 font-mono"></textarea>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-800 flex items-center justify-between gap-2 shrink-0">
+        <button type="button" onclick="app.resetAiConfigToDefaults()" class="text-xs text-slate-400 hover:text-slate-200 underline">恢复默认参考预设</button>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="app.closeAiConfigModal()" class="btn-secondary px-4 py-1.5 rounded-xl text-xs font-medium transition">取消</button>
+          <button type="button" onclick="app.saveAiConfigModal()" class="btn-primary-cta px-4 py-1.5 rounded-xl text-xs font-bold transition shadow-md">保存配置</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 12. 自由沙盒定制配置模态框 (MODAL SANDBOX CONFIG) (Surface 4) -->
+  <div id="modal-sandbox-config" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[60] flex items-center justify-center p-3 sm:p-4 hidden">
+    <div class="surface-overlay rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col border border-indigo-900/50">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center">
+            <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">自由沙盒试炼 · 自定义配置</h3>
+            <p class="text-xs text-slate-400">自选考点章节、认知层级与出题数量，按需精准巩固</p>
+          </div>
+        </div>
+        <button onclick="app.closeSandboxConfigModal()" class="w-8 h-8 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-lg transition">&times;</button>
+      </div>
+
+      <div class="space-y-4 text-xs overflow-y-auto flex-1 pr-1">
+        <!-- 维度 1: 分类章节勾选 -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="font-bold text-slate-200">1. 选择考察分类章节</label>
+            <div class="flex items-center gap-2 text-[11px]">
+              <button onclick="app.sandboxConfig.selectAllCategories(true)" class="text-indigo-400 hover:underline">全选</button>
+              <span class="text-slate-600">|</span>
+              <button onclick="app.sandboxConfig.selectAllCategories(false)" class="text-slate-400 hover:underline">清空</button>
+            </div>
+          </div>
+          <div id="sandbox-categories-list" class="space-y-2.5 max-h-60 overflow-y-auto p-1 pr-1.5">
+            <!-- 动态填充业务大组与细分类别 -->
+          </div>
+        </div>
+
+        <!-- 维度 2: 认知层级筛选 -->
+        <div class="space-y-2 pt-2 border-t border-slate-800/80">
+          <label class="font-bold text-slate-200">2. 认知难度分层</label>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="flex items-center gap-2 p-2 rounded-xl surface-inset border border-slate-750 cursor-pointer text-xs select-none">
+              <input id="sandbox-layer-1" type="checkbox" checked onchange="app.sandboxConfig.toggleLayer(1, this.checked)" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0">
+              <span class="text-slate-300">Layer 1 基础</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-xl surface-inset border border-slate-750 cursor-pointer text-xs select-none">
+              <input id="sandbox-layer-2" type="checkbox" checked onchange="app.sandboxConfig.toggleLayer(2, this.checked)" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0">
+              <span class="text-slate-300">Layer 2 运用</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-xl surface-inset border border-slate-750 cursor-pointer text-xs select-none">
+              <input id="sandbox-layer-3" type="checkbox" checked onchange="app.sandboxConfig.toggleLayer(3, this.checked)" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0">
+              <span class="text-slate-300">Layer 3 特例</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 维度 3: 试炼规则模式 (支持 默认/弱点/分层/极速) -->
+        <div class="space-y-2 pt-2 border-t border-slate-800/80">
+          <div class="flex items-center justify-between">
+            <label class="font-bold text-slate-200">3. 试炼规则模式</label>
+            <span class="text-[10px] text-slate-500 font-mono">4 大规则引擎</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <!-- 模式 1: 默认自测 -->
+            <button type="button" id="sandbox-mode-default" onclick="app.sandboxConfig.setTrialMode('DEFAULT')" class="flex flex-col p-2.5 rounded-xl border border-indigo-500 bg-indigo-600/20 text-white shadow-sm transition text-left select-none">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-bold text-xs text-white">默认自测</span>
+                <span class="mode-indicator w-2 h-2 rounded-full bg-indigo-400"></span>
+              </div>
+              <span class="text-[10px] text-slate-400 leading-tight">自由无压力复习</span>
+            </button>
+
+            <!-- 模式 2: 弱点攻坚 -->
+            <button type="button" id="sandbox-mode-weakness" onclick="app.sandboxConfig.setTrialMode('WEAKNESS')" class="flex flex-col p-2.5 rounded-xl border border-slate-750 surface-inset hover:bg-slate-800 text-slate-300 transition text-left select-none">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-bold text-xs text-white">弱点攻坚</span>
+                <span class="mode-indicator w-2 h-2 rounded-full bg-slate-600"></span>
+              </div>
+              <span class="text-[10px] text-slate-400 leading-tight">错题/薄弱项优先</span>
+            </button>
+
+            <!-- 模式 3: 分层递进 -->
+            <button type="button" id="sandbox-mode-stepped" onclick="app.sandboxConfig.setTrialMode('STEPPED')" class="flex flex-col p-2.5 rounded-xl border border-slate-750 surface-inset hover:bg-slate-800 text-slate-300 transition text-left select-none">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-bold text-xs text-white">分层递进</span>
+                <span class="mode-indicator w-2 h-2 rounded-full bg-slate-600"></span>
+              </div>
+              <span class="text-[10px] text-slate-400 leading-tight">由浅入深阶梯推进</span>
+            </button>
+
+            <!-- 模式 4: 极速生存 -->
+            <button type="button" id="sandbox-mode-speed_sprint" onclick="app.sandboxConfig.setTrialMode('SPEED_SPRINT')" class="flex flex-col p-2.5 rounded-xl border border-slate-750 surface-inset hover:bg-slate-800 text-slate-300 transition text-left select-none">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-bold text-xs text-white">极速生存</span>
+                <span class="mode-indicator w-2 h-2 rounded-full bg-slate-600"></span>
+              </div>
+              <span class="text-[10px] text-slate-400 leading-tight">6秒限时·3点生命</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 维度 4: 出题题量 -->
+        <div class="space-y-2 pt-2 border-t border-slate-800/80">
+          <label class="font-bold text-slate-200">4. 出题题目数量</label>
+          <div class="flex items-center gap-2">
+            <button id="sandbox-count-5" onclick="app.sandboxConfig.setQuestionCount(5)" class="px-3 py-1.5 rounded-lg surface-inset hover:bg-slate-800 text-slate-400 hover:text-white text-xs transition border border-slate-750">5 题</button>
+            <button id="sandbox-count-10" onclick="app.sandboxConfig.setQuestionCount(10)" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold text-xs shadow-sm transition">10 题</button>
+            <button id="sandbox-count-15" onclick="app.sandboxConfig.setQuestionCount(15)" class="px-3 py-1.5 rounded-lg surface-inset hover:bg-slate-800 text-slate-400 hover:text-white text-xs transition border border-slate-750">15 题</button>
+            <button id="sandbox-count-all" onclick="app.sandboxConfig.setQuestionCount(9999)" class="px-3 py-1.5 rounded-lg surface-inset hover:bg-slate-800 text-slate-400 hover:text-white text-xs transition border border-slate-750">全部题目</button>
+          </div>
+        </div>
+
+        <!-- 维度 5: 乱序选项 -->
+        <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+          <label for="sandbox-shuffle-toggle" class="text-slate-300 cursor-pointer select-none">随机乱序出题 (Shuffle Order)</label>
+          <input id="sandbox-shuffle-toggle" type="checkbox" checked onchange="app.sandboxConfig.toggleShuffle(this.checked)" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0">
+        </div>
+      </div>
+
+      <!-- 底部统计与开始 -->
+      <div class="pt-3 border-t border-slate-800 flex items-center justify-between text-xs shrink-0">
+        <span id="sandbox-matched-count-text" class="text-[11px] text-slate-400 font-mono">已匹配 0 道词条</span>
+        <div class="flex items-center gap-2">
+          <button onclick="app.closeSandboxConfigModal()" class="btn-secondary px-3.5 py-1.5 rounded-xl text-xs transition">取消</button>
+          <button id="sandbox-start-btn" onclick="app.sandboxConfig.startCustomQuiz()" class="btn-primary-cta px-4 py-1.5 rounded-xl font-bold transition shadow-md flex items-center gap-1.5">
+            <span>开启沙盒实战</span>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 13. 分层阶梯战役路线图模态框 (MODAL STEPPED CAMPAIGN) (Surface 4) -->
+  <div id="modal-stepped-campaign" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[60] flex items-center justify-center p-3 sm:p-4 hidden">
+    <div class="surface-overlay rounded-2xl max-w-xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col border border-indigo-900/50">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-amber-600/20 text-amber-400 border border-amber-500/30 flex items-center justify-center">
+            <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z"/></svg>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">分层阶梯战役 · 进阶路线图</h3>
+            <p class="text-xs text-slate-400">遵循布鲁姆认知模型，达成 80% 正确率即可突破晋级下一阶梯</p>
+          </div>
+        </div>
+        <button onclick="app.closeSteppedCampaignModal()" class="w-8 h-8 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-lg transition">&times;</button>
+      </div>
+
+      <!-- 3 阶梯卡片列表 -->
+      <div id="stepped-tiers-container" class="space-y-3 overflow-y-auto flex-1 pr-1">
+        <!-- 动态填充 Tier 1, 2, 3 -->
+      </div>
+
+      <div class="pt-3 border-t border-slate-800 flex items-center justify-end">
+        <button onclick="app.closeSteppedCampaignModal()" class="btn-secondary px-4 py-1.5 rounded-xl text-xs font-medium transition">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 14. 阶梯晋级认证弹窗 (MODAL TIER PROMOTION) (Surface 4) -->
+  <div id="modal-tier-promotion" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[70] flex items-center justify-center p-3 sm:p-4 hidden">
+    <div class="surface-overlay rounded-2xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl border border-indigo-500/50">
+      <div class="w-14 h-14 rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/40 flex items-center justify-center mx-auto shadow-inner">
+        <svg class="w-7 h-7 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 16l-3-9 7 4 3-6 3 6 7-4-3 9H5z"/></svg>
+      </div>
+      <div>
+        <h3 id="tier-promotion-title" class="text-lg font-black text-white">晋级成功！</h3>
+        <p id="tier-promotion-desc" class="text-xs text-slate-300 mt-2 leading-relaxed">恭喜你达成晋级标准！</p>
+      </div>
+      <div class="pt-2 flex items-center justify-center gap-3">
+        <button onclick="document.getElementById('modal-tier-promotion').classList.add('hidden')" class="btn-secondary px-4 py-2 rounded-xl text-xs font-medium transition">稍后挑战</button>
+        <button id="tier-promotion-action-btn" class="btn-primary-cta px-5 py-2 rounded-xl text-xs font-bold transition shadow-lg">立即开启进阶挑战</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 15. JEV 评估与模块推荐接口配置弹窗 (MODAL JEV CONFIG) (Surface 4) -->
+  <div id="modal-jev-config" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[70] flex items-center justify-center p-3 sm:p-4 hidden">
+    <div class="surface-overlay rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-750">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">JEV 全景评估与模块推荐接口设置</h3>
+            <p class="text-xs text-slate-400">基于各分类板块熟练度全景研判重点突破模块</p>
+          </div>
+        </div>
+        <button type="button" onclick="app.closeJevConfigModal()" class="w-8 h-8 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-lg transition">&times;</button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <!-- 启用远程 JEV 推荐接口 -->
+        <div class="flex items-center justify-between p-3 rounded-xl surface-inset border border-slate-750">
+          <div>
+            <div class="font-bold text-slate-200">启用远程 JEV 评测接口</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">将熟练度全景向量上报至独立 JEV REST 服务以获取深度研判</div>
+          </div>
+          <input type="checkbox" id="cfg-jev-enabled" onchange="app.toggleJevConfigFields()" class="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-700">
+        </div>
+
+        <!-- 远程参数 -->
+        <div id="cfg-jev-remote-fields" class="space-y-3 hidden">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">JEV 接口端点 (Endpoint URL)</label>
+            <input type="text" id="cfg-jev-endpoint" placeholder="https://api.your-service.com/v1/jev/recommend"
+              class="w-full bg-slate-900 border border-slate-750 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none">
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-slate-300 font-semibold">JEV 模型名称 (Model Name)</label>
+              <div class="flex items-center gap-1.5 text-[10px]">
+                <span class="text-slate-500">预设:</span>
+                <button type="button" onclick="document.getElementById('cfg-jev-model').value='jev-latest'" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-indigo-400 font-mono transition">jev-latest</button>
+                <button type="button" onclick="document.getElementById('cfg-jev-model').value='jev-preview'" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-indigo-400 font-mono transition">jev-preview</button>
+              </div>
+            </div>
+            <input type="text" id="cfg-jev-model" placeholder="jev-latest" value="jev-latest"
+              class="w-full bg-slate-900 border border-slate-750 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">认证令牌 (Authorization Bearer Token / API Key)</label>
+            <input type="password" id="cfg-jev-token" placeholder="Bearer Token (可选)"
+              class="w-full bg-slate-900 border border-slate-750 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none">
+          </div>
+
+          <!-- 纯前端零后端运行架构提示 -->
+          <div class="p-3 rounded-xl bg-slate-900 border border-slate-750 flex items-start gap-2.5">
+            <svg class="w-4 h-4 text-indigo-400 mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+            <div class="flex-1 text-xs">
+              <div class="font-bold text-slate-200 flex items-center justify-between">
+                <span>纯前端独立运行模式（零后端依赖）</span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-mono">STANDALONE</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                无需启动任何本地后台服务！默认由浏览器内置的多维加权算法进行全景研判；若配置远程端点且遇跨域阻断时，系统将无缝自动切换为本地算法，100% 保证功能完整可用。
+              </p>
+            </div>
+          </div>
+
+          <!-- 可选云端代理设置 (折叠开关) -->
+          <div class="pt-1 border-t border-slate-800/80 space-y-2">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="font-semibold text-slate-300 text-xs">云端代理通道 (可选)</span>
+                <span class="text-[10px] text-slate-500 block">若远程端点未开放跨域，可填入第三方/自建 Cloudflare Worker 代理前缀</span>
+              </div>
+              <input type="checkbox" id="cfg-jev-cors-proxy" onchange="app.toggleJevCorsProxyFields()" class="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-700">
+            </div>
+            <div id="cfg-jev-cors-proxy-wrap" class="hidden space-y-2">
+              <label class="block text-slate-400 text-[11px]">代理前缀 URL</label>
+              <input type="text" id="cfg-jev-cors-prefix" placeholder="https://your-worker.workers.dev/?url=" value=""
+                class="w-full bg-slate-900 border border-slate-750 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- 未配置时的降级策略 -->
+        <div class="space-y-2 pt-1">
+          <label class="block text-slate-300 font-semibold">未配置 JEV 或连接异常时的处理策略 (Fallback Policy)</label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <label class="p-3 rounded-xl surface-inset border border-slate-750 cursor-pointer flex items-start gap-2 hover:border-slate-700 select-none">
+              <input type="radio" name="cfg-jev-fallback" value="heuristic" checked class="mt-0.5 text-indigo-600">
+              <div>
+                <span class="font-bold text-slate-200 block">采用降级方案 (推荐)</span>
+                <span class="text-[10px] text-slate-400 leading-tight block mt-0.5">本地基于艾宾浩斯到期度与错题率多维加权矩阵自动推荐</span>
+              </div>
+            </label>
+            <label class="p-3 rounded-xl surface-inset border border-slate-750 cursor-pointer flex items-start gap-2 hover:border-slate-700 select-none">
+              <input type="radio" name="cfg-jev-fallback" value="silent" class="mt-0.5 text-indigo-600">
+              <div>
+                <span class="font-bold text-slate-200 block">不推荐 (安静模式)</span>
+                <span class="text-[10px] text-slate-400 leading-tight block mt-0.5">未配置时不打扰，完全隐藏推荐意见横幅</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- 测试连接反馈区 -->
+        <div id="cfg-jev-test-status" class="hidden p-2.5 rounded-lg text-[11px] font-mono border"></div>
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-slate-800">
+        <button type="button" onclick="app.testJevConnection()" class="px-3 py-1.5 rounded-lg border border-slate-750 text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-semibold transition">
+          测试接口连接
+        </button>
+        <div class="flex gap-2">
+          <button type="button" onclick="app.resetJevConfig()" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-rose-400 transition">重置默认</button>
+          <button type="button" onclick="app.closeJevConfigModal()" class="btn-secondary px-3.5 py-1.5 rounded-xl text-xs transition">取消</button>
+          <button type="button" onclick="app.saveJevConfig()" class="btn-primary-cta px-4 py-1.5 rounded-xl text-xs font-bold shadow-md transition">保存生效</button>
+        </div>
       </div>
     </div>
   </div>

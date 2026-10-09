@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knowledge Master - AI Agent 交互原型预览 (v2.4 Spec Preview)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              0: '#020617', // canvas
+              1: '#0b1120', // card
+              2: '#111827', // inset
+              3: '#1e293b', // raised
+              4: '#334155'  // overlay
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* 滚动条定制 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    
+    .chat-bubble-user {
+      background: #1e1b4b;
+      border: 1px solid rgba(99, 102, 241, 0.25);
+    }
+    .chat-bubble-assistant {
+      background: #0b1120;
+      border: 1px solid #1e293b;
+    }
+    .thinking-box {
+      background: rgba(15, 23, 42, 0.75);
+      border-left: 3px solid #f59e0b;
+    }
+    .tool-box {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+  </style>
+</head>
+<body class="bg-[#020617] text-slate-100 min-h-screen flex flex-col font-sans antialiased select-none">
+
+  <!-- 顶部主导航 -->
+  <header class="h-14 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur sticky top-0 z-30 px-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 font-black">
+        ⚡
+      </div>
+      <div>
+        <h1 class="text-sm font-bold tracking-wide text-white flex items-center gap-2">
+          Knowledge Master <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-900/60 text-indigo-300 font-mono border border-indigo-700/50">Core 2.1</span>
+        </h1>
+        <p class="text-[10px] text-slate-400">AI Agent 智能体 & 题库工具调用原型预览</p>
+      </div>
+    </div>
+
+    <!-- 顶栏导航按钮 -->
+    <nav class="hidden md:flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs">
+      <button class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">📊 仪表盘</button>
+      <button class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">📖 学习大厅</button>
+      <button class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">🏛️ 题库工坊</button>
+      <button class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium shadow-sm transition flex items-center gap-1.5">
+        <span>🤖</span>
+        <span>AI 智囊</span>
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+      </button>
+    </nav>
+
+    <!-- 右侧配置按钮 -->
+    <div class="flex items-center gap-2">
+      <button onclick="toggleConfigModal(true)" class="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span>模型配置</span>
+      </button>
+      <a href="./13_AI_AGENT_ARCHITECTURE_AND_TOOL_CALLING_SPEC.md" target="_blank" class="px-2.5 py-1.5 rounded-lg bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-700/50 text-xs text-indigo-300 transition flex items-center gap-1">
+        <span>📄</span>
+        <span>查看架构规约</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- 主工作台：双栏布局 -->
+  <div class="flex-1 flex overflow-hidden">
+    
+    <!-- 左栏：会话列表侧边栏 (280px) -->
+    <aside class="w-64 lg:w-72 border-r border-slate-800 bg-[#070d18] flex flex-col shrink-0">
+      <!-- 新建会话按钮 -->
+      <div class="p-3 border-b border-slate-800/80">
+        <button onclick="createNewSession()" class="w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <span>新建智能对话</span>
+        </button>
+      </div>
+
+      <!-- 会话历史列表 -->
+      <div id="session-list" class="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
+        <!-- 动态渲染 -->
+      </div>
+
+      <!-- 底部统计与清理 -->
+      <div class="p-3 border-t border-slate-800/80 bg-slate-950/40 flex items-center justify-between text-[11px] text-slate-400">
+        <span id="session-count-label">共 3 个历史会话</span>
+        <button onclick="clearAllSessions()" class="text-rose-400/80 hover:text-rose-300 transition" title="清空所有会话">清空</button>
+      </div>
+    </aside>
+
+    <!-- 右栏：主交互视口 (聊天流 + 思考指示 + 工具卡片) -->
+    <main class="flex-1 flex flex-col bg-[#020617] overflow-hidden relative">
+      
+      <!-- 顶栏状态指示条 -->
+      <div class="h-12 border-b border-slate-800/80 bg-slate-900/50 px-4 flex items-center justify-between text-xs backdrop-blur">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1.5">
+            <span class="text-base" id="active-provider-icon">🐳</span>
+            <span class="font-bold text-white" id="active-model-name">DeepSeek-R1 (推理增强)</span>
+          </div>
+          <span class="text-slate-600">|</span>
+          <!-- 思考等级切换器 -->
+          <div class="flex items-center gap-1.5 bg-slate-800/60 px-2 py-1 rounded-md border border-slate-700/60">
+            <span class="text-[11px] text-slate-400">🧠 思考等级:</span>
+            <select id="reasoning-effort-select" onchange="updateReasoningEffort(this.value)" class="bg-transparent text-amber-300 font-mono text-[11px] outline-none cursor-pointer">
+              <option value="none" class="bg-slate-900 text-slate-300">关闭 (None)</option>
+              <option value="low" class="bg-slate-900 text-slate-300">浅层 (Low)</option>
+              <option value="medium" selected class="bg-slate-900 text-amber-300">平衡 (Medium - 推荐)</option>
+              <option value="high" class="bg-slate-900 text-amber-400">深度 (High)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 右侧快速状态 -->
+        <div class="flex items-center gap-3 text-[11px] text-slate-400">
+          <span class="flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span>题库直连就绪 (10个工具已注册)</span>
+          </span>
+          <button onclick="clearCurrentChat()" class="text-slate-400 hover:text-slate-200 transition" title="清空当前消息">
+            🧹 清空屏
+          </button>
+        </div>
+      </div>
+
+      <!-- 消息流容器 -->
+      <div id="messages-container" class="flex-1 overflow-y-auto p-4 lg:p-6 space-y-5">
+        <!-- 消息卡片将动态注入此处 -->
+      </div>
+
+      <!-- 底部输入区 -->
+      <footer class="p-4 border-t border-slate-800/80 bg-slate-900/40 backdrop-blur">
+        <div class="max-w-4xl mx-auto space-y-2">
+          
+          <!-- 快捷提示词药丸标签 -->
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] text-slate-300 font-mono">
+            <span class="text-slate-500 shrink-0">💡 快捷试炼:</span>
+            <button onclick="sendQuickPrompt('帮我查询当前系统内所有题库列表与词条总数')" class="px-2 py-0.5 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 shrink-0 transition">
+              🔍 查询系统题库
+            </button>
+            <button onclick="sendQuickPrompt('为我创建一套《Docker 容器实战》考题题库，包含 2 个分类，每类至少 4 条词条')" class="px-2 py-0.5 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 shrink-0 transition">
+              🐳 自动构建 Docker 题库
+            </button>
+            <button onclick="sendQuickPrompt('检查当前激活的英语动词题库，指出有哪些考点容易混淆并补齐解析')" class="px-2 py-0.5 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 shrink-0 transition">
+              ⚡ 诊断动词易混考点
+            </button>
+          </div>
+
+          <!-- 输入输入框与发送按钮 -->
+          <div class="relative bg-slate-950/80 border border-slate-700/80 rounded-xl shadow-lg focus-within:border-indigo-500/80 transition p-2">
+            <textarea id="prompt-input" rows="2" placeholder="与 AI 智囊交谈，支持题库增删改查、考点润色、架构梳理... (按 Enter 发送，Shift+Enter 换行)"
+              class="w-full bg-transparent text-sm text-slate-100 placeholder-slate-500 outline-none resize-none px-2"></textarea>
+            
+            <div class="flex items-center justify-between pt-1 px-1">
+              <div class="flex items-center gap-2 text-[11px] text-slate-500">
+                <span>⚡ 模式：自适应工具调用闭环</span>
+                <label class="flex items-center gap-1 cursor-pointer text-slate-400 hover:text-slate-200">
+                  <input type="checkbox" id="auto-approve-toggle" class="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0">
+                  <span>自动批准写操作</span>
+                </label>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <button id="send-btn" onclick="handleSend()" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm shadow-indigo-950">
+                  <span>发送</span>
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </footer>
+
+    </main>
+
+  </div>
+
+  <!-- 模型与平台配置模态框 -->
+  <div id="config-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">⚙️</span>
+          <h3 class="text-sm font-bold text-white">AI 平台与模型接入配置</h3>
+        </div>
+        <button onclick="toggleConfigModal(false)" class="text-slate-400 hover:text-slate-200">✕</button>
+      </div>
+
+      <div class="p-5 space-y-4 text-xs overflow-y-auto max-h-[75vh]">
+        
+        <!-- 平台选择 -->
+        <div class="space-y-1.5">
+          <label class="font-medium text-slate-300">模型平台 (Provider)</label>
+          <div class="grid grid-cols-3 gap-2" id="provider-selector-grid">
+            <!-- 平台按钮动态渲染 -->
+          </div>
+        </div>
+
+        <!-- API 端点 (Base URL) -->
+        <div class="space-y-1">
+          <label class="font-medium text-slate-300">API 基础端点 (Base URL)</label>
+          <input id="cfg-base-url" type="text" placeholder="https://api.deepseek.com/v1" 
+            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 font-mono text-slate-200 outline-none focus:border-indigo-500">
+          <p class="text-[10px] text-slate-500">支持 OpenAI 官方、DeepSeek、硅基流动、Ollama 本地端点或自定义反代</p>
+        </div>
+
+        <!-- API Key -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="font-medium text-slate-300">API 密钥 (API Key)</label>
+            <span class="text-[10px] text-emerald-400">🔒 纯浏览器本地存储</span>
+          </div>
+          <input id="cfg-api-key" type="password" placeholder="sk-..." 
+            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 font-mono text-slate-200 outline-none focus:border-indigo-500">
+          <p class="text-[10px] text-slate-500">留空时将启动内置的“高保真交互模拟器 (Simulation Mode)”</p>
+        </div>
+
+        <!-- 模型名称 -->
+        <div class="space-y-1">
+          <label class="font-medium text-slate-300">模型名称 (Model Identifier)</label>
+          <input id="cfg-model" type="text" placeholder="deepseek-reasoner" 
+            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 font-mono text-slate-200 outline-none focus:border-indigo-500">
+        </div>
+
+        <!-- 默认思考等级 -->
+        <div class="space-y-1">
+          <label class="font-medium text-slate-300">默认思考等级 (Reasoning Effort)</label>
+          <select id="cfg-reasoning-effort" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 outline-none focus:border-indigo-500">
+            <option value="none">关闭 (None) - 极速响应</option>
+            <option value="low">浅层 (Low) - 快速归纳</option>
+            <option value="medium" selected>平衡 (Medium) - 推荐平衡深度</option>
+            <option value="high">深度 (High) - 全面推演</option>
+          </select>
+        </div>
+
+        <!-- 提示词 System Prompt -->
+        <div class="space-y-1">
+          <label class="font-medium text-slate-300">系统提示词 (System Prompt)</label>
+          <textarea id="cfg-system-prompt" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-[11px] text-slate-300 outline-none focus:border-indigo-500 font-mono"></textarea>
+        </div>
+
+      </div>
+
+      <div class="p-4 border-t border-slate-800 bg-slate-950/40 flex items-center justify-end gap-2">
+        <button onclick="toggleConfigModal(false)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs">取消</button>
+        <button onclick="saveConfigModal()" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm">保存配置</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * AI Agent 原型交互核心逻辑 (符合 Spec 13 规范)
+     */
+    
+    // 1. 预设平台清单
+    const PROVIDERS = {
+      deepseek: {
+        id: 'deepseek', name: 'DeepSeek', icon: '🐳',
+        baseUrl: 'https://api.deepseek.com/v1',
+        defaultModel: 'deepseek-reasoner',
+        models: ['deepseek-reasoner', 'deepseek-chat']
+      },
+      openai: {
+        id: 'openai', name: 'OpenAI', icon: '🟢',
+        baseUrl: 'https://api.openai.com/v1',
+        defaultModel: 'o3-mini',
+        models: ['o3-mini', 'o1', 'gpt-4o', 'gpt-4o-mini']
+      },
+      siliconflow: {
+        id: 'siliconflow', name: '硅基流动', icon: '⚡',
+        baseUrl: 'https://api.siliconflow.cn/v1',
+        defaultModel: 'deepseek-ai/DeepSeek-R1',
+        models: ['deepseek-ai/DeepSeek-R1', 'deepseek-ai/DeepSeek-V3']
+      },
+      ollama: {
+        id: 'ollama', name: 'Ollama 本地', icon: '🦙',
+        baseUrl: 'http://localhost:11434/v1',
+        defaultModel: 'deepseek-r1:8b',
+        models: ['deepseek-r1:8b', 'qwen2.5:7b']
+      },
+      qwen: {
+        id: 'qwen', name: '阿里千问', icon: '☁️',
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        defaultModel: 'qwen-max',
+        models: ['qwen-max', 'qwen-plus']
+      }
+    };
+
+    // 2. 本地模拟题库状态
+    let mockDecks = [
+      { id: 'deck_verbs', title: '英语动词形态与变异法则', icon: '⚡', categoriesCount: 8, entitiesCount: 42, isBuiltin: true },
+      { id: 'deck_http', title: 'HTTP/HTTPS 核心网络协议', icon: '🌐', categoriesCount: 4, entitiesCount: 16, isBuiltin: true },
+      { id: 'deck_python', title: 'Python 进阶与魔法方法', icon: '🐍', categoriesCount: 3, entitiesCount: 12, isBuiltin: true }
+    ];
+
+    // 3. 配置与状态
+    let currentConfig = {
+      provider: 'deepseek',
+      baseUrl: 'https://api.deepseek.com/v1',
+      apiKey: '',
+      model: 'deepseek-reasoner',
+      reasoningEffort: 'medium',
+      systemPrompt: '你是 Knowledge Master 系统的专家级 AI 架构助手。你可以调用题库工具为用户查询、创建、编辑题库，严格遵循同胞干扰项 >= 4 条的知识图谱门禁。'
+    };
+
+    // 4. 多会话存储
+    let sessions = [
+      {
+        id: 'sess_1',
+        title: '🐳 Docker 容器核心题库搭建',
+        createdAt: Date.now() - 3600000,
+        messages: [
+          { role: 'user', content: '我想学 Docker，帮我生成一套容器基础考题，并调用接口存入系统。' },
+          {
+            role: 'assistant',
+            reasoning: '用户需要 Docker 基础题库。按照 Core 2.1 规范，题库必须设计 Group、Category 和 Layer 三层架构。计划设计 2 个分类：“容器基础指令”与“存储网络卷”，每类包含 4 条具有同胞干扰项的考点。符合 >= 4 约束。准备调用 tool_create_deck 工具落库。',
+            content: '收到！我已经为您梳理了 Docker 核心架构考点，并准备调用系统题库创建接口：',
+            toolCall: {
+              id: 'call_dock_1',
+              name: 'tool_create_deck',
+              title: 'Docker 容器架构与命令实战',
+              icon: '🐳',
+              categories: ['容器生命周期指令', '数据卷与网络通信'],
+              entitiesCount: 8,
+              status: 'success'
+            }
+          }
+        ]
+      },
+      {
+        id: 'sess_2',
+        title: '⚡ 英语动词 -ic 结尾特例诊断',
+        createdAt: Date.now() - 7200000,
+        messages: [
+          { role: 'user', content: '查询动词题库里 picnic 和 panic 为什么容易混淆？' },
+          {
+            role: 'assistant',
+            reasoning: '用户询问动词题库特例。picnic 和 panic 均为 -ic 结尾，在变现在分词或过去式时需要先补 k，再加后缀。很多学习者漏加 k 拼成 picniced 或 panicing。',
+            content: '这是英语动词中的经典黄金特例：以 -ic 结尾的动词在加 -ed / -ing 时，**必须先补 k 保持发音硬腭音 /k/**，例如 picnic → picnicked, panic → panicking。'
+          }
+        ]
+      }
+    ];
+
+    let activeSessionId = 'sess_1';
+
+    // 初始化运行
+    window.addEventListener('DOMContentLoaded', () => {
+      renderSessionList();
+      renderActiveSession();
+      renderProviderSelectorGrid();
+    });
+
+    // 渲染会话侧栏
+    function renderSessionList() {
+      const list = document.getElementById('session-list');
+      list.innerHTML = '';
+      sessions.forEach(sess => {
+        const isActive = sess.id === activeSessionId;
+        const div = document.createElement('div');
+        div.className = `p-2.5 rounded-lg cursor-pointer flex items-center justify-between group transition ${isActive ? 'bg-indigo-950/40 border border-indigo-700/50 text-white' : 'hover:bg-slate-800/60 text-slate-300'}`;
+        div.onclick = () => switchSession(sess.id);
+
+        div.innerHTML = `
+          <div class="flex items-center gap-2 truncate">
+            <span class="text-sm">💬</span>
+            <span class="truncate font-medium">${sess.title}</span>
+          </div>
+          <button onclick="event.stopPropagation(); deleteSession('${sess.id}')" class="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 p-1 transition" title="删除会话">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        `;
+        list.appendChild(div);
+      });
+      document.getElementById('session-count-label').innerText = `共 ${sessions.length} 个历史会话`;
+    }
+
+    function switchSession(sessId) {
+      activeSessionId = sessId;
+      renderSessionList();
+      renderActiveSession();
+    }
+
+    function createNewSession() {
+      const newId = 'sess_' + Date.now();
+      const newSess = {
+        id: newId,
+        title: '💬 新智能对话 ' + (sessions.length + 1),
+        createdAt: Date.now(),
+        messages: [
+          {
+            role: 'assistant',
+            content: '你好！我是 Knowledge Master 的 AI 智囊助手。我可以帮你：\n- 🚀 **通过自然语言生成/创建题库**\n- 🔍 **查询已有题库与考点覆盖率**\n- ✏️ **润色易错陷阱说明与同胞干扰项**\n\n请问今天有什么想要构建或复习的知识？'
+          }
+        ]
+      };
+      sessions.unshift(newSess);
+      activeSessionId = newId;
+      renderSessionList();
+      renderActiveSession();
+    }
+
+    function deleteSession(sessId) {
+      sessions = sessions.filter(s => s.id !== sessId);
+      if (sessions.length === 0) {
+        createNewSession();
+      } else if (activeSessionId === sessId) {
+        activeSessionId = sessions[0].id;
+      }
+      renderSessionList();
+      renderActiveSession();
+    }
+
+    function clearAllSessions() {
+      if (confirm('确定要清空所有会话历史吗？')) {
+        sessions = [];
+        createNewSession();
+      }
+    }
+
+    // 渲染当前会话的消息流
+    function renderActiveSession() {
+      const sess = sessions.find(s => s.id === activeSessionId);
+      const container = document.getElementById('messages-container');
+      if (!sess) return;
+
+      container.innerHTML = '';
+
+      sess.messages.forEach((msg, idx) => {
+        const isUser = msg.role === 'user';
+        const msgWrapper = document.createElement('div');
+        msgWrapper.className = `flex gap-3 max-w-4xl mx-auto ${isUser ? 'justify-end' : 'justify-start'}`;
+
+        if (isUser) {
+          msgWrapper.innerHTML = `
+            <div class="chat-bubble-user p-3.5 rounded-2xl rounded-tr-sm text-xs leading-relaxed max-w-2xl text-slate-100 shadow-md">
+              ${escapeHtml(msg.content)}
+            </div>
+            <div class="w-8 h-8 rounded-full bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center shrink-0 text-xs font-bold text-indigo-300">
+              ME
+            </div>
+          `;
+        } else {
+          // Assistant 消息 (包含可能的思考卡片与工具调用卡片)
+          let thinkingHtml = '';
+          if (msg.reasoning) {
+            thinkingHtml = `
+              <div class="thinking-box p-3 rounded-lg mb-3 text-[11px] text-amber-200/90 leading-relaxed">
+                <details open class="group">
+                  <summary class="font-bold cursor-pointer text-amber-400 flex items-center justify-between list-none">
+                    <span class="flex items-center gap-1.5">
+                      <span>🧠</span>
+                      <span>深度思考过程 (耗时 2.4s)</span>
+                    </span>
+                    <span class="text-[10px] text-amber-400/60 group-open:rotate-180 transition">▼</span>
+                  </summary>
+                  <div class="pt-2 text-slate-300/90 border-t border-amber-500/20 mt-2 font-mono whitespace-pre-wrap">${escapeHtml(msg.reasoning)}</div>
+                </details>
+              </div>
+            `;
+          }
+
+          let toolHtml = '';
+          if (msg.toolCall) {
+            const tc = msg.toolCall;
+            toolHtml = `
+              <div class="tool-box p-3.5 rounded-xl mb-3 text-xs">
+                <div class="flex items-center justify-between pb-2 border-b border-indigo-900/50">
+                  <div class="flex items-center gap-2">
+                    <span class="p-1 rounded bg-indigo-950 text-indigo-300 font-mono text-[10px] border border-indigo-800">TOOL CALL</span>
+                    <span class="font-bold text-white flex items-center gap-1">
+                      <span>${tc.icon || '🛠️'}</span>
+                      <span>${tc.title}</span>
+                    </span>
+                  </div>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full font-mono ${tc.status === 'success' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-300 border border-amber-800'}">
+                    ${tc.status === 'success' ? '✅ 执行完成并落库' : '⏳ 待确认'}
+                  </span>
+                </div>
+                <div class="py-2.5 text-[11px] text-slate-300 space-y-1 font-mono">
+                  <div>• 分类包含：<span class="text-indigo-300">${(tc.categories || []).join('、')}</span></div>
+                  <div>• 题库考点：<span class="text-indigo-300">${tc.entitiesCount} 个考点</span> (已通过同胞池门禁 $\\ge 4$ 校验)</div>
+                </div>
+                ${tc.status === 'pending' ? `
+                  <div class="pt-2 flex items-center justify-end gap-2 border-t border-indigo-900/40">
+                    <button onclick="approveToolCall('${msg.toolCall.id}')" class="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-[11px]">批准执行</button>
+                    <button class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 text-[11px]">拒绝</button>
+                  </div>
+                ` : `
+                  <div class="pt-2 flex items-center justify-between border-t border-indigo-900/40 text-[11px]">
+                    <span class="text-emerald-400">已同步至本地存储 (localStorage)</span>
+                    <button onclick="alert('已切换至该题库！')" class="text-indigo-400 hover:underline">立即前往练习 →</button>
+                  </div>
+                `}
+              </div>
+            `;
+          }
+
+          msgWrapper.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 text-sm">
+              🤖
+            </div>
+            <div class="chat-bubble-assistant p-4 rounded-2xl rounded-tl-sm text-xs leading-relaxed max-w-2xl text-slate-200 shadow-md flex-1">
+              ${thinkingHtml}
+              ${toolHtml}
+              <div class="whitespace-pre-wrap">${escapeHtml(msg.content)}</div>
+            </div>
+          `;
+        }
+
+        container.appendChild(msgWrapper);
+      });
+
+      // 滚动到底部
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // 发送用户消息与流式模拟
+    function handleSend() {
+      const input = document.getElementById('prompt-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const sess = sessions.find(s => s.id === activeSessionId);
+      if (!sess) return;
+
+      // 1. 追加用户消息
+      sess.messages.push({ role: 'user', content: text });
+      input.value = '';
+      renderActiveSession();
+
+      // 2. 模拟或真实执行响应
+      const sendBtn = document.getElementById('send-btn');
+      sendBtn.disabled = true;
+      sendBtn.innerText = '生成中...';
+
+      // 模拟推理与工具调用回路
+      setTimeout(() => {
+        executeSimulationOrAPI(text, sess);
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = `<span>发送</span><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>`;
+      }, 1200);
+    }
+
+    // 智能多步自主循环模拟
+    function executeSimulationOrAPI(query, sess, step = 1) {
+      const effort = document.getElementById('reasoning-effort-select').value;
+      const autoApprove = document.getElementById('auto-approve-toggle').checked;
+
+      if (query.includes('Docker') || query.includes('创建') || query.includes('建')) {
+        if (step === 1) {
+          const callId = 'call_step1_' + Date.now();
+          const toolCard = {
+            id: callId,
+            name: 'tool_list_decks',
+            title: '检索系统现有题库清单',
+            icon: '🔍',
+            categories: ['系统预设库', '用户自定义库'],
+            entitiesCount: 70,
+            status: autoApprove ? 'success' : 'pending'
+          };
+          sess.messages.push({
+            role: 'assistant',
+            reasoning: effort !== 'none' ? `[第 1 步思考] 用户请求构建 Docker 题库。遵循 Core 2.1 架构规范，首先调用只读工具 tool_list_decks() 检查重名与容量上限。` : null,
+            toolCall: toolCard,
+            content: autoApprove ? `正在检索系统题库状态以确保规划无冲突...` : `[第 1 步] 提议检索系统题库状态，请批准：`
+          });
+          renderActiveSession();
+
+          if (autoApprove) {
+            setTimeout(() => executeSimulationOrAPI(query, sess, 2), 900);
+          }
+        } else if (step === 2) {
+          const callId = 'call_step2_' + Date.now();
+          const newDeck = {
+            id: callId,
+            name: 'tool_create_deck',
+            title: 'Docker 容器架构与命令实战',
+            icon: '🐳',
+            categories: ['基础命令与生命周期', '网络驱动与卷存储'],
+            entitiesCount: 8,
+            status: autoApprove ? 'success' : 'pending'
+          };
+          mockDecks.push({ id: 'deck_docker', title: newDeck.title, icon: '🐳', categoriesCount: 2, entitiesCount: 8, isBuiltin: false });
+          sess.messages.push({
+            role: 'assistant',
+            reasoning: effort !== 'none' ? `[第 2 步思考] 题库列表检索完成，无同名冲突！规划三维知识图谱（2大分类，8个考点，严格满足同胞干扰项 >= 4 硬门禁），调用 tool_create_deck 进行本地落库。` : null,
+            toolCall: newDeck,
+            content: autoApprove ? `系统状态核验通过！正在为您批量录入 8 个考点并持久化至本地：` : `[第 2 步] 提议将 Docker 题库落库保存，请批准：`
+          });
+          renderActiveSession();
+
+          if (autoApprove) {
+            setTimeout(() => executeSimulationOrAPI(query, sess, 3), 900);
+          }
+        } else if (step === 3) {
+          sess.messages.push({
+            role: 'assistant',
+            reasoning: effort !== 'none' ? `[第 3 步思考] 所有前置工具已成功执行并回传上下文。输出多步闭环执行报告。` : null,
+            content: `🎉 **恭喜！多步自主智能体流水线全部闭环完成！**\n\n1. ✅ **第 1 步**：调用 \`tool_list_decks\` 校验系统命名与容量空间；\n2. ✅ **第 2 步**：调用 \`tool_create_deck\` 成功写入《Docker 容器架构与命令实战》（8个考点已过门禁）；\n3. ✅ **第 3 步**：本地数据已实时同步！\n\n您现在可以在工坊或学习大厅中直接开启该题库！`
+          });
+          renderActiveSession();
+        }
+      } else if (query.includes('查询') || query.includes('列表')) {
+        sess.messages.push({
+          role: 'assistant',
+          reasoning: effort !== 'none' ? `用户发起了题库列表检索请求。调用系统只读工具 tool_list_decks()，已成功返回系统内全部题库信息。` : null,
+          content: `已为您查询到系统当前题库列表：\n\n1. ⚡ **英语动词形态与变异法则** (42 词条 · 8 分类 · 预设)\n2. 🌐 **HTTP/HTTPS 核心网络协议** (16 词条 · 4 分类 · 预设)\n3. 🐍 **Python 进阶与魔法方法** (12 词条 · 3 分类 · 预设)\n\n所有题库均已通过同胞干扰项门禁规范。`
+        });
+        renderActiveSession();
+      } else {
+        sess.messages.push({
+          role: 'assistant',
+          reasoning: effort !== 'none' ? `针对用户提出的知识问题进行深度推导与辨析，确保解析逻辑通透严谨。` : null,
+          content: `针对您的问题：\n在 Knowledge Master 的知识图谱中，任何考点必须具备明确的“正向答案 (Answer)”与至少 3 个“同胞干扰项 (Sibling Distractors)”。同时建议为易错点补充 pitfalls 提示，强化记忆稳固度。`
+        });
+        renderActiveSession();
+      }
+    }
+
+    function approveToolCall(callId) {
+      const sess = sessions.find(s => s.id === activeSessionId);
+      if (!sess) return;
+      const msg = sess.messages.find(m => m.toolCall && m.toolCall.id === callId);
+      if (msg) {
+        msg.toolCall.status = 'success';
+        renderActiveSession();
+
+        // 人工审批后，推进下一步
+        if (callId.includes('step1')) {
+          setTimeout(() => executeSimulationOrAPI('Docker', sess, 2), 600);
+        } else if (callId.includes('step2')) {
+          setTimeout(() => executeSimulationOrAPI('Docker', sess, 3), 600);
+        }
+      }
+    }
+
+    function sendQuickPrompt(prompt) {
+      document.getElementById('prompt-input').value = prompt;
+      handleSend();
+    }
+
+    function clearCurrentChat() {
+      const sess = sessions.find(s => s.id === activeSessionId);
+      if (sess && confirm('清空当前会话内容？')) {
+        sess.messages = [];
+        renderActiveSession();
+      }
+    }
+
+    // 配置模态框逻辑
+    function toggleConfigModal(show) {
+      document.getElementById('config-modal').classList.toggle('hidden', !show);
+    }
+
+    function renderProviderSelectorGrid() {
+      const grid = document.getElementById('provider-selector-grid');
+      grid.innerHTML = '';
+      Object.values(PROVIDERS).forEach(p => {
+        const isSelected = p.id === currentConfig.provider;
+        const btn = document.createElement('button');
+        btn.className = `p-2 rounded-lg border text-center transition ${isSelected ? 'bg-indigo-600/20 border-indigo-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'}`;
+        btn.onclick = () => selectProvider(p.id);
+        btn.innerHTML = `<div class="text-base">${p.icon}</div><div class="text-[11px] font-bold truncate mt-0.5">${p.name}</div>`;
+        grid.appendChild(btn);
+      });
+
+      document.getElementById('cfg-base-url').value = currentConfig.baseUrl;
+      document.getElementById('cfg-model').value = currentConfig.model;
+      document.getElementById('cfg-api-key').value = currentConfig.apiKey;
+      document.getElementById('cfg-reasoning-effort').value = currentConfig.reasoningEffort;
+      document.getElementById('cfg-system-prompt').value = currentConfig.systemPrompt;
+    }
+
+    function selectProvider(pId) {
+      const p = PROVIDERS[pId];
+      if (!p) return;
+      currentConfig.provider = pId;
+      currentConfig.baseUrl = p.baseUrl;
+      currentConfig.model = p.defaultModel;
+      renderProviderSelectorGrid();
+    }
+
+    function saveConfigModal() {
+      currentConfig.baseUrl = document.getElementById('cfg-base-url').value;
+      currentConfig.apiKey = document.getElementById('cfg-api-key').value;
+      currentConfig.model = document.getElementById('cfg-model').value;
+      currentConfig.reasoningEffort = document.getElementById('cfg-reasoning-effort').value;
+      currentConfig.systemPrompt = document.getElementById('cfg-system-prompt').value;
+
+      document.getElementById('active-provider-icon').innerText = PROVIDERS[currentConfig.provider]?.icon || '🤖';
+      document.getElementById('active-model-name').innerText = currentConfig.model;
+      document.getElementById('reasoning-effort-select').value = currentConfig.reasoningEffort;
+
+      toggleConfigModal(false);
+      alert('配置已生效并已自动保存！');
+    }
+
+    function updateReasoningEffort(val) {
+      currentConfig.reasoningEffort = val;
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+    }
+  </script>
+</body>
+</html>

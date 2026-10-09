@@ -34,11 +34,11 @@ export class DeckCrudController {
 
       let healthBadge = '';
       if (!health.valid) {
-        healthBadge = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 font-mono">🔴 异常</span>`;
+        healthBadge = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 font-mono">异常</span>`;
       } else if (health.warnings.length > 0) {
-        healthBadge = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">🟡 需补充</span>`;
+        healthBadge = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">需补充</span>`;
       } else {
-        healthBadge = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono">🟢 健壮</span>`;
+        healthBadge = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono">健壮</span>`;
       }
 
       html += `
@@ -70,15 +70,15 @@ export class DeckCrudController {
               </button>
             ` : ''}
             <button onclick="app.closeDeckManagerModal(); app.showDeckStudioModal('${deck.id}')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium transition flex items-center gap-1" title="在 Studio 中编辑或另存">
-              <span>✏️ 编辑</span>
+              <span>编辑</span>
             </button>
             ${isBuiltin ? `
-              <button disabled class="px-2.5 py-1.5 rounded-lg bg-slate-900 text-slate-600 border border-slate-800 text-xs cursor-not-allowed" title="系统内置预设受保护，不可删除">
-                <span>🔒</span>
+              <button disabled class="px-2.5 py-1.5 rounded-lg bg-slate-900 text-slate-600 border border-slate-800 text-xs cursor-not-allowed flex items-center justify-center" title="系统内置预设受保护，不可删除">
+                <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
               </button>
             ` : `
-              <button onclick="app.promptDeleteDeck('${deck.id}')" class="px-2.5 py-1.5 rounded-lg bg-rose-950/30 hover:bg-rose-900/40 text-rose-300 border border-rose-900/50 text-xs font-medium transition" title="删除自定义题库">
-                <span>🗑️</span>
+              <button onclick="app.promptDeleteDeck('${deck.id}')" class="px-2.5 py-1.5 rounded-lg bg-rose-950/30 hover:bg-rose-900/40 text-rose-300 border border-rose-900/50 text-xs font-medium transition flex items-center justify-center" title="删除自定义题库">
+                <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
               </button>
             `}
           </div>

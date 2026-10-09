@@ -22,3 +22,9 @@ desktop.ini
 dist/
 build/
 *.log
+
+# Environment variables & local credentials
+.env
+.env.*
+*.local
+

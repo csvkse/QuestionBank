@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CORS 预检阻断与本地开发代理方案调研预览 - Knowledge Arena</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              750: '#293548',
+              850: '#172033',
+              950: '#070b14'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 selection:bg-indigo-500 selection:text-white">
+  <div class="max-w-5xl mx-auto space-y-8">
+    
+    <!-- 顶部标题 -->
+    <header class="border-b border-slate-800 pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/30 font-semibold font-mono">SPEC-19</span>
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 font-semibold">CORS Preflight Root Cause</span>
+        </div>
+        <h1 class="text-2xl font-black text-white tracking-tight">CORS 预检阻断机理与本地开发反向代理解决方案</h1>
+        <p class="text-xs text-slate-400 mt-1">诊断分析针对 api.typesafe.ai 与公共代理 corsproxy.io 的报错根因，并提供 100% 稳定的工程化解法</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="../index.html" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs text-slate-300 font-medium transition flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          返回应用
+        </a>
+      </div>
+    </header>
+
+    <!-- 1. 现象复现与抓包实测对比 -->
+    <section class="space-y-4">
+      <h2 class="text-lg font-bold text-white flex items-center gap-2">
+        <svg class="w-5 h-5 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        报错根因抓包实测证据 (Root Cause Diagnostic)
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- 错误 A: 直连上游 -->
+        <div class="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-red-400 uppercase tracking-wider">路径 1: 浏览器直连上游</span>
+            <span class="text-[11px] font-mono text-red-400 bg-red-950/40 px-2 py-0.5 rounded border border-red-800/40">HTTP 405 Blocked</span>
+          </div>
+          <div class="p-3 bg-slate-950 rounded-xl font-mono text-[11px] text-slate-300 space-y-1">
+            <div class="text-amber-400">&gt; OPTIONS /v1/systemone HTTP/1.1</div>
+            <div>&gt; Origin: null (file:// 页面)</div>
+            <div>&gt; Access-Control-Request-Method: POST</div>
+            <div class="text-red-400">&lt; HTTP/1.1 405 Method Not Allowed</div>
+            <div class="text-red-400">&lt; Allow: POST</div>
+            <div class="text-slate-500">&lt; (未返回任何 Access-Control-Allow-Origin)</div>
+          </div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            <b>分析</b>：目标服务器仅支持 POST，应用层或 Cloudflare 规则对预检请求直接抛出 405，导致浏览器拦截。
+          </p>
+        </div>
+
+        <!-- 错误 B: 公共代理 corsproxy.io -->
+        <div class="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-amber-400 uppercase tracking-wider">路径 2: 公共代理 corsproxy.io</span>
+            <span class="text-[11px] font-mono text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-800/40">HTTP 401 Unauthorized</span>
+          </div>
+          <div class="p-3 bg-slate-950 rounded-xl font-mono text-[11px] text-slate-300 space-y-1">
+            <div class="text-amber-400">&gt; OPTIONS /?url=https%3A%2F%2Fapi... HTTP/1.1</div>
+            <div>&gt; Origin: null</div>
+            <div>&gt; Access-Control-Request-Headers: authorization</div>
+            <div class="text-red-400">&lt; HTTP/1.1 401 Unauthorized</div>
+            <div class="text-slate-400">&lt; {"error":"A valid API key is required"}</div>
+          </div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            <b>分析</b>：公共代理现已要求注册付费 API Key。预检收到 401（非 200~299 OK 状态），浏览器抛出 <code class="text-red-300">does not have HTTP ok status</code>。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 解决方案对比矩阵 -->
+    <section class="space-y-4">
+      <h2 class="text-lg font-bold text-white flex items-center gap-2">
+        <svg class="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"><polygon points="2 17 12 22 22 17"/><polygon points="2 12 12 17 22 12"/></svg>
+        三种解决途径全维度技术对比
+      </h2>
+      <div class="overflow-x-auto rounded-2xl border border-slate-800">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="bg-slate-900/80 text-slate-300 border-b border-slate-800">
+              <th class="p-3.5 font-bold">方案类别</th>
+              <th class="p-3.5 font-bold">实施方式</th>
+              <th class="p-3.5 font-bold">稳定性 & 速度</th>
+              <th class="p-3.5 font-bold">隐私与安全性</th>
+              <th class="p-3.5 font-bold">推荐度</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/80 text-slate-300 font-normal">
+            <tr class="bg-indigo-950/20">
+              <td class="p-3.5 font-bold text-indigo-300">方案 1: 内置 Node.js 本地开发服务与代理 (推荐)</td>
+              <td class="p-3.5 font-mono text-[11px]">终端运行 npm run dev<br>浏览器访问 http://localhost:3000</td>
+              <td class="p-3.5 text-emerald-400 font-semibold">100% 极速直连，0 速率限制</td>
+              <td class="p-3.5 text-emerald-400 font-semibold">本地进程转发，Token 不经第三方</td>
+              <td class="p-3.5"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">首选 (开箱即用)</span></td>
+            </tr>
+            <tr>
+              <td class="p-3.5 font-bold text-white">方案 2: 自建 Cloudflare Worker 云代理</td>
+              <td class="p-3.5 font-mono text-[11px]">CF 后台部署 15 行 JS 脚本<br>https://worker.dev/?url=</td>
+              <td class="p-3.5 text-indigo-300">全球边缘 CDN，稳定性极高</td>
+              <td class="p-3.5 text-indigo-300">专属 CF 账户隔离，安全可控</td>
+              <td class="p-3.5"><span class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">纯静态部署优选</span></td>
+            </tr>
+            <tr class="bg-red-950/10">
+              <td class="p-3.5 font-bold text-red-300 line-through">方案 3: 第三方免费公共代理 (如 corsproxy.io)</td>
+              <td class="p-3.5 font-mono text-[11px]">前缀挂载公共 URL</td>
+              <td class="p-3.5 text-red-400">随时收费或下线，已报 401</td>
+              <td class="p-3.5 text-red-400">严重隐患：API Key 泄露给第三方</td>
+              <td class="p-3.5"><span class="px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-bold">废弃 (不可用)</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 3. 本地代理架构工作原理与实操 -->
+    <section class="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+      <h2 class="text-base font-bold text-white flex items-center gap-2">
+        <svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        方案 1 落地：零依赖内置本地开发代理 (scripts/dev-server.mjs)
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+          <div class="font-bold text-indigo-400">1. 一键启动服务</div>
+          <p class="text-slate-400 leading-relaxed">在项目根目录运行命令：</p>
+          <div class="p-2 rounded bg-slate-900 font-mono text-slate-200">npm run dev</div>
+          <p class="text-[11px] text-slate-500">自动托管项目静态资源，并开启 /api/proxy 反向代理通道。</p>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+          <div class="font-bold text-indigo-400">2. 访问应用</div>
+          <p class="text-slate-400 leading-relaxed">浏览器中直接访问：</p>
+          <div class="p-2 rounded bg-slate-900 font-mono text-slate-200">http://localhost:3000</div>
+          <p class="text-[11px] text-slate-500">告别 file:// 的 origin: 'null' 限制，享受标称标准同源上下文。</p>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+          <div class="font-bold text-indigo-400">3. 接口自动透传</div>
+          <p class="text-slate-400 leading-relaxed">JEV 或模型端点代理前缀：</p>
+          <div class="p-2 rounded bg-slate-900 font-mono text-slate-200 break-all">http://localhost:3000/api/proxy?url=</div>
+          <p class="text-[11px] text-slate-500">自动拦截预检返回 204，上游 POST 直接转发，100% 成功。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 在线连通性调试测试台 -->
+    <section class="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+          <svg class="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg>
+          本地代理状态探测与连通性自测台
+        </h2>
+        <span id="local-server-status" class="text-xs px-2.5 py-0.5 rounded-full border bg-slate-800 text-slate-400 border-slate-700">探测中...</span>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">测试目标端点 URL</label>
+          <input type="text" id="test-target-url" value="https://api.typesafe.ai/v1/systemone" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">测试 Bearer Token (可选)</label>
+          <input type="password" id="test-token" placeholder="输入测试 API Key" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 focus:border-indigo-500 outline-none">
+        </div>
+
+        <div class="flex flex-wrap gap-2 pt-1">
+          <button type="button" onclick="runDirectTest()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white text-xs font-semibold transition">
+            1. 尝试直连测试 (验证 CORS 拦截)
+          </button>
+          <button type="button" onclick="runProxyTest()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            2. 使用本地开发代理测试 (http://localhost:3000)
+          </button>
+        </div>
+
+        <div id="test-output-box" class="hidden p-4 rounded-xl bg-slate-950 border font-mono text-xs overflow-x-auto max-h-48 whitespace-pre-wrap"></div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // 自动检测本地开发服务是否就绪
+    async function checkDevServer() {
+      const statusEl = document.getElementById('local-server-status');
+      try {
+        const res = await fetch('http://localhost:3000/api/health', { method: 'GET' });
+        if (res.ok) {
+          statusEl.className = 'text-xs px-2.5 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-300 border-emerald-500/30 font-semibold';
+          statusEl.textContent = '本地代理服务运行中 (3000 端口已就绪)';
+          return true;
+        }
+      } catch (e) {
+        statusEl.className = 'text-xs px-2.5 py-0.5 rounded-full border bg-amber-500/10 text-amber-300 border-amber-500/30';
+        statusEl.textContent = '本地代理未运行 (运行 npm run dev 即可启动)';
+        return false;
+      }
+    }
+    checkDevServer();
+
+    function showOutput(text, isError = false) {
+      const box = document.getElementById('test-output-box');
+      box.classList.remove('hidden');
+      box.className = `p-4 rounded-xl bg-slate-950 border font-mono text-xs overflow-x-auto max-h-48 whitespace-pre-wrap ${isError ? 'border-red-500/40 text-red-300' : 'border-emerald-500/40 text-emerald-300'}`;
+      box.textContent = text;
+    }
+
+    async function runDirectTest() {
+      const target = document.getElementById('test-target-url').value.trim();
+      const token = document.getElementById('test-token').value.trim();
+      showOutput(`正在向 ${target} 发起直连 POST 请求...`);
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch(target, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ ping: true, timestamp: Date.now() })
+        });
+        const data = await res.text();
+        showOutput(`[直连成功] 状态码: ${res.status}\n响应体:\n${data}`, false);
+      } catch (err) {
+        showOutput(`[直连失败 - CORS 预检阻断] 错误信息:\n${err.message}\n\n原因: 浏览器 OPTIONS 预检请求未收到 OK 状态或缺少 Access-Control-Allow-Origin 标头。`, true);
+      }
+    }
+
+    async function runProxyTest() {
+      const target = document.getElementById('test-target-url').value.trim();
+      const token = document.getElementById('test-token').value.trim();
+      const proxyUrl = `http://localhost:3000/api/proxy?url=${encodeURIComponent(target)}`;
+      showOutput(`正在通过本地代理转发: ${proxyUrl}...`);
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch(proxyUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ ping: true, timestamp: Date.now() })
+        });
+        const data = await res.text();
+        showOutput(`[本地代理转发成功] HTTP 状态码: ${res.status}\n上游服务器返回:\n${data}`, !res.ok);
+      } catch (err) {
+        showOutput(`[本地代理请求失败] 错误信息:\n${err.message}\n\n提示: 请确认是否已在终端运行 "npm run dev" 启动了本地开发服务。`, true);
+      }
+    }
+  </script>
+</body>
+</html>

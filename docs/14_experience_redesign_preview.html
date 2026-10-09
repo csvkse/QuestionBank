@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knowledge Master - 9大体验全维重构交互原型 (v2.5 Spec Preview)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              0: '#020617',
+              1: '#0b1120',
+              2: '#111827',
+              3: '#1e293b',
+              4: '#334155'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    
+    .chat-bubble-user {
+      background: #1e1b4b;
+      border: 1px solid rgba(99, 102, 241, 0.25);
+    }
+    .chat-bubble-assistant {
+      background: #0b1120;
+      border: 1px solid #1e293b;
+    }
+  </style>
+</head>
+<body class="bg-surface-0 text-slate-100 min-h-screen flex flex-col font-sans antialiased text-sm select-none">
+
+  <!-- 顶部导航 -->
+  <header class="h-14 border-b border-slate-800 bg-surface-1/90 backdrop-blur sticky top-0 z-40 px-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+        <svg class="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      </div>
+      <div>
+        <h1 class="text-xs font-black tracking-wider uppercase text-white flex items-center gap-1.5">
+          <span>KNOWLEDGE MASTER</span>
+          <span class="px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-300 font-mono text-[9px] border border-indigo-800">v2.5 REDESIGN</span>
+        </h1>
+        <p class="text-[10px] text-slate-400">9大体验全维重构交互原型镜像</p>
+      </div>
+    </div>
+
+    <!-- 视角切换 -->
+    <div class="flex items-center gap-1 bg-surface-2 p-1 rounded-xl border border-slate-800 text-xs">
+      <button onclick="switchTab('ai')" id="tab-btn-ai" class="px-3 py-1 rounded-lg font-medium transition flex items-center gap-1.5 bg-indigo-600 text-white shadow-sm">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        <span>AI 智囊工作流 (Req 1~5)</span>
+      </button>
+      <button onclick="switchTab('sandbox')" id="tab-btn-sandbox" class="px-3 py-1 rounded-lg font-medium transition flex items-center gap-1.5 text-slate-400 hover:text-white">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+        <span>沙盒训练与阶梯天梯 (Req 7,8)</span>
+      </button>
+      <button onclick="switchTab('study')" id="tab-btn-study" class="px-3 py-1 rounded-lg font-medium transition flex items-center gap-1.5 text-slate-400 hover:text-white">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        <span>知识精读单点聚焦 (Req 9)</span>
+      </button>
+    </div>
+
+    <!-- 单色矢量与门禁标识 (Req 6) -->
+    <div class="flex items-center gap-2">
+      <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
+        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        <span>FE-ICON-002 门禁绿灯</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- 主体工作区 -->
+  <main class="flex-1 flex overflow-hidden">
+
+    <!-- ==================== 视图 1: AI 智囊工作流升级版 (Req 1~5) ==================== -->
+    <section id="view-ai" class="flex-1 flex overflow-hidden">
+      <!-- 会话侧边栏 -->
+      <aside class="w-64 border-r border-slate-800 bg-surface-1 flex flex-col shrink-0">
+        <div class="p-3 border-b border-slate-800/80 flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-300">智能会话清单</span>
+          <button onclick="createNewSession()" class="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-medium flex items-center gap-1 transition">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            <span>新建会话</span>
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-2 space-y-1">
+          <div class="p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-700/50 text-white text-xs font-medium flex items-center justify-between cursor-pointer">
+            <div class="flex items-center gap-2 truncate">
+              <svg class="w-3.5 h-3.5 text-indigo-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+              <span class="truncate">Docker 架构规划与入库</span>
+            </div>
+            <button class="text-slate-500 hover:text-rose-400 p-1">
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </div>
+          <div class="p-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 text-xs flex items-center justify-between cursor-pointer">
+            <div class="flex items-center gap-2 truncate">
+              <svg class="w-3.5 h-3.5 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+              <span class="truncate">动词时态混淆点体检</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 聊天主视窗 -->
+      <section class="flex-1 flex flex-col bg-surface-0 overflow-hidden">
+        <!-- 聊天信息流 -->
+        <div id="ai-chat-stream" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+          <!-- 用户气泡 (带悬停快捷操作栏 Req 5) -->
+          <div class="flex gap-3 max-w-4xl mx-auto justify-end group">
+            <div class="relative max-w-2xl">
+              <!-- 悬停操作栏 Req 5 -->
+              <div class="absolute -top-7 right-0 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 bg-surface-2 border border-slate-700 rounded-md px-1 py-0.5 shadow text-[10px] text-slate-400">
+                <button onclick="copyText('为我创建一套《Docker 容器实战》考题，包含 2 个分类，每类至少 4 条词条')" class="p-1 hover:text-white" title="复制提示词">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
+                </button>
+                <button onclick="editPrompt('为我创建一套《Docker 容器实战》考题，包含 2 个分类，每类至少 4 条词条')" class="p-1 hover:text-white" title="编辑重提">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </button>
+                <button class="p-1 hover:text-rose-400" title="删除此消息">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </div>
+              <div class="chat-bubble-user p-3.5 rounded-2xl rounded-tr-sm text-xs leading-relaxed text-slate-100 shadow-sm">
+                为我创建一套《Docker 容器实战》考题，包含 2 个分类，每类至少 4 条词条
+              </div>
+            </div>
+            <div class="w-8 h-8 rounded-full bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center shrink-0 text-xs font-bold text-indigo-300">
+              ME
+            </div>
+          </div>
+
+          <!-- 助手回复气泡 (带自动折叠工具卡片 Req 3 + 结构化 Markdown Req 4 + 操作栏 Req 5) -->
+          <div class="flex gap-3 max-w-4xl mx-auto justify-start group">
+            <div class="w-8 h-8 rounded-full bg-surface-2 border border-slate-700 flex items-center justify-center shrink-0 text-slate-400">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            </div>
+            <div class="relative flex-1 max-w-2xl">
+              <!-- 助手悬停操作栏 Req 5 -->
+              <div class="absolute -top-7 right-0 opacity-0 group-hover:opacity-100 transition flex items-center gap-1 bg-surface-2 border border-slate-700 rounded-md px-1 py-0.5 shadow text-[10px] text-slate-400">
+                <button onclick="copyAssistantContent()" class="p-1 hover:text-white" title="复制正文">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
+                </button>
+                <button onclick="regenerateLast()" class="p-1 hover:text-indigo-400" title="重新生成">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                </button>
+                <button class="p-1 hover:text-rose-400" title="删除">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </div>
+
+              <div class="chat-bubble-assistant p-4 rounded-2xl rounded-tl-sm text-xs leading-relaxed text-slate-200 shadow-md space-y-3">
+                <!-- 折叠思维链 -->
+                <details class="bg-surface-0/80 rounded-lg p-2.5 border-l-2 border-amber-500 text-[11px] text-amber-200/90 font-mono">
+                  <summary class="cursor-pointer font-bold flex items-center justify-between text-amber-400">
+                    <span class="flex items-center gap-1.5">
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                      <span>第 2 步深度推理过程 (已收拢)</span>
+                    </span>
+                    <span class="text-[10px] text-amber-400/60">展开 ▼</span>
+                  </summary>
+                  <div class="pt-2 text-slate-300 border-t border-amber-500/20 mt-2 whitespace-pre-wrap">分析知识体系：设计两个核心分类（容器生命周期与数据卷存储），规划 8 个原子考点，每分类4题，完美契合同胞干扰项 >= 4 约束。</div>
+                </details>
+
+                <!-- 工具调用自动收起卡片 Req 3 -->
+                <details class="bg-surface-0/90 rounded-xl border border-indigo-900/40 text-xs overflow-hidden">
+                  <summary class="p-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-800/30 transition">
+                    <div class="flex items-center gap-2">
+                      <span class="p-0.5 px-1.5 rounded bg-indigo-950 text-indigo-300 font-mono text-[9px] border border-indigo-800">TOOL CALL</span>
+                      <span class="font-bold text-white font-mono">tool_create_deck</span>
+                      <span class="text-[10px] text-slate-400 font-mono">《Docker 容器架构与命令实战》</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">
+                        已执行并回传
+                      </span>
+                      <span class="text-slate-500 text-[10px]">展开详情 ▼</span>
+                    </div>
+                  </summary>
+                  <div class="p-3 border-t border-slate-800 bg-surface-2 text-[11px] font-mono text-slate-300 space-y-2">
+                    <div>参数载荷：<span class="text-indigo-300">{"title": "Docker 容器实战", "entities": 8}</span></div>
+                    <div class="text-emerald-400 flex items-center justify-between">
+                      <span>落库结果：成功写入本地 LocalStorage (deck_docker)</span>
+                      <button class="text-indigo-400 hover:underline">去学习大厅查看 →</button>
+                    </div>
+                  </div>
+                </details>
+
+                <!-- 优化 Markdown 正文排版 Req 4 -->
+                <div class="space-y-2 text-slate-200" id="assistant-rendered-body">
+                  <h3 class="text-sm font-bold text-white pb-1 border-b border-slate-800">Docker 容器实战架构题库已闭环创建</h3>
+                  <p class="text-xs text-slate-300">系统已按照 Core 2.1 门禁规范，为您规划了 2 大核心分类并配置了 8 个标准考点：</p>
+                  
+                  <!-- Markdown 渲染代码块示例 -->
+                  <div class="rounded-lg bg-slate-950 border border-slate-800 my-2 overflow-hidden">
+                    <div class="flex items-center justify-between px-3 py-1 bg-slate-900/90 border-b border-slate-800 text-[10px] text-slate-400 font-mono">
+                      <span>bash</span>
+                      <button onclick="copyCode(this)" class="hover:text-white transition">复制</button>
+                    </div>
+                    <pre class="p-3 text-[11px] font-mono overflow-x-auto text-emerald-300"><code>docker run -d --name web -v /data:/data:ro nginx:alpine</code></pre>
+                  </div>
+
+                  <!-- Markdown 渲染表格示例 -->
+                  <div class="overflow-x-auto my-2">
+                    <table class="w-full text-[11px] border-collapse border border-slate-800">
+                      <thead class="bg-slate-900 text-slate-300">
+                        <tr>
+                          <th class="p-1.5 border border-slate-800 text-left">考点指令</th>
+                          <th class="p-1.5 border border-slate-800 text-left">所属分类</th>
+                          <th class="p-1.5 border border-slate-800 text-left">认知层级</th>
+                          <th class="p-1.5 border border-slate-800 text-left">同胞干扰项池</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-slate-800 text-slate-300">
+                        <tr>
+                          <td class="p-1.5 border border-slate-800 font-mono text-indigo-300">docker run</td>
+                          <td class="p-1.5 border border-slate-800">生命周期指令</td>
+                          <td class="p-1.5 border border-slate-800"><span class="px-1 rounded bg-slate-800 text-slate-300">Layer 1</span></td>
+                          <td class="p-1.5 border border-slate-800 text-emerald-400">4项充足 (通过)</td>
+                        </tr>
+                        <tr>
+                          <td class="p-1.5 border border-slate-800 font-mono text-indigo-300">docker volume</td>
+                          <td class="p-1.5 border border-slate-800">存储网络驱动</td>
+                          <td class="p-1.5 border border-slate-800"><span class="px-1 rounded bg-slate-800 text-slate-300">Layer 2</span></td>
+                          <td class="p-1.5 border border-slate-800 text-emerald-400">4项充足 (通过)</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <p class="text-[11px] text-slate-400">所有考点已通过同胞池门禁检验，您可以立即开始训练！</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 底部输入框工具栏 (支持快捷切换平台与模型 Req 1 & 2) -->
+        <footer class="p-3 border-t border-slate-800 bg-surface-1">
+          <!-- 快捷平台与模型选择器工具栏 (Req 2) -->
+          <div class="flex items-center justify-between pb-2 px-1 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] text-slate-400">模型平台：</span>
+              <!-- 快捷级联选择器 -->
+              <select id="quick-model-select" onchange="onModelChange(this.value)" class="bg-surface-2 text-white border border-slate-700 rounded-md px-2 py-0.5 text-xs font-mono focus:border-indigo-500 focus:outline-none cursor-pointer">
+                <optgroup label="DeepSeek 官方">
+                  <option value="deepseek:deepseek-reasoner" selected>deepseek-reasoner (R1 推理)</option>
+                  <option value="deepseek:deepseek-chat">deepseek-chat (V3 通用)</option>
+                </optgroup>
+                <optgroup label="OpenAI">
+                  <option value="openai:o3-mini">o3-mini (高推理)</option>
+                  <option value="openai:gpt-4o">gpt-4o (全能旗舰)</option>
+                  <option value="openai:gpt-4o-mini">gpt-4o-mini (极速)</option>
+                </optgroup>
+                <optgroup label="硅基流动 SiliconFlow">
+                  <option value="siliconflow:deepseek-ai/DeepSeek-R1">DeepSeek-R1 (托管算力)</option>
+                  <option value="siliconflow:deepseek-ai/DeepSeek-V3">DeepSeek-V3 (托管)</option>
+                </optgroup>
+                <optgroup label="本地 Ollama">
+                  <option value="ollama:deepseek-r1:8b">deepseek-r1:8b (本地运行)</option>
+                  <option value="ollama:qwen2.5:7b">qwen2.5:7b (本地)</option>
+                </optgroup>
+                <optgroup label="自定义平台 (Req 1)">
+                  <option value="custom:custom-model">+ 自定义模型端点...</option>
+                </optgroup>
+              </select>
+
+              <button onclick="openConfigModal()" class="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition">
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
+                <span>管理平台</span>
+              </button>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] text-slate-400">思考等级：</span>
+              <select class="bg-surface-2 text-white border border-slate-700 rounded-md px-1.5 py-0.5 text-xs font-mono">
+                <option value="none">none (关闭)</option>
+                <option value="low">low (轻量)</option>
+                <option value="medium" selected>medium (中等)</option>
+                <option value="high">high (深度)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="relative flex items-center">
+            <textarea id="ai-chat-input" rows="2" placeholder="输入自然语言指令（如：为我创建一套考题，或检索已有题库）..." class="w-full bg-surface-2 text-white border border-slate-700 rounded-xl p-2.5 pr-20 text-xs resize-none focus:outline-none focus:border-indigo-500"></textarea>
+            <button onclick="handleSend()" class="absolute right-2.5 bottom-2.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center gap-1 transition shadow-sm">
+              <span>发送</span>
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </button>
+          </div>
+        </footer>
+      </section>
+    </section>
+
+    <!-- ==================== 视图 2: 竞技大厅沙盒训练与阶梯路线图 (Req 7,8) ==================== -->
+    <section id="view-sandbox" class="flex-1 hidden overflow-y-auto p-6 max-w-5xl mx-auto space-y-6">
+      
+      <!-- 阶梯进阶模式天梯路线图 (Req 8) -->
+      <div class="bg-surface-1 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-lg">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            </div>
+            <div>
+              <h2 class="text-sm font-black text-white">分层阶梯进阶天梯 (Tier Progression Roadmap)</h2>
+              <p class="text-xs text-slate-400">只有当上一层级正确率 ≥ 80% 时方可触发晋级并解锁下一关卡</p>
+            </div>
+          </div>
+          <span class="px-2.5 py-1 rounded-full text-xs font-mono bg-indigo-950 text-indigo-300 border border-indigo-800">当前阶段：Tier 1 (进行中)</span>
+        </div>
+
+        <!-- 天梯节点可视化 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+          <!-- Tier 1 -->
+          <div class="p-3.5 rounded-xl bg-surface-2 border-2 border-indigo-500 shadow-md space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Tier 1: 基础认知</span>
+              </span>
+              <span class="text-[10px] font-mono text-emerald-400 font-bold">85% 达成 (晋级合格)</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-emerald-500 h-full rounded-full" style="width: 85%;"></div>
+            </div>
+            <p class="text-[11px] text-slate-400">概念识记、原型对应与直觉判断</p>
+          </div>
+
+          <!-- Tier 2 -->
+          <div class="p-3.5 rounded-xl bg-surface-2 border border-slate-700 opacity-90 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+                <span>Tier 2: 规律运用</span>
+              </span>
+              <span class="text-[10px] font-mono text-indigo-300">已解锁 (可挑战)</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-indigo-500 h-full rounded-full" style="width: 0%;"></div>
+            </div>
+            <p class="text-[11px] text-slate-400">规则推导、语法变位与正向应用</p>
+          </div>
+
+          <!-- Tier 3 -->
+          <div class="p-3.5 rounded-xl bg-surface-2 border border-slate-800 opacity-50 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-400 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                <span>Tier 3: 陷阱与特例</span>
+              </span>
+              <span class="text-[10px] font-mono text-slate-500">未解锁 (需通关T2)</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-slate-700 h-full rounded-full" style="width: 0%;"></div>
+            </div>
+            <p class="text-[11px] text-slate-500">易混淆同胞辨析、反直觉特例</p>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button onclick="triggerPromotionModal()" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 transition">
+            <span>模拟 Layer 1 通关晋级仪式</span>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 自由沙盒训练自定义配置面板 (Req 7) -->
+      <div class="bg-surface-1 border border-slate-800 rounded-2xl p-5 space-y-5 shadow-lg">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            </div>
+            <div>
+              <h2 class="text-sm font-black text-white">自由沙盒专项训练 (Custom Sandbox Config)</h2>
+              <p class="text-xs text-slate-400">支持灵活勾选分类、认知层级与题量，精准定制强化题集</p>
+            </div>
+          </div>
+          <button onclick="resetSandbox()" class="text-xs text-slate-400 hover:text-white transition">重置默认</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <!-- 1. 知识分类多选 -->
+          <div class="space-y-2">
+            <label class="text-xs font-bold text-slate-300">1. 指定知识分类 (可多选)：</label>
+            <div class="bg-surface-2 p-3 rounded-xl border border-slate-800 space-y-2 max-h-48 overflow-y-auto">
+              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" checked class="rounded border-slate-700 text-indigo-600 focus:ring-0">
+                <span>规则变化 (现在分词/过去式)</span>
+                <span class="text-[10px] text-slate-500 font-mono">(16 题)</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" checked class="rounded border-slate-700 text-indigo-600 focus:ring-0">
+                <span>不规则动词 (AAA/ABB/ABC)</span>
+                <span class="text-[10px] text-slate-500 font-mono">(18 题)</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" checked class="rounded border-slate-700 text-indigo-600 focus:ring-0">
+                <span>重读闭音节与特殊变位</span>
+                <span class="text-[10px] text-slate-500 font-mono">(8 题)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 2. 认知层级多选 + 题量 -->
+          <div class="space-y-4">
+            <div class="space-y-2">
+              <label class="text-xs font-bold text-slate-300">2. 筛选认知层级：</label>
+              <div class="flex items-center gap-2">
+                <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-2 border border-slate-700 text-xs cursor-pointer">
+                  <input type="checkbox" checked class="rounded border-slate-700 text-indigo-600">
+                  <span>Layer 1 基础</span>
+                </label>
+                <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-2 border border-slate-700 text-xs cursor-pointer">
+                  <input type="checkbox" checked class="rounded border-slate-700 text-indigo-600">
+                  <span>Layer 2 规律</span>
+                </label>
+                <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-2 border border-slate-700 text-xs cursor-pointer">
+                  <input type="checkbox" checked class="rounded border-slate-700 text-indigo-600">
+                  <span>Layer 3 陷阱</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <label class="text-xs font-bold text-slate-300">3. 训练抽样题量：</label>
+              <div class="flex items-center gap-2">
+                <button class="px-3 py-1 rounded bg-slate-800 text-slate-300 hover:text-white text-xs">5 题</button>
+                <button class="px-3 py-1 rounded bg-indigo-600 text-white font-bold text-xs">10 题</button>
+                <button class="px-3 py-1 rounded bg-slate-800 text-slate-300 hover:text-white text-xs">20 题</button>
+                <button class="px-3 py-1 rounded bg-slate-800 text-slate-300 hover:text-white text-xs">全部 (42)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-800 flex items-center justify-between">
+          <span class="text-xs text-slate-400">已定制筛选出 <strong class="text-indigo-400 font-mono">10</strong> 道高精准度考题</span>
+          <button onclick="alert('沙盒专项队列构建完成，立即启动竞技训练！')" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>启动沙盒训练</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 视图 3: 知识精读单点沉浸聚焦模式 (Req 9) ==================== -->
+    <section id="view-study" class="flex-1 hidden overflow-hidden flex">
+      <!-- 左侧知识大纲索引树 -->
+      <aside class="w-72 border-r border-slate-800 bg-surface-1 flex flex-col shrink-0">
+        <div class="p-3 border-b border-slate-800 flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-200">知识图谱目录</span>
+          <span class="text-[10px] text-slate-500 font-mono">共 42 条</span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-2 space-y-3">
+          <!-- 分组 -->
+          <div>
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 flex items-center justify-between">
+              <span>一、规则变形核心考点</span>
+              <span class="text-[10px] font-mono text-slate-500">16 题</span>
+            </div>
+            <div class="space-y-0.5 mt-1">
+              <button onclick="selectFocusCard(0)" class="w-full text-left p-2 rounded-lg bg-indigo-950/50 border border-indigo-700/60 text-white text-xs font-medium flex items-center justify-between">
+                <span class="truncate">picnic (特殊加 k 规则)</span>
+                <span class="px-1.5 py-0.2 rounded bg-indigo-900 text-indigo-300 text-[10px] font-mono">L1</span>
+              </button>
+              <button onclick="selectFocusCard(1)" class="w-full text-left p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs flex items-center justify-between">
+                <span class="truncate">stop (重读闭音节双写)</span>
+                <span class="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 text-[10px] font-mono">L1</span>
+              </button>
+              <button onclick="selectFocusCard(2)" class="w-full text-left p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs flex items-center justify-between">
+                <span class="truncate">prefer (末尾音节重读辨析)</span>
+                <span class="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 text-[10px] font-mono">L2</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 flex items-center justify-between">
+              <span>二、不规则动词五大分类</span>
+              <span class="text-[10px] font-mono text-slate-500">18 题</span>
+            </div>
+            <div class="space-y-0.5 mt-1">
+              <button class="w-full text-left p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs flex items-center justify-between">
+                <span class="truncate">arise / arose / arisen</span>
+                <span class="px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 text-[10px] font-mono">L3</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 右侧单点沉浸聚焦精读卡片 (Req 9) -->
+      <section class="flex-1 bg-surface-0 p-6 sm:p-8 overflow-y-auto flex flex-col justify-between">
+        <div class="max-w-3xl mx-auto w-full space-y-6">
+          
+          <!-- 面包屑与层级指示 -->
+          <div class="flex items-center justify-between text-xs text-slate-400 pb-2 border-b border-slate-800">
+            <div class="flex items-center gap-2">
+              <span>一、规则变形核心考点</span>
+              <span>›</span>
+              <span class="text-white font-medium">以 -ic 结尾动词的特殊变位</span>
+            </div>
+            <span class="px-2 py-0.5 rounded font-mono text-[10px] bg-slate-800 text-indigo-300 border border-slate-700">
+              Layer 1: 基础认知
+            </span>
+          </div>
+
+          <!-- 1. 核心考点与标准答案卡片 (视觉焦点突出) -->
+          <div class="bg-surface-1 border border-slate-800 rounded-2xl p-6 text-center space-y-3 shadow-lg">
+            <span class="text-[10px] tracking-wider uppercase font-mono text-slate-400">CORE TARGET ENTITY</span>
+            <h2 class="text-2xl font-black text-white tracking-wide">picnic (野餐)</h2>
+            <div class="inline-block px-4 py-2 rounded-xl bg-indigo-950/60 border border-indigo-500/40 text-indigo-200 font-mono text-base font-bold">
+              标准变形：picnicked / picnicking
+            </div>
+            <p class="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
+              以字母组合 <strong class="text-white font-mono">-ic</strong> 结尾的动词，在加 -ed 或 -ing 前，必须先加 <strong class="text-indigo-400 font-mono">k</strong>，以保持软硬音 /k/ 的发音规则一致性。
+            </p>
+          </div>
+
+          <!-- 2. 同胞干扰项横向辨析矩阵 (避免杂色) -->
+          <div class="bg-surface-1 border border-slate-800 rounded-2xl p-5 space-y-3">
+            <h3 class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <span>同胞干扰项横向比对矩阵 (Sibling Distractors Matrix)</span>
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs font-mono">
+              <div class="p-3 rounded-xl bg-surface-2 border border-slate-800 space-y-1">
+                <div class="text-rose-400 line-through">❌ picniced</div>
+                <div class="text-[10px] text-slate-400 font-sans">高频笔误：直接加 ed 会导致 c 发 /s/ 音，不合发音规则</div>
+              </div>
+              <div class="p-3 rounded-xl bg-surface-2 border border-slate-800 space-y-1">
+                <div class="text-rose-400 line-through">❌ picnicced</div>
+                <div class="text-[10px] text-slate-400 font-sans">类比误判：误以为双写末尾辅音字母 c</div>
+              </div>
+              <div class="p-3 rounded-xl bg-surface-2 border border-slate-800 space-y-1">
+                <div class="text-emerald-400 font-bold">✅ picnicked</div>
+                <div class="text-[10px] text-slate-300 font-sans">唯一正确标准答案（正向心理表征）</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 高频命题陷阱与记忆诀窍 (单一暖色焦点) -->
+          <div class="bg-surface-1 border-l-4 border-amber-500 rounded-r-2xl p-4.5 space-y-1.5 border-y border-r border-slate-800">
+            <div class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              <span>高频命题陷阱 (Pitfalls & Mnemonic Anchor)</span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              类似同类词汇还包含：<code class="text-indigo-300 font-mono">panic ➔ panicked</code>, <code class="text-indigo-300 font-mono">traffic ➔ trafficked</code>。中考、高考及考研阅读常作为干扰选项设计！
+            </p>
+          </div>
+        </div>
+
+        <!-- 底部前后切换导航 -->
+        <div class="max-w-3xl mx-auto w-full pt-4 flex items-center justify-between border-t border-slate-800 text-xs">
+          <button class="px-3 py-1.5 rounded-lg bg-surface-2 hover:bg-slate-800 text-slate-300 flex items-center gap-1 transition">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            <span>上一词条 (快捷键 ←)</span>
+          </button>
+          <span class="text-slate-500 font-mono text-[11px]">当前进度：1 / 42 词条</span>
+          <button class="px-3 py-1.5 rounded-lg bg-surface-2 hover:bg-slate-800 text-slate-300 flex items-center gap-1 transition">
+            <span>下一词条 (快捷键 →)</span>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </section>
+    </section>
+
+  </main>
+
+  <script>
+    function switchTab(tab) {
+      ['ai', 'sandbox', 'study'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.add('hidden');
+        document.getElementById(`tab-btn-${t}`).className = 'px-3 py-1 rounded-lg font-medium transition flex items-center gap-1.5 text-slate-400 hover:text-white';
+      });
+      document.getElementById(`view-${tab}`).classList.remove('hidden');
+      document.getElementById(`tab-btn-${tab}`).className = 'px-3 py-1 rounded-lg font-medium transition flex items-center gap-1.5 bg-indigo-600 text-white shadow-sm';
+    }
+
+    function onModelChange(val) {
+      alert(`已快捷切换至模型: ${val}\n（无需进入模态框，即选即用）`);
+    }
+
+    function copyText(txt) {
+      navigator.clipboard.writeText(txt);
+      alert('已复制提示词至剪贴板！');
+    }
+
+    function copyAssistantContent() {
+      alert('已复制助手完整 Markdown 文本至剪贴板！');
+    }
+
+    function regenerateLast() {
+      alert('已触发重试请求，正在重新生成当前步骤回答...');
+    }
+
+    function editPrompt(txt) {
+      document.getElementById('ai-chat-input').value = txt;
+      document.getElementById('ai-chat-input').focus();
+    }
+
+    function copyCode(btn) {
+      btn.innerText = '已复制!';
+      setTimeout(() => btn.innerText = '复制', 1500);
+    }
+
+    function triggerPromotionModal() {
+      alert('🎉 恭喜达成阶梯晋级！\n\n您在 Layer 1（基础认知）正确率达 85%（≥ 80% 黄金门禁）！\n已成功解锁 Tier 2（规律运用）关卡！');
+    }
+
+    function handleSend() {
+      const input = document.getElementById('ai-chat-input');
+      if (input.value.trim()) {
+        alert(`发送内容: ${input.value}\n触发 ReAct 多步自动循环`);
+        input.value = '';
+      }
+    }
+  </script>
+</body>
+</html>

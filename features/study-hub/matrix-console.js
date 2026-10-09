@@ -1,7 +1,4 @@
-/**
- * 3-Step Matrix Console Filters Controller (Group x Category x Layer)
- * Core: features/study-hub/matrix-console.js
- */
+import { renderIcon } from '../../design-system/icons/icons.js';
 
 export class MatrixConsoleController {
   constructor(app) {
@@ -34,8 +31,9 @@ export class MatrixConsoleController {
         }).length;
         const active = this.app.studySelectedGroup === g;
         gHtml += `
-          <button onclick="app.setStudyGroupFilter('${g.replace(/'/g, "\\'")}')" class="px-3 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1 ${active ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 font-bold' : 'bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700'}">
-            <span>📦 ${g}</span>
+          <button onclick="app.setStudyGroupFilter('${g.replace(/'/g, "\\'")}')" class="px-3 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${active ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 font-bold' : 'bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700'}">
+            ${renderIcon('layers', 'w-3 h-3 text-current')}
+            <span>${g}</span>
             <span class="text-[10px] opacity-75 font-mono">(${count})</span>
           </button>
         `;
@@ -75,9 +73,9 @@ export class MatrixConsoleController {
     if (layerContainer) {
       const layers = [
         { id: 'all', label: '全部认知层级' },
-        { id: 1, label: '🌱 Layer 1: 基础认知' },
-        { id: 2, label: '🌿 Layer 2: 规律运用' },
-        { id: 3, label: '🔥 Layer 3: 陷阱与特例' }
+        { id: 1, label: 'Layer 1: 基础认知' },
+        { id: 2, label: 'Layer 2: 规律运用' },
+        { id: 3, label: 'Layer 3: 陷阱特例' }
       ];
 
       let lHtml = '';

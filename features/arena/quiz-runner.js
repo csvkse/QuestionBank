@@ -5,24 +5,29 @@
 
 import { generateDistractors } from '../../shared/distractor-sampler.js';
 import { calculateNextReview } from '../../shared/sm2-scheduler.js';
+import { strategyFactory } from '../../shared/question-strategies/index.js';
+import { renderIcon } from '../../design-system/icons/icons.js';
+import { isLanguageDeck } from '../../platform/audio/speech-synth.js';
 
 export class QuizRunner {
   constructor(app) {
     this.app = app;
   }
 
-  startSession(mode, queue = []) {
+  startSession(mode, queue = [], sessionContext = {}) {
     this.app.currentMode = mode;
-    this.app.quizQueue = queue.length > 0 ? queue : this.prepareQueue(mode);
-    this.app.currentIndex = 0;
-    this.app.sessionCorrect = 0;
-    this.app.sessionCombo = 0;
-    this.app.maxComboInSession = 0;
-    this.app.lives = 3;
-    this.app.isAnswerLocked = false;
+    this.app.currentSessionContext = { mode, sessionContext, queue, timestamp: Date.now() };
+    this.app.quizQueue = queue.length > 0 ? queue : this.prepareQueue(mode, sessionContext);
+    Object.assign(this.app, { currentIndex: 0, sessionCorrect: 0, sessionCombo: 0, maxComboInSession: 0, lives: 3, isAnswerLocked: false });
 
     if (this.app.quizQueue.length === 0) {
-      alert('🎉 太棒了！当前模式下没有需要复习的词条。');
+      const norm = (mode || '').toLowerCase();
+      const msg = (norm.includes('daily') || norm.includes('review'))
+        ? '🎉 太棒了！今日所有艾宾浩斯复习任务均已完成，记忆稳固！'
+        : (norm.includes('weak') || norm.includes('mistake'))
+        ? '🎉 太棒了！当前题库已无薄弱错题盲区，全部掌握！'
+        : '🎉 当前模式下暂无需要复习或考核的词条。';
+      alert(msg);
       this.app.navigate('dashboard');
       return;
     }
@@ -32,30 +37,11 @@ export class QuizRunner {
     this.loadQuestion();
   }
 
-  prepareQueue(mode) {
+  prepareQueue(mode, sessionContext = {}) {
     const deck = this.app.getActiveDeck();
-    const ds = this.app.getDeckState(deck.id);
-    const all = deck.entities || [];
-    const endOfToday = new Date().setHours(23, 59, 59, 999);
-
-    const norm = (mode || '').toLowerCase();
-    if (norm === 'daily' || norm === 'daily_review' || norm === 'ebbinghaus_review') {
-      const due = all.filter(e => {
-        const c = ds.cards[e.id];
-        return c && c.nextReviewAt && c.nextReviewAt <= endOfToday;
-      });
-      return due.length > 0 ? due.sort(() => Math.random() - 0.5) : all.slice(0, 10);
-    } else if (norm === 'weakness' || norm === 'weakness_surge') {
-      const weak = all.filter(e => {
-        const c = ds.cards[e.id];
-        return c && c.wrong > 0 && c.level < 3;
-      });
-      return weak.length > 0 ? weak.sort(() => Math.random() - 0.5) : all.slice(0, 10);
-    } else if (norm === 'ladder' || norm === 'campaign' || norm === 'full_campaign') {
-      return [...all].sort((a, b) => a.layer - b.layer).slice(0, 12);
-    } else {
-      return [...all].sort(() => Math.random() - 0.5).slice(0, 15);
-    }
+    const ds = this.app.getDeckState(deck ? deck.id : '');
+    const strategy = strategyFactory.getStrategy(mode);
+    return strategy.buildQueue({ deck, deckState: ds, options: sessionContext });
   }
 
   renderHeader() {
@@ -67,7 +53,10 @@ export class QuizRunner {
       if (isSpeed) {
         hpContainer.classList.remove('hidden');
         let hearts = '';
-        for (let i = 0; i < 3; i++) hearts += (i < this.app.lives ? '❤️' : '🖤');
+        for (let i = 0; i < 3; i++) {
+          const active = i < this.app.lives;
+          hearts += `<span class="w-3.5 h-3.5 rounded-full ${active ? 'bg-rose-500 shadow-sm shadow-rose-500/50' : 'bg-slate-800 border border-slate-700'} inline-block mx-0.5" title="生命值"></span>`;
+        }
         hpContainer.innerHTML = hearts;
       } else {
         hpContainer.classList.add('hidden');
@@ -113,8 +102,28 @@ export class QuizRunner {
     const translation = document.getElementById('arena-translation');
     if (translation) translation.innerText = currentEntity.subtitle || '';
 
+    // 核心答题指令
     const promptText = document.getElementById('arena-prompt-text');
     if (promptText) promptText.innerText = currentEntity.prompt || '请选择最准确的含义或目标对应项：';
+
+    // 语言题库与自动发音联动
+    const isLang = isLanguageDeck(deck);
+    const btnReplay = document.getElementById('btn-replay-speech');
+    const speechToggle = document.getElementById('arena-auto-speech-toggle');
+    const shortcutHint = document.getElementById('arena-speech-shortcut-hint');
+
+    if (isLang) {
+      if (btnReplay) btnReplay.classList.remove('hidden');
+      if (speechToggle) speechToggle.classList.remove('hidden');
+      if (shortcutHint) shortcutHint.classList.remove('hidden');
+      if (this.app.speechSynth) {
+        this.app.speechSynth.speakEntity(currentEntity, deck, true);
+      }
+    } else {
+      if (btnReplay) btnReplay.classList.add('hidden');
+      if (speechToggle) speechToggle.classList.add('hidden');
+      if (shortcutHint) shortcutHint.classList.add('hidden');
+    }
 
     // 采样干扰项并渲染
     const options = generateDistractors(currentEntity, deck.entities);
@@ -123,7 +132,7 @@ export class QuizRunner {
       grid.innerHTML = '';
       options.forEach((opt, idx) => {
         const btn = document.createElement('button');
-        btn.className = 'w-full text-left p-3.5 sm:p-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 hover:border-indigo-500 text-slate-100 text-sm font-semibold transition flex items-center justify-between group active:scale-[0.98]';
+        btn.className = 'option-card w-full text-left p-3.5 sm:p-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 hover:border-indigo-500 text-slate-100 text-sm font-semibold transition flex items-center justify-between group active:scale-[0.98]';
         btn.innerHTML = `
           <div class="flex items-center gap-3">
             <span class="w-6 h-6 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-xs font-mono text-slate-400 group-hover:text-indigo-400 group-hover:border-indigo-500/50 transition shrink-0">
@@ -158,6 +167,7 @@ export class QuizRunner {
     if (this.app.isAnswerLocked) return;
     this.app.isAnswerLocked = true;
     if (this.app.timerInterval) clearInterval(this.app.timerInterval);
+    if (this.app.speechSynth) this.app.speechSynth.cancel();
 
     const currentEntity = this.app.quizQueue[this.app.currentIndex];
     const isCorrect = (selected.trim() === currentEntity.answer.trim());
@@ -228,19 +238,13 @@ export class QuizRunner {
 
     if (isCorrect) {
       drawer.className = 'bg-slate-900 border border-emerald-500/40 rounded-2xl p-5 shadow-lg';
-      if (icon) icon.innerText = '✨';
-      if (title) {
-        title.className = 'font-bold text-sm text-emerald-400';
-        title.innerText = '回答正确！';
-      }
+      if (icon) icon.innerHTML = renderIcon('check', 'w-5 h-5 text-emerald-400');
+      if (title) { title.className = 'font-bold text-sm text-emerald-400'; title.innerText = '回答正确！'; }
       if (sub) sub.innerText = `命中目标要点！当前已连续答对 ${this.app.sessionCombo} 题。`;
     } else {
       drawer.className = 'bg-slate-900 border border-rose-500/40 rounded-2xl p-5 shadow-lg';
-      if (icon) icon.innerText = '⚠️';
-      if (title) {
-        title.className = 'font-bold text-sm text-rose-400';
-        title.innerText = `失误！正确答案为：${currentEntity.answer}`;
-      }
+      if (icon) icon.innerHTML = renderIcon('alertCircle', 'w-5 h-5 text-rose-400');
+      if (title) { title.className = 'font-bold text-sm text-rose-400'; title.innerText = `失误！正确答案为：${currentEntity.answer}`; }
       if (sub) sub.innerText = '已将该概念自动归入错题档案，艾宾浩斯复习周期已重置。';
     }
 
@@ -250,16 +254,21 @@ export class QuizRunner {
 
   finishSession() {
     if (this.app.timerInterval) clearInterval(this.app.timerInterval);
-    this.app.soundSynth.play('victory');
+    if (this.app.speechSynth) this.app.speechSynth.cancel();
+
+    const isSpeed = (this.app.currentMode === 'speed' || this.app.currentMode === 'SPEED_SPRINT');
+    const isDefeated = isSpeed && this.app.lives <= 0;
+    this.app.soundSynth.play(isDefeated ? 'wrong' : 'victory');
     this.app.navigate('summary');
 
     const totalQ = this.app.quizQueue.length;
-    const acc = totalQ > 0 ? Math.round((this.app.sessionCorrect / totalQ) * 100) : 0;
+    const answeredCount = isDefeated ? Math.max(1, this.app.currentIndex) : totalQ;
+    const acc = answeredCount > 0 ? Math.round((this.app.sessionCorrect / answeredCount) * 100) : 0;
 
     const scoreEl = document.getElementById('summary-score');
     const accEl = document.getElementById('summary-acc');
     const comboEl = document.getElementById('summary-combo');
-    if (scoreEl) scoreEl.innerText = `${this.app.sessionCorrect} / ${totalQ}`;
+    if (scoreEl) scoreEl.innerText = `${this.app.sessionCorrect} / ${answeredCount}`;
     if (accEl) accEl.innerText = `${acc}%`;
     if (comboEl) comboEl.innerText = this.app.maxComboInSession;
 
@@ -267,18 +276,21 @@ export class QuizRunner {
     const title = document.getElementById('summary-title');
     const sub = document.getElementById('summary-subtitle');
 
-    if (acc >= 90) {
-      if (icon) icon.innerText = '👑';
-      if (title) title.innerText = '宗师级表现！完美过关！';
-      if (sub) sub.innerText = '该知识图谱的核心脉络已高度内化，已成功沉淀至长效记忆。';
-    } else if (acc >= 70) {
-      if (icon) icon.innerText = '🎉';
-      if (title) title.innerText = '通关成功！良好熟练度！';
-      if (sub) sub.innerText = '常规考点均已牢牢掌握，少量易错盲区已加入近期艾宾浩斯排程。';
-    } else {
-      if (icon) icon.innerText = '🧗';
-      if (title) title.innerText = '继续加油！还需多加巩固！';
-      if (sub) sub.innerText = '检测到部分易混淆同胞概念失误，推荐使用【弱点歼灭战】针对性刷题。';
+    const evalMap = isDefeated
+      ? { icon: 'alertCircle', color: 'text-rose-400', title: '生命耗尽！极速生存结束', sub: `在高压极速生存中坚持答了 ${this.app.currentIndex} 题，达成 ${this.app.maxComboInSession} 连击！继续磨砺条件反射！` }
+      : acc >= 90
+      ? { icon: 'crown', color: 'text-amber-400', title: '宗师级表现！完美过关！', sub: '该知识图谱的核心脉络已高度内化，已成功沉淀至长效记忆。' }
+      : acc >= 70 ? { icon: 'trophy', color: 'text-indigo-400', title: '通关成功！良好熟练度！', sub: '常规考点均已牢牢掌握，少量易错盲区已加入近期艾宾浩斯排程。' }
+      : { icon: 'target', color: 'text-slate-400', title: '继续加油！还需多加巩固！', sub: '检测到部分易混淆概念失误，推荐针对性刷题。' };
+
+    if (icon) icon.innerHTML = renderIcon(evalMap.icon, `w-8 h-8 ${evalMap.color}`);
+    if (title) title.innerText = evalMap.title;
+    if (sub) sub.innerText = evalMap.sub;
+
+    const allowPromo = this.app.currentSessionContext?.sessionContext?.allowPromotion !== false;
+    if (allowPromo && this.app.currentMode === 'CAMPAIGN' && this.app.steppedProgress) {
+      const promo = this.app.steppedProgress.evaluateTierResult(this.app.sessionCorrect, totalQ);
+      if (promo) setTimeout(() => this.app.steppedProgress.showPromotionModal(promo), 500);
     }
   }
 }

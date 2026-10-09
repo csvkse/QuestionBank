@@ -5,3 +5,4 @@
 
 export { MatrixConsoleController } from './matrix-console.js';
 export { TreeRenderer } from './tree-renderer.js';
+export { FocusReaderController } from './focus-reader.js';

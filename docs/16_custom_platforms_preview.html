@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 平台与模型自定义配置 - 高保真交互预览 (DOC-16)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --surface-canvas: #090d16;
+      --surface-card: #0f172a;
+      --surface-inset: #090e1a;
+      --surface-raised: #1e293b;
+      --surface-overlay: #111827;
+      --border-subtle: #1e293b;
+      --border-default: #334155;
+    }
+    body { background-color: var(--surface-canvas); color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .surface-card { background-color: var(--surface-card); border: 1px solid var(--border-subtle); }
+    .surface-inset { background-color: var(--surface-inset); border: 1px solid var(--border-subtle); }
+    .surface-raised { background-color: var(--surface-raised); }
+    .surface-overlay { background-color: var(--surface-overlay); border: 1px solid var(--border-default); }
+    .btn-primary-cta { background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #ffffff; }
+    .btn-primary-cta:hover { background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%); }
+  </style>
+</head>
+<body class="p-4 sm:p-8 max-w-5xl mx-auto space-y-6">
+
+  <!-- 头部介绍卡片 -->
+  <div class="surface-card rounded-2xl p-6 shadow-xl space-y-3">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-white">AI 接口类型、自定义平台与模型细粒度配置 · 交互原型</h1>
+          <p class="text-xs text-slate-400 mt-0.5">支持协议类型选择、完全自定义平台与模型列表，精细控制【上下文窗口 Context Window】与【最大输出 Max Output】</p>
+        </div>
+      </div>
+      <span class="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-bold">100% 可交互验证</span>
+    </div>
+  </div>
+
+  <!-- 主交互区域：配置模态框嵌入形态 -->
+  <div class="surface-overlay rounded-2xl p-6 shadow-2xl border border-indigo-900/60 space-y-6">
+    
+    <!-- 1. 平台中枢与操作工具条 -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+      <div class="space-y-1">
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-bold text-white">选择服务平台 (Provider)</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-slate-850 text-indigo-300 border border-slate-750 font-mono" id="current-provider-count">共 5 个平台</span>
+        </div>
+        <p class="text-xs text-slate-400">切换编辑已配置的平台，现有预设仅作为参考，可自由编辑与增删</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <select id="provider-select" onchange="switchProvider(this.value)" class="surface-inset border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 font-mono outline-none focus:border-indigo-500">
+          <!-- 动态填充 -->
+        </select>
+        <button onclick="createNewProvider()" class="px-3 py-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-xs font-bold transition flex items-center gap-1 shadow-sm">
+          <span>+ 新建平台</span>
+        </button>
+        <button onclick="deleteCurrentProvider()" class="px-2.5 py-1.5 rounded-xl bg-rose-950/30 hover:bg-rose-900/40 text-rose-300 border border-rose-900/40 text-xs font-medium transition" title="删除当前平台">
+          <span>删除</span>
+        </button>
+        <button onclick="showPresetImportMenu()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs font-medium transition flex items-center gap-1">
+          <span>从参考预设导入 ▾</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 预设快速导入下拉卡片 (隐藏/展开) -->
+    <div id="preset-import-dropdown" class="hidden surface-inset p-3 rounded-xl border border-indigo-500/30 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+      <!-- 动态填充 -->
+    </div>
+
+    <!-- 2. 平台核心参数网格 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="space-y-1.5">
+        <label class="text-xs font-bold text-slate-300">平台显示名称 (Provider Name)</label>
+        <input id="provider-name" type="text" oninput="updateCurrentProviderField('name', this.value)" class="w-full surface-inset border border-slate-750 rounded-xl p-2.5 text-xs text-slate-200 outline-none focus:border-indigo-500 font-medium">
+      </div>
+
+      <!-- 接口类型核心选择 -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold text-slate-300">接口协议类型 (API Protocol)</label>
+          <span class="text-[10px] text-indigo-400 font-mono">通用多协议适配</span>
+        </div>
+        <select id="provider-api-type" onchange="updateCurrentProviderField('apiType', this.value)" class="w-full surface-inset border border-slate-750 rounded-xl p-2.5 text-xs text-slate-200 font-mono outline-none focus:border-indigo-500">
+          <option value="openai">OpenAI Compatible (Chat Completions: /v1/chat/completions)</option>
+          <option value="anthropic">Anthropic Claude (Messages: /v1/messages)</option>
+          <option value="gemini">Google Gemini (GenerateContent: /v1beta/models/...)</option>
+          <option value="ollama">Ollama Native (/api/chat)</option>
+        </select>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="text-xs font-bold text-slate-300">API 基础端点 (Base URL)</label>
+        <input id="provider-base-url" type="text" oninput="updateCurrentProviderField('baseUrl', this.value)" class="w-full surface-inset border border-slate-750 rounded-xl p-2.5 text-xs font-mono text-slate-200 outline-none focus:border-indigo-500">
+      </div>
+
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold text-slate-300">API 密钥 (API Key)</label>
+          <span class="text-[10px] text-emerald-400 font-mono">本地加密安全存储</span>
+        </div>
+        <input id="provider-api-key" type="password" oninput="updateCurrentProviderField('apiKey', this.value)" placeholder="sk-..." class="w-full surface-inset border border-slate-750 rounded-xl p-2.5 text-xs font-mono text-slate-200 outline-none focus:border-indigo-500">
+      </div>
+    </div>
+
+    <!-- 3. 自定义模型列表与其细粒度参数配置 (核心亮点) -->
+    <div class="space-y-3 pt-3 border-t border-slate-800">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <span>平台模型列表与细粒度参数</span>
+            <span class="text-[10px] text-slate-400 font-normal">（预设模型仅为参考，可随意编辑修改上下文与最大输出）</span>
+          </h3>
+          <p class="text-[11px] text-slate-400 mt-0.5">为每个模型精确指定 Context Window（长文本预算）与 Max Output Tokens（单次回答预算）</p>
+        </div>
+        <button onclick="addCustomModelRow()" class="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-bold transition flex items-center gap-1 shadow-sm">
+          <span>+ 添加模型</span>
+        </button>
+      </div>
+
+      <!-- 模型列表表格容器 -->
+      <div class="surface-inset rounded-xl border border-slate-800 overflow-hidden">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-900/80 text-slate-400 text-[11px] font-mono border-b border-slate-800">
+            <tr>
+              <th class="p-3">模型标识 (Model ID)</th>
+              <th class="p-3">显示名称</th>
+              <th class="p-3">上下文窗口 (Tokens)</th>
+              <th class="p-3">最大输出 (Tokens)</th>
+              <th class="p-3 text-center">深度思考</th>
+              <th class="p-3 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody id="models-table-body" class="divide-y divide-slate-800/80 text-slate-200 font-sans">
+            <!-- 动态渲染模型行 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. 运行时模拟 Payload 预览 -->
+    <div class="space-y-2 pt-2 border-t border-slate-800">
+      <div class="flex items-center justify-between text-xs">
+        <span class="text-slate-400 font-bold">向当前模型通信时下发的运行时请求头与参数预览 (Runtime Inspection):</span>
+        <span class="text-[10px] text-indigo-400 font-mono" id="active-model-badge">激活: deepseek-reasoner</span>
+      </div>
+      <pre id="payload-preview" class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono text-emerald-400 overflow-x-auto"></pre>
+    </div>
+
+    <!-- 底部按钮 -->
+    <div class="flex items-center justify-end gap-3 pt-2">
+      <button onclick="resetToOfficialDefaults()" class="text-xs text-slate-400 hover:text-slate-200 underline">恢复默认参考预设</button>
+      <button onclick="saveAndToast()" class="btn-primary-cta px-5 py-2 rounded-xl text-xs font-bold shadow-lg transition">保存全量配置</button>
+    </div>
+  </div>
+
+  <script>
+    // 参考预设平台数据 (Reference Preset Templates)
+    const REFERENCE_PRESETS = [
+      {
+        id: 'deepseek',
+        name: 'DeepSeek 官方',
+        apiType: 'openai',
+        baseUrl: 'https://api.deepseek.com/v1',
+        apiKey: '',
+        models: [
+          { id: 'deepseek-reasoner', name: 'DeepSeek-R1 (深度推理)', contextWindow: 128000, maxOutputTokens: 8192, reasoning: true },
+          { id: 'deepseek-chat', name: 'DeepSeek-V3 (通用对话)', contextWindow: 128000, maxOutputTokens: 8192, reasoning: false }
+        ]
+      },
+      {
+        id: 'openai',
+        name: 'OpenAI 官方',
+        apiType: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: '',
+        models: [
+          { id: 'o3-mini', name: 'o3-mini (快速推理)', contextWindow: 200000, maxOutputTokens: 100000, reasoning: true },
+          { id: 'gpt-4o', name: 'GPT-4o (全能旗舰)', contextWindow: 128000, maxOutputTokens: 16384, reasoning: false },
+          { id: 'gpt-4o-mini', name: 'GPT-4o-mini (轻快敏捷)', contextWindow: 128000, maxOutputTokens: 16384, reasoning: false }
+        ]
+      },
+      {
+        id: 'siliconflow',
+        name: '硅基流动 SiliconFlow',
+        apiType: 'openai',
+        baseUrl: 'https://api.siliconflow.cn/v1',
+        apiKey: '',
+        models: [
+          { id: 'deepseek-ai/DeepSeek-R1', name: 'DeepSeek-R1 (硅基托管)', contextWindow: 64000, maxOutputTokens: 8192, reasoning: true },
+          { id: 'deepseek-ai/DeepSeek-V3', name: 'DeepSeek-V3 (硅基托管)', contextWindow: 64000, maxOutputTokens: 8192, reasoning: false }
+        ]
+      },
+      {
+        id: 'ollama',
+        name: '本地 Ollama',
+        apiType: 'openai',
+        baseUrl: 'http://localhost:11434/v1',
+        apiKey: 'ollama',
+        models: [
+          { id: 'deepseek-r1:8b', name: 'DeepSeek-R1 8B (本地轻量)', contextWindow: 32000, maxOutputTokens: 4096, reasoning: true },
+          { id: 'qwen2.5:7b', name: 'Qwen2.5 7B (本地高性价比)', contextWindow: 32000, maxOutputTokens: 4096, reasoning: false }
+        ]
+      },
+      {
+        id: 'claude',
+        name: 'Anthropic Claude',
+        apiType: 'anthropic',
+        baseUrl: 'https://api.anthropic.com/v1',
+        apiKey: '',
+        models: [
+          { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet (混合推理)', contextWindow: 200000, maxOutputTokens: 64000, reasoning: true },
+          { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku (轻巧极速)', contextWindow: 200000, maxOutputTokens: 8192, reasoning: false }
+        ]
+      }
+    ];
+
+    // 当前存储态
+    let userProviders = JSON.parse(JSON.stringify(REFERENCE_PRESETS));
+    let currentProviderId = userProviders[0].id;
+    let currentActiveModelId = userProviders[0].models[0].id;
+
+    function getCurrentProvider() {
+      return userProviders.find(p => p.id === currentProviderId) || userProviders[0];
+    }
+
+    function renderProviderSelector() {
+      const select = document.getElementById('provider-select');
+      select.innerHTML = userProviders.map(p => `
+        <option value="${p.id}" ${p.id === currentProviderId ? 'selected' : ''}>
+          ${p.name} (${p.models.length} 个模型)
+        </option>
+      `).join('');
+      document.getElementById('current-provider-count').innerText = `共 ${userProviders.length} 个平台`;
+    }
+
+    function renderCurrentProviderDetails() {
+      const p = getCurrentProvider();
+      document.getElementById('provider-name').value = p.name || '';
+      document.getElementById('provider-api-type').value = p.apiType || 'openai';
+      document.getElementById('provider-base-url').value = p.baseUrl || '';
+      document.getElementById('provider-api-key').value = p.apiKey || '';
+
+      renderModelsTable(p);
+      renderPayloadPreview();
+    }
+
+    function renderModelsTable(provider) {
+      const tbody = document.getElementById('models-table-body');
+      tbody.innerHTML = provider.models.map((m, idx) => `
+        <tr class="hover:bg-slate-800/40 transition">
+          <td class="p-3 font-mono">
+            <input type="text" value="${m.id}" onchange="updateModelField(${idx}, 'id', this.value)" class="bg-transparent border-b border-transparent focus:border-indigo-500 outline-none text-xs w-full text-indigo-300 font-semibold">
+          </td>
+          <td class="p-3">
+            <input type="text" value="${m.name}" onchange="updateModelField(${idx}, 'name', this.value)" class="bg-transparent border-b border-transparent focus:border-indigo-500 outline-none text-xs w-full text-slate-200">
+          </td>
+          <td class="p-3 font-mono">
+            <div class="flex items-center gap-1.5">
+              <input type="number" step="1000" value="${m.contextWindow}" onchange="updateModelField(${idx}, 'contextWindow', Number(this.value))" class="surface-inset px-2 py-1 rounded border border-slate-750 text-xs w-24 text-slate-300">
+              <span class="text-[10px] text-slate-500">${(m.contextWindow / 1000).toFixed(0)}k</span>
+            </div>
+          </td>
+          <td class="p-3 font-mono">
+            <div class="flex items-center gap-1.5">
+              <input type="number" step="1024" value="${m.maxOutputTokens}" onchange="updateModelField(${idx}, 'maxOutputTokens', Number(this.value))" class="surface-inset px-2 py-1 rounded border border-slate-750 text-xs w-20 text-slate-300">
+              <span class="text-[10px] text-slate-500">${(m.maxOutputTokens / 1024).toFixed(0)}k</span>
+            </div>
+          </td>
+          <td class="p-3 text-center">
+            <input type="checkbox" ${m.reasoning ? 'checked' : ''} onchange="updateModelField(${idx}, 'reasoning', this.checked)" class="rounded bg-slate-900 border-slate-750 text-indigo-600">
+          </td>
+          <td class="p-3 text-right">
+            <div class="flex items-center justify-end gap-2">
+              <button onclick="setActiveModel('${m.id}')" class="text-[11px] ${currentActiveModelId === m.id ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'}">
+                ${currentActiveModelId === m.id ? '● 正在使用' : '选用'}
+              </button>
+              <button onclick="deleteModelRow(${idx})" class="text-slate-500 hover:text-rose-400 text-sm font-bold">&times;</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderPayloadPreview() {
+      const p = getCurrentProvider();
+      const m = p.models.find(x => x.id === currentActiveModelId) || p.models[0] || { id: 'default', maxOutputTokens: 4096, contextWindow: 32000 };
+      
+      let endpoint = p.baseUrl;
+      let headers = {};
+      if (p.apiType === 'openai') {
+        endpoint += '/chat/completions';
+        headers['Authorization'] = p.apiKey ? 'Bearer ' + p.apiKey.slice(0, 5) + '***' : 'Bearer (None)';
+      } else if (p.apiType === 'anthropic') {
+        endpoint += '/messages';
+        headers['x-api-key'] = p.apiKey ? p.apiKey.slice(0, 5) + '***' : '(None)';
+        headers['anthropic-version'] = '2023-06-01';
+      } else if (p.apiType === 'gemini') {
+        endpoint += `/models/${m.id}:streamGenerateContent`;
+      } else {
+        endpoint += '/api/chat';
+      }
+
+      const samplePayload = {
+        _meta: {
+          protocol: p.apiType,
+          endpoint: endpoint,
+          headers: headers
+        },
+        model: m.id,
+        messages: [{ role: "user", content: "请为我生成 5 道关于 Kubernetes 的练习题" }],
+        stream: true,
+        max_tokens: m.maxOutputTokens,
+        context_window_limit: m.contextWindow,
+        reasoning_effort: m.reasoning ? "medium" : undefined
+      };
+
+      document.getElementById('active-model-badge').innerText = `当前选用: ${p.name} ➔ ${m.id} (${(m.contextWindow/1000).toFixed(0)}k 上下文 · ${(m.maxOutputTokens/1024).toFixed(0)}k 输出)`;
+      document.getElementById('payload-preview').innerText = JSON.stringify(samplePayload, null, 2);
+    }
+
+    function switchProvider(providerId) {
+      currentProviderId = providerId;
+      const p = getCurrentProvider();
+      if (p.models && p.models.length > 0) currentActiveModelId = p.models[0].id;
+      renderCurrentProviderDetails();
+    }
+
+    function updateCurrentProviderField(field, val) {
+      const p = getCurrentProvider();
+      p[field] = val;
+      if (field === 'name') renderProviderSelector();
+      renderPayloadPreview();
+    }
+
+    function updateModelField(idx, field, val) {
+      const p = getCurrentProvider();
+      if (p.models[idx]) {
+        p.models[idx][field] = val;
+      }
+      renderPayloadPreview();
+    }
+
+    function setActiveModel(modelId) {
+      currentActiveModelId = modelId;
+      const p = getCurrentProvider();
+      renderModelsTable(p);
+      renderPayloadPreview();
+    }
+
+    function addCustomModelRow() {
+      const p = getCurrentProvider();
+      const newModel = {
+        id: 'custom-model-' + (p.models.length + 1),
+        name: '自定义模型 ' + (p.models.length + 1),
+        contextWindow: 128000,
+        maxOutputTokens: 8192,
+        reasoning: false
+      };
+      p.models.push(newModel);
+      renderModelsTable(p);
+      renderPayloadPreview();
+    }
+
+    function deleteModelRow(idx) {
+      const p = getCurrentProvider();
+      if (p.models.length <= 1) {
+        alert('每个平台至少需要保留一个模型！');
+        return;
+      }
+      p.models.splice(idx, 1);
+      if (!p.models.some(m => m.id === currentActiveModelId)) {
+        currentActiveModelId = p.models[0].id;
+      }
+      renderModelsTable(p);
+      renderPayloadPreview();
+    }
+
+    function createNewProvider() {
+      const id = 'custom_' + Date.now();
+      const newP = {
+        id: id,
+        name: '自定义代理平台 ' + (userProviders.length + 1),
+        apiType: 'openai',
+        baseUrl: 'https://api.my-proxy.com/v1',
+        apiKey: '',
+        models: [
+          { id: 'gpt-4o', name: 'GPT-4o', contextWindow: 128000, maxOutputTokens: 16384, reasoning: false },
+          { id: 'claude-3-7-sonnet', name: 'Claude 3.7', contextWindow: 200000, maxOutputTokens: 64000, reasoning: true }
+        ]
+      };
+      userProviders.push(newP);
+      currentProviderId = id;
+      currentActiveModelId = newP.models[0].id;
+      renderProviderSelector();
+      renderCurrentProviderDetails();
+    }
+
+    function deleteCurrentProvider() {
+      if (userProviders.length <= 1) {
+        alert('至少需要保留一个 AI 平台！');
+        return;
+      }
+      if (!confirm(`确定删除平台【${getCurrentProvider().name}】吗？`)) return;
+      userProviders = userProviders.filter(p => p.id !== currentProviderId);
+      currentProviderId = userProviders[0].id;
+      currentActiveModelId = userProviders[0].models[0]?.id || '';
+      renderProviderSelector();
+      renderCurrentProviderDetails();
+    }
+
+    function showPresetImportMenu() {
+      const dd = document.getElementById('preset-import-dropdown');
+      if (!dd.classList.contains('hidden')) {
+        dd.classList.add('hidden');
+        return;
+      }
+      dd.innerHTML = REFERENCE_PRESETS.map(ref => `
+        <button onclick="importPresetProvider('${ref.id}')" class="p-2.5 rounded-lg surface-raised hover:border-indigo-500 border border-slate-750 text-left transition space-y-1">
+          <div class="font-bold text-white">${ref.name}</div>
+          <div class="text-[10px] text-indigo-300 font-mono">${ref.apiType} · ${ref.models.length}个预设模型</div>
+        </button>
+      `).join('');
+      dd.classList.remove('hidden');
+    }
+
+    function importPresetProvider(presetId) {
+      const ref = REFERENCE_PRESETS.find(x => x.id === presetId);
+      if (!ref) return;
+      const clone = JSON.parse(JSON.stringify(ref));
+      clone.id = 'imported_' + ref.id + '_' + Date.now();
+      clone.name = ref.name + ' (从参考导入)';
+      userProviders.push(clone);
+      currentProviderId = clone.id;
+      currentActiveModelId = clone.models[0].id;
+      document.getElementById('preset-import-dropdown').classList.add('hidden');
+      renderProviderSelector();
+      renderCurrentProviderDetails();
+    }
+
+    function resetToOfficialDefaults() {
+      if (!confirm('确定将所有平台与模型恢复为官方出厂参考预设吗？自定义内容将丢失。')) return;
+      userProviders = JSON.parse(JSON.stringify(REFERENCE_PRESETS));
+      currentProviderId = userProviders[0].id;
+      currentActiveModelId = userProviders[0].models[0].id;
+      renderProviderSelector();
+      renderCurrentProviderDetails();
+    }
+
+    function saveAndToast() {
+      alert('配置已成功保存！当前平台已切换至：' + getCurrentProvider().name + '，模型已设置为：' + currentActiveModelId);
+    }
+
+    // 初始化运行
+    renderProviderSelector();
+    renderCurrentProviderDetails();
+  </script>
+</body>
+</html>
