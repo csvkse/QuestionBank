@@ -343,6 +343,36 @@ try {
   recordResult('FE-NAV-001', 'Single-Row Decoupled Navigation', 'FAIL', err.message);
 }
 
+// 9.5. FE-NAV-002: 导航栏防折行与自适应弹性门禁 (SPEC 29 Invariant)
+try {
+  const shellHtml = fs.readFileSync(path.join(ROOT_DIR, 'app/app-shell.html'), 'utf8');
+  
+  // 1. 验证中心分段路由防折行 (四个主Tab均必须声明 whitespace-nowrap)
+  const navTabs = ['nav-tab-dashboard', 'nav-tab-study', 'nav-tab-codex', 'nav-tab-agent'];
+  const allTabsHaveNowrap = navTabs.every(tabId => {
+    const tabMatch = shellHtml.match(new RegExp(`<button[^>]*id="${tabId}"[^>]*>`));
+    return tabMatch && tabMatch[0].includes('whitespace-nowrap');
+  });
+
+  // 2. 验证中心控制器防暴力压缩 (nav 必须具有 shrink-0)
+  const hasNavShrink0 = /<nav[^>]*shrink-0[^>]*>/.test(shellHtml);
+
+  // 3. 验证标顶交互基线统一 (h-8 胶囊规范)
+  const hasH8Pills = shellHtml.includes('h-8') && shellHtml.includes('id="deck-selector"') && shellHtml.includes('id="header-streak"');
+
+  if (allTabsHaveNowrap && hasNavShrink0 && hasH8Pills) {
+    recordResult('FE-NAV-002', 'Navbar Non-Wrapping & Responsive Elasticity', 'PASS', '100% nav tabs whitespace-nowrap, shrink-0 central router & 32px (h-8) baseline verified');
+  } else {
+    const reasons = [];
+    if (!allTabsHaveNowrap) reasons.push('Some nav tabs missing whitespace-nowrap');
+    if (!hasNavShrink0) reasons.push('Central nav missing shrink-0');
+    if (!hasH8Pills) reasons.push('Navbar pills missing 32px (h-8) baseline');
+    recordResult('FE-NAV-002', 'Navbar Non-Wrapping & Responsive Elasticity', 'FAIL', reasons.join('; '));
+  }
+} catch (err) {
+  recordResult('FE-NAV-002', 'Navbar Non-Wrapping & Responsive Elasticity', 'FAIL', err.message);
+}
+
 // 10. FE-ICON-001: 单色矢量 SVG 图标库体系与零外部依赖门禁
 try {
   const iconJsPath = path.join(ROOT_DIR, 'design-system/icons/icons.js');

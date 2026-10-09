@@ -85,11 +85,11 @@ export class AppRouter {
       const btn = document.getElementById(`nav-tab-${tab}`);
       if (!btn) return;
       if (tab === viewName) {
-        btn.classList.add('bg-slate-800', 'text-white', 'shadow-sm');
-        btn.classList.remove('text-slate-400', 'hover:text-slate-200');
+        btn.classList.add('bg-slate-800', 'text-white', 'shadow-sm', 'ring-1', 'ring-white/10');
+        btn.classList.remove('text-slate-400', 'hover:text-slate-200', 'hover:bg-slate-850/60');
       } else {
-        btn.classList.remove('bg-slate-800', 'text-white', 'shadow-sm');
-        btn.classList.add('text-slate-400', 'hover:text-slate-200');
+        btn.classList.remove('bg-slate-800', 'text-white', 'shadow-sm', 'ring-1', 'ring-white/10');
+        btn.classList.add('text-slate-400', 'hover:text-slate-200', 'hover:bg-slate-850/60');
       }
     });
   }
