@@ -20,12 +20,14 @@ export class AgentLoopEngine {
   }
 
   abort() {
+    this.store.saveSessions();
     this.isRunning = false;
     this.isPausedForApproval = false;
     this.pendingAssistantMsgId = null;
     this.pendingToolCall = null;
     this.client.abort();
     this.ui.toggleSendButtonState(false);
+    this.ui.renderCurrentSession();
   }
 
   async startLoop(userContent) {
@@ -73,14 +75,17 @@ export class AgentLoopEngine {
       step: this.currentStep,
       callbacks: {
         onReasoning: (accumulated) => {
-          this.store.updateMessage(assistantMsgId, m => { m.reasoning = accumulated; });
-          this.ui.renderCurrentSession();
+          if (!this.isRunning || this.pendingAssistantMsgId !== assistantMsgId) return;
+          this.store.updateMessage(assistantMsgId, m => { m.reasoning = accumulated; }, { persist: false });
+          this.ui.scheduleMessageRender?.(assistantMsgId);
         },
         onContent: (accumulated) => {
-          this.store.updateMessage(assistantMsgId, m => { m.content = accumulated; });
-          this.ui.renderCurrentSession();
+          if (!this.isRunning || this.pendingAssistantMsgId !== assistantMsgId) return;
+          this.store.updateMessage(assistantMsgId, m => { m.content = accumulated; }, { persist: false });
+          this.ui.scheduleMessageRender?.(assistantMsgId);
         },
         onToolCallFragment: (name, args, id) => {
+          if (!this.isRunning || this.pendingAssistantMsgId !== assistantMsgId) return;
           this.store.updateMessage(assistantMsgId, m => {
             m.toolCall = {
               id,
@@ -89,13 +94,15 @@ export class AgentLoopEngine {
               status: this.store.config.autoApprove ? 'executing' : 'pending',
               previewText: `[第 ${this.currentStep} 步] 正在调用接口: ${name}`
             };
-          });
-          this.ui.renderCurrentSession();
+          }, { persist: false });
+          this.ui.scheduleMessageRender?.(assistantMsgId);
         },
         onFinish: async (result) => {
+          if (!this.isRunning || this.pendingAssistantMsgId !== assistantMsgId) return;
           await this.handleStepFinish(assistantMsgId, result);
         },
         onError: (err) => {
+          if (!this.isRunning || this.pendingAssistantMsgId !== assistantMsgId) return;
           this.finishLoop(`\n\n❌ 执行异常: ${err.message || '网络连接中断'}`);
         }
       }
@@ -239,6 +246,7 @@ export class AgentLoopEngine {
       }
     }
 
+    this.store.saveSessions();
     this.ui.toggleSendButtonState(false);
     this.ui.renderCurrentSession();
   }

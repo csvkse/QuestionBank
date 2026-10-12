@@ -54,6 +54,8 @@
 
 ---
 
+长篇对话性能调研与已执行的修复、浏览器复现证据和回归门禁见 [30_LONG_CONVERSATION_PERFORMANCE_POSTMORTEM_AND_GATES.md](./30_LONG_CONVERSATION_PERFORMANCE_POSTMORTEM_AND_GATES.md)。
+
 ## 🗄️ 历史版本归档
 
 - **v1.0 (英语动词形态专用版)** 已安全归档至 [`archive/v1_verbmaster/`](../archive/v1_verbmaster/) 目录。

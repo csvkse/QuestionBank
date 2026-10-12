@@ -707,6 +707,14 @@ try {
   recordResult('FE-PANORAMA-002', 'Collapsible Sovereignty & Render Idempotency Invariant', 'FAIL', err.message);
 }
 
+// FE-CHAT-PERF-001: 流式刷新与持久化行为门禁
+try {
+  await import(pathToFileURL(path.join(ROOT_DIR, 'tests/unit/agent-stream-performance.test.mjs')).href);
+  recordResult('FE-CHAT-PERF-001', 'Long Conversation Streaming Budget', 'PASS', '2000 fragments: zero synchronous saves/full renders; checkpoint, finish, error and abort verified');
+} catch (err) {
+  recordResult('FE-CHAT-PERF-001', 'Long Conversation Streaming Budget', 'FAIL', err.message);
+}
+
 // 11. 自动执行全量单元测试
 try {
   const tests = [
