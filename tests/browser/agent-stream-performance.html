@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>长对话浏览器回归门禁</title>
+<style>
+  body { font: 14px system-ui; margin: 16px; }
+  #ai-messages-stream { height: 400px; overflow: auto; overflow-anchor: none; }
+  #ai-messages-stream > div { margin: 16px 0; }
+  pre { white-space: pre-wrap; }
+</style>
+<h1>长对话浏览器回归门禁</h1>
+<pre id="result">运行中…</pre>
+<div id="ai-messages-stream"></div>
+<script type="module">
+  import { runBrowserGate } from './agent-stream-performance.mjs';
+  window.gatePromise = runBrowserGate().then(result => {
+    document.getElementById('result').textContent = JSON.stringify(result, null, 2);
+    return result;
+  }).catch(error => {
+    document.getElementById('result').textContent = 'FAIL: ' + error.stack;
+    throw error;
+  });
+</script>
+</html>

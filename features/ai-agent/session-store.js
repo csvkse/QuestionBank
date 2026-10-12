@@ -227,6 +227,8 @@ export class SessionStore {
   }
 
   saveSessions() {
+    clearTimeout(this.saveTimer);
+    this.saveTimer = null;
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(this.sessions));
@@ -284,7 +286,7 @@ export class SessionStore {
     this.saveSessions();
   }
 
-  updateMessage(msgId, updater) {
+  updateMessage(msgId, updater, { persist = true } = {}) {
     const sess = this.getActiveSession();
     if (!sess || !sess.messages) return;
     const msg = sess.messages.find(m => m.id === msgId);
@@ -292,7 +294,10 @@ export class SessionStore {
       if (typeof updater === 'function') updater(msg);
       else Object.assign(msg, updater);
       sess.updatedAt = Date.now();
-      this.saveSessions();
+      if (persist) this.saveSessions();
+      else if (this.saveTimer == null) {
+        this.saveTimer = setTimeout(() => this.saveSessions(), 1000);
+      }
     }
   }
 }

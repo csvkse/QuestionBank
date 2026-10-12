@@ -12,6 +12,9 @@ import { escapeHtml, renderMarkdown, renderUserMessage, renderReasoningCard, ren
 export class AiAgentUIController {
   constructor(app) {
     this.app = app;
+    this.messageRows = new Map();
+    this.renderTimer = null;
+    this.renderedSessionId = null;
     this.store = new SessionStore();
     this.executor = new DeckToolExecutor(app);
     this.client = new AiAgentClient(this.store.config);
@@ -25,6 +28,9 @@ export class AiAgentUIController {
 
   init() {
     this.bindDOMEvents();
+    const flush = () => { if (this.store.saveTimer != null) this.store.saveSessions(); };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
     this.render();
   }
 
@@ -75,17 +81,49 @@ export class AiAgentUIController {
     });
   }
 
-  renderCurrentSession() {
+  scheduleMessageRender(msgId) {
+    this.pendingRenderId = msgId;
+    if (this.renderTimer != null) return;
+    const sessionId = this.store.activeSessionId;
+    this.renderTimer = setTimeout(() => {
+      this.renderTimer = null;
+      if (this.store.activeSessionId === sessionId) this.renderCurrentSession(this.pendingRenderId);
+    }, 100);
+  }
+
+  renderCurrentSession(msgId = null) {
+    clearTimeout(this.renderTimer);
+    this.renderTimer = null;
     const container = document.getElementById('ai-messages-stream');
     const sess = this.store.getActiveSession();
     if (!container || !sess) return;
-    container.innerHTML = '';
+    const switched = this.renderedSessionId !== sess.id;
+    const followBottom = switched || container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
+    if (switched) {
+      container.innerHTML = '';
+      this.messageRows.clear();
+      this.renderedSessionId = sess.id;
+      msgId = null;
+    }
+    const messages = msgId ? sess.messages.filter(m => m.id === msgId) : sess.messages;
+    if (!msgId) {
+      const ids = new Set(sess.messages.map(m => m.id));
+      for (const [id, row] of this.messageRows) {
+        if (!ids.has(id)) { row.node.remove(); this.messageRows.delete(id); }
+      }
+    }
 
-    sess.messages.forEach(msg => {
+    messages.forEach(msg => {
+      const signature = JSON.stringify([msg.role, msg.content, msg.reasoning, msg.toolCall, msg.name]);
+      const previous = this.messageRows.get(msg.id);
+      if (previous?.signature === signature) return;
+      const row = previous?.node || document.createElement('div');
+      const expanded = previous ? [...row.querySelectorAll('details')].map(el => el.open) : [];
+      row.innerHTML = '';
       if (msg.role === 'user') {
-        container.insertAdjacentHTML('beforeend', renderUserMessage(msg));
+        row.insertAdjacentHTML('beforeend', renderUserMessage(msg));
       } else if (msg.role === 'tool') {
-        container.insertAdjacentHTML('beforeend', `
+        row.insertAdjacentHTML('beforeend', `
           <div class="flex gap-2 max-w-4xl mx-auto justify-start text-[10px] text-slate-500 font-mono py-0.5 px-11 items-center">
             <svg class="w-3 h-3 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
             <span>接口反馈 [${escapeHtml(msg.name || 'tool')}]: 已回传至上下文</span>
@@ -122,7 +160,7 @@ export class AiAgentUIController {
           </div>
         ` : '';
 
-        container.insertAdjacentHTML('beforeend', `
+        row.insertAdjacentHTML('beforeend', `
           <div class="flex gap-3 max-w-4xl mx-auto justify-start group">
             <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 text-slate-400">
               <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
@@ -138,8 +176,13 @@ export class AiAgentUIController {
           </div>
         `);
       }
+      if (previous?.toolStatus === msg.toolCall?.status) {
+        row.querySelectorAll('details').forEach((el, i) => { if (i < expanded.length) el.open = expanded[i]; });
+      }
+      this.messageRows.set(msg.id, { node: row, signature, toolStatus: msg.toolCall?.status });
+      if (!previous) container.appendChild(row);
     });
-    container.scrollTop = container.scrollHeight;
+    if (followBottom) container.scrollTop = container.scrollHeight;
   }
 
   updateHeaderStatus() {
