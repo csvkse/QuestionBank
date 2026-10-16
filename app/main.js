@@ -103,13 +103,14 @@ export class KnowledgeMasterApp {
   }
 
   renderAiAgent() {
-    this.aiAgent.render();
+    this.aiAgent.render(true);
+    setTimeout(() => { if (this.aiAgent?.scrollToBottom) this.aiAgent.scrollToBottom(); }, 60);
   }
 
   requestAiDeckGuide(deckId) {
     const deck = this.getAllDecks().find(d => d.id === deckId);
     const deckTitle = deck ? deck.title : deckId;
-    this.router.navigate('ai-agent');
+    this.router.navigate('agent');
     const prompt = `请为题库《${deckTitle}》(ID: ${deckId}) 生成系统化知识导学内容（Advance Organizer）。
 请先调用 tool_get_deck 分析该题库的知识分类与考点，梳理核心认知模型与易混淆对比表，然后调用 tool_update_deck_guide 为题库配置系统化导学页！`;
     setTimeout(() => {
