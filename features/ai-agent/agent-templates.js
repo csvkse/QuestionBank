@@ -170,13 +170,11 @@ export function renderMarkdown(rawText) {
  * 渲染用户消息 (带悬停操作栏 Req 5, 移除彩色 Emoji Req 6)
  */
 export function renderUserMessage(msg) {
-  const safeContent = escapeHtml(msg.content);
+  const safeContent = escapeHtml((msg.content || '').trim());
   return `
     <div class="flex gap-3 max-w-4xl mx-auto justify-end group">
       <div class="relative max-w-2xl flex flex-col items-end">
-        <div class="p-3.5 rounded-2xl rounded-tr-sm text-xs leading-relaxed text-slate-100 bg-[#1e1b4b] border border-indigo-500/30 shadow-md whitespace-pre-wrap break-words">
-          ${safeContent}
-        </div>
+        <div class="px-3.5 py-2.5 rounded-2xl rounded-tr-sm text-xs leading-relaxed text-slate-100 bg-[#1e1b4b] border border-indigo-500/30 shadow-md whitespace-pre-wrap break-words">${safeContent}</div>
         <!-- 消息下方操作栏 -->
         <div class="mt-1 flex items-center gap-1.5 opacity-70 hover:opacity-100 transition text-[11px] text-slate-400">
           <button onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(msg.content)}'))" class="px-2 py-0.5 rounded hover:bg-slate-800 hover:text-slate-200 transition flex items-center gap-1" title="复制提示词">

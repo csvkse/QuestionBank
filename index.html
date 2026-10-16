@@ -1175,10 +1175,16 @@
                 class="w-full bg-transparent text-xs sm:text-sm text-slate-100 placeholder-slate-500 outline-none resize-none px-1"></textarea>
               <div class="flex items-center justify-between pt-1">
                 <span class="text-[11px] text-slate-500 font-mono">引擎：Microsoft fetch-event-source + partial-json</span>
-                <button id="ai-send-btn" onclick="app.aiAgent.handleSendMessage()" class="btn-primary-cta px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
-                  <span>发送</span>
-                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                </button>
+                <div class="flex items-center gap-2">
+                  <button id="ai-stop-btn" onclick="app.aiAgent.abortCurrentLoop()" class="hidden px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 items-center gap-1.5 transition">
+                    <svg class="w-3 h-3 text-current" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                    <span>停止响应</span>
+                  </button>
+                  <button id="ai-send-btn" onclick="app.aiAgent.handleSendMessage()" class="btn-primary-cta px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                    <span>发送</span>
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -8063,13 +8069,11 @@ function renderMarkdown(rawText) {
  * 渲染用户消息 (带悬停操作栏 Req 5, 移除彩色 Emoji Req 6)
  */
 function renderUserMessage(msg) {
-  const safeContent = escapeHtml(msg.content);
+  const safeContent = escapeHtml((msg.content || '').trim());
   return `
     <div class="flex gap-3 max-w-4xl mx-auto justify-end group">
       <div class="relative max-w-2xl flex flex-col items-end">
-        <div class="p-3.5 rounded-2xl rounded-tr-sm text-xs leading-relaxed text-slate-100 bg-[#1e1b4b] border border-indigo-500/30 shadow-md whitespace-pre-wrap break-words">
-          ${safeContent}
-        </div>
+        <div class="px-3.5 py-2.5 rounded-2xl rounded-tr-sm text-xs leading-relaxed text-slate-100 bg-[#1e1b4b] border border-indigo-500/30 shadow-md whitespace-pre-wrap break-words">${safeContent}</div>
         <!-- 消息下方操作栏 -->
         <div class="mt-1 flex items-center gap-1.5 opacity-70 hover:opacity-100 transition text-[11px] text-slate-400">
           <button onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(msg.content)}'))" class="px-2 py-0.5 rounded hover:bg-slate-800 hover:text-slate-200 transition flex items-center gap-1" title="复制提示词">
@@ -8511,21 +8515,29 @@ class AiAgentUIController {
 
   bindDOMEvents() {
     const input = document.getElementById('ai-chat-input');
-    if (input) {
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          this.handleSendMessage();
-        }
-      });
-    }
+    input?.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.handleSendMessage(); }
+    });
   }
 
-  render() {
+  render(forceScroll = false) {
     this.renderSessionList();
-    this.renderCurrentSession();
+    this.renderCurrentSession(null, forceScroll);
     this.updateHeaderStatus();
     this.renderQuickModelSelector();
+    if (forceScroll) this.scrollToBottom();
+  }
+
+  scrollToBottom() {
+    const c = document.getElementById('ai-messages-stream');
+    if (!c) return;
+    c.scrollTop = c.scrollHeight;
+    if (typeof requestAnimationFrame !== 'undefined') {
+      requestAnimationFrame(() => {
+        c.scrollTop = c.scrollHeight;
+        setTimeout(() => { if (c) c.scrollTop = c.scrollHeight; }, 60);
+      });
+    }
   }
 
   renderSessionList() {
@@ -8541,7 +8553,7 @@ class AiAgentUIController {
       item.className = `p-2.5 rounded-lg cursor-pointer flex items-center justify-between group transition text-xs ${
         isActive ? 'bg-indigo-950/40 border border-indigo-700/50 text-white font-medium' : 'hover:bg-slate-800/60 text-slate-300'
       }`;
-      item.onclick = () => { this.store.switchSession(sess.id); this.render(); };
+      item.onclick = () => { this.store.switchSession(sess.id); this.render(true); };
       item.innerHTML = `
         <div class="flex items-center gap-2 truncate">
           <svg class="w-3.5 h-3.5 ${isActive ? 'text-indigo-400' : 'text-slate-500'} shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
@@ -8566,14 +8578,14 @@ class AiAgentUIController {
     }, 100);
   }
 
-  renderCurrentSession(msgId = null) {
+  renderCurrentSession(msgId = null, forceScroll = false) {
     clearTimeout(this.renderTimer);
     this.renderTimer = null;
     const container = document.getElementById('ai-messages-stream');
     const sess = this.store.getActiveSession();
     if (!container || !sess) return;
     const switched = this.renderedSessionId !== sess.id;
-    const followBottom = switched || container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
+    const followBottom = forceScroll || switched || container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
     if (switched) {
       container.innerHTML = '';
       this.messageRows.clear();
@@ -8686,17 +8698,13 @@ class AiAgentUIController {
         (p.models || []).forEach(m => {
           const mId = typeof m === 'object' ? m.id : m;
           const mName = typeof m === 'object' ? (m.name || m.id) : m;
-          const ctxK = typeof m === 'object' ? `${Math.round((m.contextWindow || 128000) / 1000)}k` : '';
-          const maxK = typeof m === 'object' ? `${Math.round((m.maxOutputTokens || 8192) / 1024)}k` : '';
-          const spec = (ctxK && maxK) ? ` (${ctxK}/${maxK})` : '';
+          const spec = (typeof m === 'object' && m.contextWindow) ? ` (${Math.round(m.contextWindow / 1000)}k/${Math.round((m.maxOutputTokens || 8192) / 1024)}k)` : '';
           const val = `${p.id}:${mId}`;
-          const isSelected = val === activeVal;
-          html += `<option value="${val}" ${isSelected ? 'selected' : ''}>${escapeHtml(mName + spec)}</option>`;
+          html += `<option value="${val}" ${val === activeVal ? 'selected' : ''}>${escapeHtml(mName + spec)}</option>`;
         });
         html += `</optgroup>`;
       }
     });
-
     selector.innerHTML = html;
   }
 
@@ -8709,33 +8717,24 @@ class AiAgentUIController {
   }
 
   editPrompt(msgId) {
-    const session = this.store.getActiveSession();
-    const msg = session?.messages.find(m => m.id === msgId);
-    if (!msg) return;
+    const msg = this.store.getActiveSession()?.messages.find(m => m.id === msgId);
     const input = document.getElementById('ai-chat-input');
-    if (input) {
-      input.value = msg.content;
-      input.focus();
-    }
+    if (msg && input) { input.value = msg.content; input.focus(); }
   }
 
   async regenerateFrom(msgId) {
     if (this.loop.isRunning) return;
-    const session = this.store.getActiveSession();
-    if (!session) return;
-    const idx = session.messages.findIndex(m => m.id === msgId);
+    const sess = this.store.getActiveSession();
+    const idx = sess?.messages.findIndex(m => m.id === msgId) ?? -1;
     if (idx !== -1) {
-      session.messages.splice(idx, 1);
+      sess.messages.splice(idx, 1);
       this.store.saveSessions();
       this.renderCurrentSession();
       await this.loop.stepLoop();
     }
   }
 
-  deleteMessage(msgId) {
-    this.store.deleteMessage(msgId);
-    this.renderCurrentSession();
-  }
+  deleteMessage(msgId) { this.store.deleteMessage(msgId); this.renderCurrentSession(); }
 
   async handleSendMessage(text) {
     if (this.loop.isRunning) return;
@@ -8743,7 +8742,6 @@ class AiAgentUIController {
     const content = (text || input?.value || '').trim();
     if (!content) return;
     if (input) input.value = '';
-
     await this.loop.startLoop(content);
   }
 
@@ -8751,9 +8749,9 @@ class AiAgentUIController {
   rejectToolCall(msgId) { this.loop.rejectApproval(msgId); }
   abortCurrentLoop() { this.loop.abort(); }
 
-  createNewSession() { this.store.createSession(); this.render(); }
-  deleteSession(sessId) { this.store.deleteSession(sessId); this.render(); }
-  clearAllSessions() { if (confirm('确认清空所有历史对话？')) { this.store.clearAllSessions(); this.render(); } }
+  createNewSession() { this.store.createSession(); this.render(true); }
+  deleteSession(sessId) { this.store.deleteSession(sessId); this.render(true); }
+  clearAllSessions() { if (confirm('确认清空所有历史对话？')) { this.store.clearAllSessions(); this.render(true); } }
 
   updateReasoningEffort(val) {
     this.store.saveConfig({ reasoningEffort: val });
@@ -8763,6 +8761,11 @@ class AiAgentUIController {
 
   toggleSendButtonState(generating, customText) {
     const btn = document.getElementById('ai-send-btn');
+    const stopBtn = document.getElementById('ai-stop-btn');
+    if (stopBtn) {
+      if (generating) { stopBtn.classList.remove('hidden'); stopBtn.classList.add('flex'); }
+      else { stopBtn.classList.add('hidden'); stopBtn.classList.remove('flex'); }
+    }
     if (!btn) return;
     btn.disabled = generating;
     btn.innerHTML = generating
@@ -9426,13 +9429,14 @@ class KnowledgeMasterApp {
   }
 
   renderAiAgent() {
-    this.aiAgent.render();
+    this.aiAgent.render(true);
+    setTimeout(() => { if (this.aiAgent?.scrollToBottom) this.aiAgent.scrollToBottom(); }, 60);
   }
 
   requestAiDeckGuide(deckId) {
     const deck = this.getAllDecks().find(d => d.id === deckId);
     const deckTitle = deck ? deck.title : deckId;
-    this.router.navigate('ai-agent');
+    this.router.navigate('agent');
     const prompt = `请为题库《${deckTitle}》(ID: ${deckId}) 生成系统化知识导学内容（Advance Organizer）。
 请先调用 tool_get_deck 分析该题库的知识分类与考点，梳理核心认知模型与易混淆对比表，然后调用 tool_update_deck_guide 为题库配置系统化导学页！`;
     setTimeout(() => {

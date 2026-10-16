@@ -36,21 +36,29 @@ export class AiAgentUIController {
 
   bindDOMEvents() {
     const input = document.getElementById('ai-chat-input');
-    if (input) {
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          this.handleSendMessage();
-        }
-      });
-    }
+    input?.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.handleSendMessage(); }
+    });
   }
 
-  render() {
+  render(forceScroll = false) {
     this.renderSessionList();
-    this.renderCurrentSession();
+    this.renderCurrentSession(null, forceScroll);
     this.updateHeaderStatus();
     this.renderQuickModelSelector();
+    if (forceScroll) this.scrollToBottom();
+  }
+
+  scrollToBottom() {
+    const c = document.getElementById('ai-messages-stream');
+    if (!c) return;
+    c.scrollTop = c.scrollHeight;
+    if (typeof requestAnimationFrame !== 'undefined') {
+      requestAnimationFrame(() => {
+        c.scrollTop = c.scrollHeight;
+        setTimeout(() => { if (c) c.scrollTop = c.scrollHeight; }, 60);
+      });
+    }
   }
 
   renderSessionList() {
@@ -66,7 +74,7 @@ export class AiAgentUIController {
       item.className = `p-2.5 rounded-lg cursor-pointer flex items-center justify-between group transition text-xs ${
         isActive ? 'bg-indigo-950/40 border border-indigo-700/50 text-white font-medium' : 'hover:bg-slate-800/60 text-slate-300'
       }`;
-      item.onclick = () => { this.store.switchSession(sess.id); this.render(); };
+      item.onclick = () => { this.store.switchSession(sess.id); this.render(true); };
       item.innerHTML = `
         <div class="flex items-center gap-2 truncate">
           <svg class="w-3.5 h-3.5 ${isActive ? 'text-indigo-400' : 'text-slate-500'} shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
@@ -91,14 +99,14 @@ export class AiAgentUIController {
     }, 100);
   }
 
-  renderCurrentSession(msgId = null) {
+  renderCurrentSession(msgId = null, forceScroll = false) {
     clearTimeout(this.renderTimer);
     this.renderTimer = null;
     const container = document.getElementById('ai-messages-stream');
     const sess = this.store.getActiveSession();
     if (!container || !sess) return;
     const switched = this.renderedSessionId !== sess.id;
-    const followBottom = switched || container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
+    const followBottom = forceScroll || switched || container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
     if (switched) {
       container.innerHTML = '';
       this.messageRows.clear();
@@ -211,17 +219,13 @@ export class AiAgentUIController {
         (p.models || []).forEach(m => {
           const mId = typeof m === 'object' ? m.id : m;
           const mName = typeof m === 'object' ? (m.name || m.id) : m;
-          const ctxK = typeof m === 'object' ? `${Math.round((m.contextWindow || 128000) / 1000)}k` : '';
-          const maxK = typeof m === 'object' ? `${Math.round((m.maxOutputTokens || 8192) / 1024)}k` : '';
-          const spec = (ctxK && maxK) ? ` (${ctxK}/${maxK})` : '';
+          const spec = (typeof m === 'object' && m.contextWindow) ? ` (${Math.round(m.contextWindow / 1000)}k/${Math.round((m.maxOutputTokens || 8192) / 1024)}k)` : '';
           const val = `${p.id}:${mId}`;
-          const isSelected = val === activeVal;
-          html += `<option value="${val}" ${isSelected ? 'selected' : ''}>${escapeHtml(mName + spec)}</option>`;
+          html += `<option value="${val}" ${val === activeVal ? 'selected' : ''}>${escapeHtml(mName + spec)}</option>`;
         });
         html += `</optgroup>`;
       }
     });
-
     selector.innerHTML = html;
   }
 
@@ -234,33 +238,24 @@ export class AiAgentUIController {
   }
 
   editPrompt(msgId) {
-    const session = this.store.getActiveSession();
-    const msg = session?.messages.find(m => m.id === msgId);
-    if (!msg) return;
+    const msg = this.store.getActiveSession()?.messages.find(m => m.id === msgId);
     const input = document.getElementById('ai-chat-input');
-    if (input) {
-      input.value = msg.content;
-      input.focus();
-    }
+    if (msg && input) { input.value = msg.content; input.focus(); }
   }
 
   async regenerateFrom(msgId) {
     if (this.loop.isRunning) return;
-    const session = this.store.getActiveSession();
-    if (!session) return;
-    const idx = session.messages.findIndex(m => m.id === msgId);
+    const sess = this.store.getActiveSession();
+    const idx = sess?.messages.findIndex(m => m.id === msgId) ?? -1;
     if (idx !== -1) {
-      session.messages.splice(idx, 1);
+      sess.messages.splice(idx, 1);
       this.store.saveSessions();
       this.renderCurrentSession();
       await this.loop.stepLoop();
     }
   }
 
-  deleteMessage(msgId) {
-    this.store.deleteMessage(msgId);
-    this.renderCurrentSession();
-  }
+  deleteMessage(msgId) { this.store.deleteMessage(msgId); this.renderCurrentSession(); }
 
   async handleSendMessage(text) {
     if (this.loop.isRunning) return;
@@ -268,7 +263,6 @@ export class AiAgentUIController {
     const content = (text || input?.value || '').trim();
     if (!content) return;
     if (input) input.value = '';
-
     await this.loop.startLoop(content);
   }
 
@@ -276,9 +270,9 @@ export class AiAgentUIController {
   rejectToolCall(msgId) { this.loop.rejectApproval(msgId); }
   abortCurrentLoop() { this.loop.abort(); }
 
-  createNewSession() { this.store.createSession(); this.render(); }
-  deleteSession(sessId) { this.store.deleteSession(sessId); this.render(); }
-  clearAllSessions() { if (confirm('确认清空所有历史对话？')) { this.store.clearAllSessions(); this.render(); } }
+  createNewSession() { this.store.createSession(); this.render(true); }
+  deleteSession(sessId) { this.store.deleteSession(sessId); this.render(true); }
+  clearAllSessions() { if (confirm('确认清空所有历史对话？')) { this.store.clearAllSessions(); this.render(true); } }
 
   updateReasoningEffort(val) {
     this.store.saveConfig({ reasoningEffort: val });
@@ -288,6 +282,11 @@ export class AiAgentUIController {
 
   toggleSendButtonState(generating, customText) {
     const btn = document.getElementById('ai-send-btn');
+    const stopBtn = document.getElementById('ai-stop-btn');
+    if (stopBtn) {
+      if (generating) { stopBtn.classList.remove('hidden'); stopBtn.classList.add('flex'); }
+      else { stopBtn.classList.add('hidden'); stopBtn.classList.remove('flex'); }
+    }
     if (!btn) return;
     btn.disabled = generating;
     btn.innerHTML = generating
