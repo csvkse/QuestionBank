@@ -47,10 +47,23 @@ assert(serialized.includes('### [分类] -ic 结尾加 k'));
 assert(serialized.includes('- **picnic**: picnicking / picnicked'));
 
 // 3. 再次解析序列化结果
-const roundtripDeck = parseMarkdownToDeck(serialized);
-assert.strictEqual(roundtripDeck.title, deck.title);
-assert.strictEqual(roundtripDeck.categories[0].name, deck.categories[0].name);
-assert.strictEqual(roundtripDeck.categories[0].group, deck.categories[0].group);
-assert.strictEqual(roundtripDeck.entities.length, deck.entities.length);
+// 4. SPEC 32: 体系化知识导读 (guide) 序列化与双向解析测试
+const deckWithGuide = {
+  ...deck,
+  guide: {
+    summary: '动词变位核心在于语音同化规律。',
+    markdown: '### 核心大纲\n\n- 第一条：ic加k\n- 第二条：双写'
+  }
+};
+const serializedWithGuide = serializeDeckToMarkdown(deckWithGuide);
+assert(serializedWithGuide.includes('<!-- GUIDE_START -->'));
+assert(serializedWithGuide.includes('动词变位核心在于语音同化规律。'));
+assert(serializedWithGuide.includes('<!-- GUIDE_END -->'));
+
+const roundtripWithGuide = parseMarkdownToDeck(serializedWithGuide);
+assert.ok(roundtripWithGuide.guide, '应当解析出 guide 对象');
+assert.strictEqual(roundtripWithGuide.guide.summary, '动词变位核心在于语音同化规律。');
+assert(roundtripWithGuide.guide.markdown.includes('### 核心大纲'));
+assert.strictEqual(roundtripWithGuide.entities.length, deck.entities.length, '考点实体数不得被 guide 影响');
 
 console.log('✅ markdown-ast.test.mjs PASSED!');

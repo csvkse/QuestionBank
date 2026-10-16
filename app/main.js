@@ -23,7 +23,7 @@ import { ModalController } from '../design-system/components/modal.js';
 import { QuizRunner, ComboEffectController, SandboxConfigController, SteppedProgressController } from '../features/arena/index.js';
 import { MatrixConsoleController, TreeRenderer, FocusReaderController } from '../features/study-hub/index.js';
 import { VisualEditorController, MarkdownEditorController } from '../features/deck-studio/index.js';
-import { DeckCrudController, FavoritesManagerController } from '../features/deck-manager/index.js';
+import { DeckCrudController, FavoritesManagerController, DeckVersionController } from '../features/deck-manager/index.js';
 import { TimelineBoardController, RadarChartController } from '../features/review-board/index.js';
 import { AiAgentUIController, REFERENCE_PRESET_PROVIDERS, DEFAULT_PROVIDERS } from '../features/ai-agent/index.js';
 import { JevClient, JevUi } from '../features/jev/index.js';
@@ -83,6 +83,7 @@ export class KnowledgeMasterApp {
     this.jevClient = new JevClient();
     this.jevUi = new JevUi(this);
     this.favoritesManager = new FavoritesManagerController(this);
+    this.deckVersioning = new DeckVersionController(this);
     this._lastJevRecommendation = null;
     this._lastAutoExpandedJevTarget = null;
   }
@@ -103,6 +104,21 @@ export class KnowledgeMasterApp {
 
   renderAiAgent() {
     this.aiAgent.render();
+  }
+
+  requestAiDeckGuide(deckId) {
+    const deck = this.getAllDecks().find(d => d.id === deckId);
+    const deckTitle = deck ? deck.title : deckId;
+    this.router.navigate('ai-agent');
+    const prompt = `请为题库《${deckTitle}》(ID: ${deckId}) 生成系统化知识导学内容（Advance Organizer）。
+请先调用 tool_get_deck 分析该题库的知识分类与考点，梳理核心认知模型与易混淆对比表，然后调用 tool_update_deck_guide 为题库配置系统化导学页！`;
+    setTimeout(() => {
+      const input = document.getElementById('ai-chat-input');
+      if (input) {
+        input.value = prompt;
+        input.focus();
+      }
+    }, 100);
   }
 
   showAiConfigModal() {

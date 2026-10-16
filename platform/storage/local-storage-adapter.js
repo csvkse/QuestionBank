@@ -7,7 +7,9 @@ const STORAGE_KEYS = {
   PROFILE: 'verbmaster_player_profile_v2',
   CUSTOM_DECKS: 'verbmaster_user_decks_v2',
   ACTIVE_DECK_ID: 'verbmaster_active_deck_id_v2',
-  MASK_STATE: 'verbmaster_study_mask_v2'
+  MASK_STATE: 'verbmaster_study_mask_v2',
+  DECK_VERSIONS: 'verbmaster_deck_versions_v2',
+  RECYCLE_BIN: 'verbmaster_deck_recycle_bin_v2'
 };
 
 export class StorageAdapter {
@@ -85,6 +87,46 @@ export class StorageAdapter {
       localStorage.setItem(STORAGE_KEYS.MASK_STATE, JSON.stringify(isMasked));
     } catch (e) {
       console.warn('[Storage] Failed to save mask state:', e);
+    }
+  }
+
+  loadDeckVersions() {
+    try {
+      if (typeof localStorage === 'undefined') return {};
+      const data = localStorage.getItem(STORAGE_KEYS.DECK_VERSIONS);
+      return data ? JSON.parse(data) : {};
+    } catch (e) {
+      console.warn('[Storage] Failed to load deck versions:', e);
+      return {};
+    }
+  }
+
+  saveDeckVersions(versionsMap) {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      localStorage.setItem(STORAGE_KEYS.DECK_VERSIONS, JSON.stringify(versionsMap));
+    } catch (e) {
+      console.warn('[Storage] Failed to save deck versions:', e);
+    }
+  }
+
+  loadRecycleBin() {
+    try {
+      if (typeof localStorage === 'undefined') return [];
+      const data = localStorage.getItem(STORAGE_KEYS.RECYCLE_BIN);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      console.warn('[Storage] Failed to load recycle bin:', e);
+      return [];
+    }
+  }
+
+  saveRecycleBin(items) {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      localStorage.setItem(STORAGE_KEYS.RECYCLE_BIN, JSON.stringify(items));
+    } catch (e) {
+      console.warn('[Storage] Failed to save recycle bin:', e);
     }
   }
 }

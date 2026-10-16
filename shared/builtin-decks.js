@@ -10,6 +10,10 @@ export const BUILTIN_DECKS = [
         title: '英语动词形态与变异法则',
         icon: '⚡',
         description: '涵盖 -ic 加 k 黄金特例、-ing/-ed 规则变化、不规则 AAA~ABC 五大阵营、三单特例与词性辨析。',
+        guide: {
+          summary: '英语动词变位的底层逻辑是由语音同化与历史借词演变决定的。抓住 -ic 变位锁 k 音铁律、闭音节辅元辅双写规律，以及 AAA~ABC 五大不规则阵营，建立网状发音与形态心智模型。',
+          markdown: `### 一、 为什么以 -ic 结尾的动词变位必须加 k？\n\n动词以 \`-ic\` 结尾时，原词发硬音 **/k/**（如 *panic* /ˈpænɪk/）。当追加 \`-ing\` 或 \`-ed\` 时，字母 c 紧邻了 **i** 或 **e**。根据自然拼读法则，c 在 e/i 前会软化发 **/s/** 音（如 city, cell）。为了阻止语音软化变音，英语引入了**“插入保护性字母 k”**的规则，用 k 强行锁定 **/k/** 的发音！\n\n- **黄金特例群**：*picnic → picnicked, panic → panicking, mimic → mimicked, traffic → trafficked, frolic → frolicking*。\n\n---\n\n### 二、 不规则动词五大阵营心智模型\n\n- **AAA 型 (三态同形)**：坚如磐石，过去式与分词形态完全一致（*cost, put, cut, hit, let, read (注意发音变/red/)*）；\n- **AAB / ABA 型 (韵律回环)**：原形与过去分词呼应（*come→came→come, run→ran→run, beat→beat→beaten*）；\n- **ABB 型 (核心大军)**：过去式与过去分词合并（*find→found, build→built, bring→brought, teach→taught*）；\n- **ABC 型 (强变化大分裂)**：三态全异，过去分词通常以 -(e)n 结尾（*go→went→gone, do→did→done, see→saw→seen, write→wrote→written*）。`
+        },
         categories: [
           { id: 'CAT_IC_SPECIAL', name: '⭐ -ic 结尾加 k 必考特例', group: '一、规则变形与读音规律' },
           { id: 'CAT_ING_RULES', name: '🌀 现在分词四规律 (双写/去e/ie变y)', group: '一、规则变形与读音规律' },
@@ -80,6 +84,10 @@ export const BUILTIN_DECKS = [
         title: 'HTTP 状态码与网络协议',
         icon: '🌐',
         description: '梳理 2xx 成功、3xx 重定向、4xx 客户端错误与 5xx 服务端错误，专攻 401 vs 403 等高频混淆考点。',
+        guide: {
+          summary: 'HTTP 状态码是客户端与服务端在分布式无状态协议下的契约语言。从 1xx 到 5xx 构成了完整的请求生命周期诊断体系，重点攻坚 401（未认证）与 403（未授权）、502（坏网关）与 504（网关超时）等易混淆关系。',
+          markdown: `### 一、 报文请求-响应生命周期的全景架构\n\n- **1xx (信息响应)**：协议握手与请求协商中（如 101 Switching Protocols）；\n- **2xx (成功响应)**：请求已被成功接收并正常处理（如 200 OK、204 No Content）；\n- **3xx (重定向族)**：资源寻址迁移，客户端需配合发起二次请求（301 永久 / 302 临时 / 304 协商缓存）；\n- **4xx (客户端责任)**：请求格式错误、身份未认证或权限受限（400 格式错 / 401 未登录 / 403 权限不足 / 404 不存在）；\n- **5xx (服务端责任)**：服务器内部崩溃或上游反向代理通信故障（500 内部崩溃 / 502 网关坏 / 504 上游响应超时）。\n\n---\n\n### 二、 核心混淆状态码全景对照\n\n- **401 Unauthorized vs 403 Forbidden**：\n  - **401 (未认证)**：服务器不知道你是谁（未带 Token 或凭据已过期），浏览器通常跳转登录页；\n  - **403 (未授权)**：服务器知道你是谁，但你的账号没有对应权限，重新输入密码依然无权访问。\n- **502 Bad Gateway vs 504 Gateway Timeout**：\n  - **502 (错误网关)**：反向代理（如 Nginx）向上游转发时，上游服务挂掉或端口未监听；\n  - **504 (网关超时)**：上游服务处理太慢（如慢查询 SQL 卡死），超过了代理等待超时阈值。`
+        },
         categories: [
           { id: 'CAT_2XX', name: '2xx 成功与已接受', group: '一、正常响应与重定向族' },
           { id: 'CAT_3XX', name: '3xx 重定向与缓存', group: '一、正常响应与重定向族' },
@@ -113,6 +121,10 @@ export const BUILTIN_DECKS = [
         title: 'Python 核心数据类型与内存模型',
         icon: '🐍',
         description: '透彻理解不可变对象与可变对象、引用计数、浅拷贝与深拷贝、默认参数跨调用共享等经典陷阱。',
+        guide: {
+          summary: 'Python 的核心机制建立在 "一切皆对象"、PyObject 内存模型以及引用传递基础之上。透彻理解可变对象与不可变对象在堆内存中的本质差异，掌握默认参数跨调用共享、深浅拷贝和 is vs == 判据。',
+          markdown: `### 一、 CPython 堆内存对象与指针模型\n\n所有变量名本质上都是指向堆中 PyObject 结构体的引用指针：\n- **不可变对象 (Immutable)**：int, float, str, tuple, frozenset。一旦创建，其内存地址中的值绝不可更改；任何修改操作均在堆中创建全新的内存对象；\n- **可变对象 (Mutable)**：list, dict, set。可在自身原内存地址内就地进行修改 (In-place mutation)。\n\n---\n\n### 二、 经典语言级避坑指南\n\n- **默认参数跨函数调用共享陷阱**：\n  \`def append_to(item, list_arg=[])\` 默认参数在函数定义（编译阶段）仅求值一次！所有未传该参数的调用均在共享同一个列表对象。正解是使用不可变对象 \`None\` 作为默认占位符。\n- **is 与 == 的本质判据**：\n  \`is\` 比较的是底层物理内存地址 \`id(a) == id(b)\`；\`==\` 调用对象的 \`__eq__\` 比较其内容值。判空必须使用 \`if x is None\`。`
+        },
         categories: [
           { id: 'CAT_MUTABLE', name: '可变对象与容器 (Mutable)', group: '一、核心内存对象模型' },
           { id: 'CAT_IMMUTABLE', name: '不可变对象 (Immutable)', group: '一、核心内存对象模型' },

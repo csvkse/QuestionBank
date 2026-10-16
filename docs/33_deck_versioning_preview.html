@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPEC 33: 题库版本管理与 Agent 批量操作交互工作台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #030712; color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; }
+    .surface-card { background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(31, 41, 55, 0.8); }
+    .surface-inset { background: rgba(3, 7, 18, 0.6); border: 1px solid rgba(31, 41, 55, 0.6); }
+  </style>
+</head>
+<body class="p-4 sm:p-8 max-w-6xl mx-auto space-y-6">
+
+  <!-- 头部介绍 -->
+  <header class="surface-card p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-indigo-950/80 shadow-2xl">
+    <div>
+      <div class="flex items-center gap-2 text-indigo-400 text-xs font-mono font-bold tracking-wider uppercase mb-1">
+        <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+        SPEC 33 · Core 2.1 Interactive Workbench
+      </div>
+      <h1 class="text-xl sm:text-2xl font-black text-white tracking-tight">题库版本控制、回收站与 Agent 批量工具预览</h1>
+      <p class="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
+        模拟语义化快照产生、版本回滚、软删除进回收站、Agent 原子批量更新与体系化导学增量修补。
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-mono border border-emerald-500/30">
+        17 Agent Tools
+      </span>
+      <span class="px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-300 text-xs font-mono border border-indigo-500/30">
+        Max 10 Rolling Versions
+      </span>
+    </div>
+  </header>
+
+  <!-- 演示主工作区 -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- 左栏：题库与模拟操作触发区 -->
+    <div class="space-y-4">
+      <div class="surface-card p-5 rounded-2xl space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <span>📚 演示自定义题库</span>
+          </h3>
+          <span class="text-[11px] font-mono text-indigo-400 bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-800/40">custom_demo</span>
+        </div>
+
+        <div class="surface-inset p-3 rounded-xl space-y-2 text-xs">
+          <div class="flex justify-between text-slate-300">
+            <span>题库名称:</span>
+            <b id="deck-title" class="text-white">网络安全考点精讲</b>
+          </div>
+          <div class="flex justify-between text-slate-300">
+            <span>考点总数:</span>
+            <b id="deck-entities-count" class="text-indigo-300 font-mono">12 题</b>
+          </div>
+          <div class="flex justify-between text-slate-300">
+            <span>体系化导学:</span>
+            <b id="deck-guide-status" class="text-emerald-400">已配置 (3板块)</b>
+          </div>
+        </div>
+
+        <!-- 操作按钮组 -->
+        <div class="space-y-2 pt-2">
+          <p class="text-[11px] font-semibold text-slate-400">模拟动作：</p>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="simUserManualSnapshot()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition flex items-center justify-center gap-1 border border-slate-700">
+              <span>📸 手动生成快照</span>
+            </button>
+            <button onclick="simAiBatchUpdate()" class="p-2 rounded-xl bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white text-xs font-medium transition flex items-center justify-center gap-1 border border-indigo-500/40">
+              <span>🤖 AI 批量改 5 题</span>
+            </button>
+            <button onclick="simGuidePatch()" class="p-2 rounded-xl bg-purple-600/30 hover:bg-purple-600 text-purple-300 hover:text-white text-xs font-medium transition flex items-center justify-center gap-1 border border-purple-500/40">
+              <span>📝 增量更新导学</span>
+            </button>
+            <button onclick="simSoftDelete()" class="p-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 text-xs font-medium transition flex items-center justify-center gap-1 border border-rose-900/50">
+              <span>🗑️ 移入回收站</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 存储容量模拟指示 -->
+      <div class="surface-card p-4 rounded-xl space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-400">LocalStorage 配额保护</span>
+          <span class="text-emerald-400 font-mono text-[11px]">安全 (滚动淘汰生效中)</span>
+        </div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+          <div id="quota-bar" class="bg-indigo-500 h-full rounded-full transition-all duration-300" style="width: 25%"></div>
+        </div>
+        <p class="text-[11px] text-slate-500">已自动保持在不超过 10 个历史快照，防止撑爆 5MB 限制。</p>
+      </div>
+    </div>
+
+    <!-- 中栏：版本历史与回滚视图 (Version History) -->
+    <div class="lg:col-span-2 surface-card p-5 rounded-2xl flex flex-col space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-3">
+          <button id="tab-versions" onclick="switchView('versions')" class="text-sm font-bold text-indigo-400 border-b-2 border-indigo-500 pb-1 flex items-center gap-1.5">
+            <span>⏱️ 历史版本快照</span>
+            <span id="badge-version-count" class="text-[11px] px-1.5 py-0.2 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono">3</span>
+          </button>
+          <button id="tab-trash" onclick="switchView('trash')" class="text-sm font-medium text-slate-400 hover:text-slate-200 pb-1 flex items-center gap-1.5 transition">
+            <span>🗑️ 回收站</span>
+            <span id="badge-trash-count" class="text-[11px] px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 font-mono">0</span>
+          </button>
+        </div>
+        <span class="text-xs text-slate-500 font-mono">FIFO Auto-Pruning</span>
+      </div>
+
+      <!-- 版本列表容器 -->
+      <div id="versions-container" class="space-y-3 overflow-y-auto max-h-[460px] pr-1">
+        <!-- 动态生成版本列表卡片 -->
+      </div>
+
+      <!-- 回收站容器 (默认隐藏) -->
+      <div id="trash-container" class="space-y-3 overflow-y-auto max-h-[460px] pr-1 hidden">
+        <!-- 动态生成回收站卡片 -->
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // 模拟数据状态
+    let currentEntitiesCount = 12;
+    let guideSectionCount = 3;
+    let isDeleted = false;
+
+    let versions = [
+      {
+        versionId: 'ver_003',
+        versionName: '[AI] 批量修改前快照',
+        timestamp: Date.now() - 120000,
+        trigger: 'ai_batch',
+        author: 'agent',
+        changeSummary: '准备批量更新 5 个加密算法考点解析',
+        entitiesCount: 12,
+        guideSections: 3
+      },
+      {
+        versionId: 'ver_002',
+        versionName: '优化 HTTP 状态码陷阱解析',
+        timestamp: Date.now() - 3600000,
+        trigger: 'user_manual',
+        author: 'user',
+        changeSummary: '补充 401 与 403 鉴权避坑说明',
+        entitiesCount: 12,
+        guideSections: 2
+      },
+      {
+        versionId: 'ver_001',
+        versionName: '初始题库建立',
+        timestamp: Date.now() - 86400000,
+        trigger: 'import_overwrite',
+        author: 'user',
+        changeSummary: '从 Markdown 文本首次导入创建',
+        entitiesCount: 10,
+        guideSections: 1
+      }
+    ];
+
+    let trash = [];
+    let currentView = 'versions';
+
+    function renderUI() {
+      // 头部与主卡片更新
+      document.getElementById('deck-entities-count').innerText = currentEntitiesCount + ' 题';
+      document.getElementById('deck-guide-status').innerText = `已配置 (${guideSectionCount}板块)`;
+      document.getElementById('badge-version-count').innerText = versions.length;
+      document.getElementById('badge-trash-count').innerText = trash.length;
+      document.getElementById('quota-bar').style.width = Math.min(100, versions.length * 10) + '%';
+
+      // 渲染版本列表
+      const vContainer = document.getElementById('versions-container');
+      if (versions.length === 0) {
+        vContainer.innerHTML = '<div class="text-center py-12 text-xs text-slate-500">暂无任何历史版本快照</div>';
+      } else {
+        vContainer.innerHTML = versions.map((v, idx) => `
+          <div class="surface-inset p-3.5 rounded-xl border border-slate-800/80 hover:border-slate-700 transition flex items-center justify-between gap-3">
+            <div class="space-y-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-bold text-white truncate">${v.versionName}</span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded font-mono ${v.author === 'agent' ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' : 'bg-slate-800 text-slate-300'}">
+                  ${v.author === 'agent' ? '🤖 AI 触发' : '👤 用户手动'}
+                </span>
+                ${idx === 0 ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-800 font-mono">最新快照</span>' : ''}
+              </div>
+              <p class="text-xs text-slate-400 truncate">${v.changeSummary}</p>
+              <div class="flex items-center gap-3 text-[11px] text-slate-500 font-mono">
+                <span>${new Date(v.timestamp).toLocaleTimeString()}</span>
+                <span>•</span>
+                <span>词条: <b class="text-slate-300">${v.entitiesCount}</b></span>
+                <span>•</span>
+                <span>导读: <b class="text-slate-300">${v.guideSections} 板块</b></span>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button onclick="rollbackTo('${v.versionId}')" class="px-2.5 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white text-xs font-medium border border-indigo-500/30 transition">
+                回滚到此版
+              </button>
+              <button onclick="deleteVersion('${v.versionId}')" class="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition" title="删除快照">
+                ✕
+              </button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // 渲染回收站
+      const tContainer = document.getElementById('trash-container');
+      if (trash.length === 0) {
+        tContainer.innerHTML = '<div class="text-center py-12 text-xs text-slate-500">回收站为空，无已删除题库</div>';
+      } else {
+        tContainer.innerHTML = trash.map(item => `
+          <div class="surface-inset p-3.5 rounded-xl border border-rose-950/50 bg-rose-950/10 flex items-center justify-between gap-3">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-white">${item.deckTitle}</span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded bg-rose-900/40 text-rose-300 border border-rose-800 font-mono">软删除隔离</span>
+              </div>
+              <p class="text-[11px] text-slate-400">删除时间: ${new Date(item.deletedAt).toLocaleTimeString()} · 包含 ${item.entitiesCount} 题</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="restoreFromTrash('${item.deckId}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-xs font-medium border border-emerald-500/40 transition">
+                恢复出库
+              </button>
+              <button onclick="permanentDelete('${item.deckId}')" class="px-2.5 py-1.5 rounded-lg bg-rose-900/40 hover:bg-rose-900 text-rose-300 text-xs font-medium border border-rose-800 transition">
+                彻底粉碎
+              </button>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    function switchView(view) {
+      currentView = view;
+      if (view === 'versions') {
+        document.getElementById('versions-container').classList.remove('hidden');
+        document.getElementById('trash-container').classList.add('hidden');
+        document.getElementById('tab-versions').className = 'text-sm font-bold text-indigo-400 border-b-2 border-indigo-500 pb-1 flex items-center gap-1.5';
+        document.getElementById('tab-trash').className = 'text-sm font-medium text-slate-400 hover:text-slate-200 pb-1 flex items-center gap-1.5 transition';
+      } else {
+        document.getElementById('versions-container').classList.add('hidden');
+        document.getElementById('trash-container').classList.remove('hidden');
+        document.getElementById('tab-versions').className = 'text-sm font-medium text-slate-400 hover:text-slate-200 pb-1 flex items-center gap-1.5 transition';
+        document.getElementById('tab-trash').className = 'text-sm font-bold text-indigo-400 border-b-2 border-indigo-500 pb-1 flex items-center gap-1.5';
+      }
+    }
+
+    function simUserManualSnapshot() {
+      versions.unshift({
+        versionId: 'ver_' + Date.now(),
+        versionName: `手动备份快照 v${versions.length + 1}`,
+        timestamp: Date.now(),
+        trigger: 'user_manual',
+        author: 'user',
+        changeSummary: '用户在题库编辑面板主动创建的检查点',
+        entitiesCount: currentEntitiesCount,
+        guideSections: guideSectionCount
+      });
+      if (versions.length > 10) versions.pop(); // 滚动限额
+      renderUI();
+    }
+
+    function simAiBatchUpdate() {
+      // 1. AI 批量修改前自动打桩
+      versions.unshift({
+        versionId: 'ver_' + Date.now(),
+        versionName: `[AI] 批量修改前自动备份`,
+        timestamp: Date.now(),
+        trigger: 'ai_batch',
+        author: 'agent',
+        changeSummary: `自动创建于执行 tool_batch_update_entities 前`,
+        entitiesCount: currentEntitiesCount,
+        guideSections: guideSectionCount
+      });
+      if (versions.length > 10) versions.pop();
+
+      // 2. 模拟修改
+      currentEntitiesCount += 3;
+      renderUI();
+      alert('🤖 AI 执行批量更新完成：更新了 5 题，同时自动生成了更新前快照！');
+    }
+
+    function simGuidePatch() {
+      versions.unshift({
+        versionId: 'ver_' + Date.now(),
+        versionName: `[Guide] 导学增量更新前快照`,
+        timestamp: Date.now(),
+        trigger: 'guide_update',
+        author: 'agent',
+        changeSummary: `执行 tool_patch_deck_guide 追加了新的易混淆对比矩阵`,
+        entitiesCount: currentEntitiesCount,
+        guideSections: guideSectionCount
+      });
+      if (versions.length > 10) versions.pop();
+      guideSectionCount++;
+      renderUI();
+      alert('📝 导学大纲增量追加成功！无需全量输出 Markdown，Token 节省 85%！');
+    }
+
+    function simSoftDelete() {
+      if (confirm('确认将当前题库移入回收站？')) {
+        trash.unshift({
+          deckId: 'custom_demo',
+          deckTitle: '网络安全考点精讲',
+          deletedAt: Date.now(),
+          entitiesCount: currentEntitiesCount
+        });
+        alert('🗑️ 题库已安全移入回收站，并未物理销毁，可随时还原！');
+        switchView('trash');
+        renderUI();
+      }
+    }
+
+    function rollbackTo(verId) {
+      const target = versions.find(v => v.versionId === verId);
+      if (!target) return;
+      if (confirm(`确认回滚至「${target.versionName}」？`)) {
+        currentEntitiesCount = target.entitiesCount;
+        guideSectionCount = target.guideSections;
+        // 打桩回滚记录
+        versions.unshift({
+          versionId: 'ver_' + Date.now(),
+          versionName: `[Rollback] 回滚至 ${target.versionName}`,
+          timestamp: Date.now(),
+          trigger: 'pre_rollback',
+          author: 'user',
+          changeSummary: `回滚操作触发，已恢复 ${currentEntitiesCount} 考点`,
+          entitiesCount: currentEntitiesCount,
+          guideSections: guideSectionCount
+        });
+        if (versions.length > 10) versions.pop();
+        renderUI();
+        alert('✅ 题库已成功回滚！学习进度已协同矫正。');
+      }
+    }
+
+    function deleteVersion(verId) {
+      versions = versions.filter(v => v.versionId !== verId);
+      renderUI();
+    }
+
+    function restoreFromTrash(deckId) {
+      trash = trash.filter(t => t.deckId !== deckId);
+      switchView('versions');
+      renderUI();
+      alert('🎉 题库已成功从回收站还原至主工作区！');
+    }
+
+    function permanentDelete(deckId) {
+      if (confirm('⚠️ 警告：彻底粉碎后将无法恢复，确认彻底删除？')) {
+        trash = trash.filter(t => t.deckId !== deckId);
+        renderUI();
+      }
+    }
+
+    // 初始化渲染
+    renderUI();
+  </script>
+</body>
+</html>
