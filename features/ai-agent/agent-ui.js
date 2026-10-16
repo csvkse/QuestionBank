@@ -272,17 +272,9 @@ export class AiAgentUIController {
     await this.loop.startLoop(content);
   }
 
-  async approveToolCall(msgId, toolCallId) {
-    await this.loop.resumeWithApproval(msgId, toolCallId);
-  }
-
-  rejectToolCall(msgId) {
-    this.loop.rejectApproval(msgId);
-  }
-
-  abortCurrentLoop() {
-    this.loop.abort();
-  }
+  async approveToolCall(msgId, toolCallId) { await this.loop.resumeWithApproval(msgId, toolCallId); }
+  rejectToolCall(msgId) { this.loop.rejectApproval(msgId); }
+  abortCurrentLoop() { this.loop.abort(); }
 
   createNewSession() { this.store.createSession(); this.render(); }
   deleteSession(sessId) { this.store.deleteSession(sessId); this.render(); }

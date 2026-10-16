@@ -5,3 +5,5 @@
 
 export { DeckCrudController } from './deck-crud.js';
 export { FavoritesManagerController } from './favorites-manager.js';
+export { DeckVersionController } from './deck-versioning.js';
+

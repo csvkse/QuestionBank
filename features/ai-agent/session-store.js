@@ -167,11 +167,8 @@ export class SessionStore {
       const mObj = normalizeModel(model);
       if (!p.models) p.models = [];
       const existing = p.models.find(x => x.id === mObj.id);
-      if (existing) {
-        Object.assign(existing, mObj);
-      } else {
-        p.models.push(mObj);
-      }
+      if (existing) Object.assign(existing, mObj);
+      else p.models.push(mObj);
       this.saveConfig({});
     }
   }
@@ -270,9 +267,7 @@ export class SessionStore {
     this.saveSessions();
   }
 
-  getActiveSession() {
-    return this.sessions.find(s => s.id === this.activeSessionId) || this.sessions[0];
-  }
+  getActiveSession() { return this.sessions.find(s => s.id === this.activeSessionId) || this.sessions[0]; }
 
   appendMessage(message) {
     const sess = this.getActiveSession();

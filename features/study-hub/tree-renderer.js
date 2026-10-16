@@ -8,11 +8,13 @@
  */
 
 import { renderIcon } from '../../design-system/icons/icons.js';
+import { GuideRenderer } from './guide-renderer.js';
 
 export class TreeRenderer {
   constructor(app) {
     this.app = app;
-    this.studyViewMode = 'focus'; // 'focus' | 'overview'
+    this.studyViewMode = 'focus'; // 'focus' | 'guide' | 'overview'
+    this.guideRenderer = new GuideRenderer(app);
   }
 
   setStudyViewMode(mode) {
@@ -58,17 +60,26 @@ export class TreeRenderer {
           <div class="flex items-center p-0.5 rounded-lg bg-slate-900 border border-slate-800">
             <button onclick="app.treeRenderer.setStudyViewMode('focus')" class="px-2.5 py-1 rounded-md text-xs font-medium transition flex items-center gap-1.5 ${this.studyViewMode === 'focus' ? 'bg-indigo-600 text-white font-bold shadow-sm' : 'text-slate-400 hover:text-slate-200'}">
               ${renderIcon('target', 'w-3.5 h-3.5')}
-              <span>聚焦精读模式</span>
+              <span>聚焦精读</span>
+            </button>
+            <button onclick="app.treeRenderer.setStudyViewMode('guide')" class="px-2.5 py-1 rounded-md text-xs font-medium transition flex items-center gap-1.5 ${this.studyViewMode === 'guide' ? 'bg-indigo-600 text-white font-bold shadow-sm' : 'text-slate-400 hover:text-slate-200'}">
+              ${renderIcon('sparkles', 'w-3.5 h-3.5')}
+              <span>知识体系导图</span>
             </button>
             <button onclick="app.treeRenderer.setStudyViewMode('overview')" class="px-2.5 py-1 rounded-md text-xs font-medium transition flex items-center gap-1.5 ${this.studyViewMode === 'overview' ? 'bg-indigo-600 text-white font-bold shadow-sm' : 'text-slate-400 hover:text-slate-200'}">
               ${renderIcon('book', 'w-3.5 h-3.5')}
-              <span>全景大纲模式</span>
+              <span>全景大纲</span>
             </button>
           </div>
         </div>
         <span class="text-[11px] text-slate-500 font-mono">共匹配 ${filteredEntities.length} 个考点</span>
       </div>
     `;
+
+    if (this.studyViewMode === 'guide') {
+      this.guideRenderer.render(container, modeToggleBar, deck, ds);
+      return;
+    }
 
     if (filteredEntities.length === 0) {
       container.innerHTML = `

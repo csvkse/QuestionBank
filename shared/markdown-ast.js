@@ -14,6 +14,14 @@ export function serializeDeckToMarkdown(deck) {
   let md = `# ${deck.icon || '📚'} ${deck.title || '自定义知识库'}\n`;
   if (deck.description) md += `> ${deck.description}\n\n`;
 
+  // 序列化体系化导读 (若存在)
+  if (deck.guide && deck.guide.markdown) {
+    md += `<!-- GUIDE_START -->\n`;
+    if (deck.guide.summary) md += `> [!NOTE] 核心认知心智模型\n> ${deck.guide.summary}\n\n`;
+    md += `${deck.guide.markdown.trim()}\n`;
+    md += `<!-- GUIDE_END -->\n\n`;
+  }
+
   // 收集所有业务分组
   const groups = [];
   (deck.categories || []).forEach(cat => {
@@ -57,6 +65,20 @@ export function serializeDeckToMarkdown(deck) {
  * @returns {Object} { title, icon, description, categories, entities }
  */
 export function parseMarkdownToDeck(text = '') {
+  let guide = null;
+  const guideMatch = text.match(/<!-- GUIDE_START -->([\s\S]*?)<!-- GUIDE_END -->/);
+  if (guideMatch) {
+    const rawGuide = guideMatch[1].trim();
+    let summary = '';
+    const summaryMatch = rawGuide.match(/>\s*\[!NOTE\]\s*核心认知心智模型\s*\n>\s*([^\n]+)/);
+    if (summaryMatch) summary = summaryMatch[1].trim();
+    guide = {
+      summary: summary,
+      markdown: rawGuide.replace(/>\s*\[!NOTE\]\s*核心认知心智模型\s*\n>\s*[^\n]+\n*/, '').trim()
+    };
+    text = text.replace(guideMatch[0], '');
+  }
+
   const lines = text.split('\n');
 
   let deckTitle = '自定义知识库';
@@ -165,11 +187,13 @@ export function parseMarkdownToDeck(text = '') {
     }
   });
 
-  return {
+  const result = {
     title: deckTitle || '自定义题库',
     icon: deckIcon || '📝',
     description: deckDesc || '',
     categories: categories.length > 0 ? categories : [{ id: 'CAT_DEF', name: '常规分类', group: '核心知识板块' }],
     entities: entities
   };
+  if (guide) result.guide = guide;
+  return result;
 }

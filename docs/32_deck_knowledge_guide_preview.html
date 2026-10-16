@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>题库体系化知识导读与关系学习工作台 (SPEC 32 Preview)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
+            slate: { 750: '#293548', 850: '#111c33', 925: '#070d19', 950: '#020617' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .surface-card { background-color: #0b1120; border: 1px solid #1e293b; }
+    .surface-inset { background-color: #111c33; border: 1px solid rgba(51, 65, 85, 0.45); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 sm:p-6 lg:p-8 selection:bg-indigo-500 selection:text-white">
+
+  <!-- 顶部头栏 -->
+  <header class="max-w-7xl mx-auto mb-6 pb-6 border-b border-slate-800">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-2">
+          <span>SPEC 32 架构方案预览</span>
+          <span>·</span>
+          <span>题库体系化导读与认知关系学习</span>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+          <span>题库系统化知识页与关系网络预览</span>
+          <span class="text-xs font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-normal">v2.5-SystemicGuide</span>
+        </h1>
+        <p class="text-sm text-slate-400 mt-1 max-w-3xl">
+          解决闪卡模式下“考点孤立碎片、缺乏整体心智模型、无法进行概念关系学习”的本质痛点。在学习大厅提供宏观认知架构（Advance Organizer）与考点交互锚定。
+        </p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <a href="../index.html" class="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:text-white transition flex items-center gap-2">
+          <span>返回知识大厅</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主体工作区 -->
+  <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- 左侧控制面板与题库切换 -->
+    <section class="lg:col-span-4 flex flex-col gap-4">
+      <div class="surface-card rounded-2xl p-5 border border-slate-800 flex flex-col gap-4">
+        <h2 class="text-sm font-bold text-white flex items-center gap-2">
+          <svg class="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          <span>测试题库切换 (内置 / 自定义)</span>
+        </h2>
+
+        <div class="grid grid-cols-1 gap-2.5">
+          <!-- 题库 1 -->
+          <button id="btn-deck-http" onclick="selectDeck('deck_http')" class="deck-btn p-3 rounded-xl border border-indigo-700 bg-indigo-950/40 text-left transition flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-indigo-200">🌐 HTTP 状态码与网络协议</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">已配导读</span>
+            </div>
+            <p class="text-[11px] text-slate-400">报文生命周期、401 vs 403 权限鉴权双璧、协商缓存决策树。</p>
+          </button>
+
+          <!-- 题库 2 -->
+          <button id="btn-deck-verbs" onclick="selectDeck('deck_verbs')" class="deck-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/60 text-left transition flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-300">⚡ 英语动词形态与变异法则</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">已配导读</span>
+            </div>
+            <p class="text-[11px] text-slate-400">-ic 变位锁 k 音底层语音规则、AAA~ABC 不规则矩阵、分词 vs 动名词。</p>
+          </button>
+
+          <!-- 题库 3 -->
+          <button id="btn-deck-python" onclick="selectDeck('deck_python')" class="deck-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/60 text-left transition flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-300">🐍 Python 核心数据类型与内存模型</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">已配导读</span>
+            </div>
+            <p class="text-[11px] text-slate-400">PyObject 结构、可变 vs 不可变、默认参数跨调用共享隐形陷阱。</p>
+          </button>
+
+          <!-- 题库 4: 空白自定义 -->
+          <button id="btn-deck-empty" onclick="selectDeck('deck_custom_empty')" class="deck-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/60 text-left transition flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-300">🐳 Docker 容器架构 (自定义空导读)</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-slate-800 text-slate-400 border border-slate-700">暂无导读</span>
+            </div>
+            <p class="text-[11px] text-slate-400">模拟用户刚创建的新库，可测试 AI Agent 一键合成体系导读。</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- 认知图谱锚点视口 (Linked Entities Inspector) -->
+      <div class="surface-card rounded-2xl p-5 border border-slate-800 flex flex-col gap-3">
+        <h3 class="text-xs font-bold text-slate-300 flex items-center justify-between">
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+            <span>体系关联网状考点 (Relational Links)</span>
+          </span>
+          <span id="linked-count" class="text-[10px] font-mono text-indigo-400">4 个核心对照对</span>
+        </h3>
+        <div id="linked-entities-list" class="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
+          <!-- 动态注入 -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 右侧学习大厅主视口 -->
+    <section class="lg:col-span-8 flex flex-col gap-4">
+      <div class="surface-card rounded-2xl p-6 border border-slate-800 flex-1 flex flex-col min-h-[620px]">
+        
+        <!-- 学习大厅顶部三模态切换栏 (SPEC 32 三维立体研读) -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-800 gap-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400 font-medium">研读模式:</span>
+            <div class="inline-flex p-1 rounded-xl bg-slate-900 border border-slate-800">
+              <button id="tab-focus" onclick="setViewMode('focus')" class="px-3 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 text-slate-400 hover:text-white">
+                <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
+                <span>🎯 聚焦精读</span>
+              </button>
+              <button id="tab-guide" onclick="setViewMode('guide')" class="px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-indigo-600 text-white shadow-md shadow-indigo-600/30">
+                <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                <span>📖 体系知识导读</span>
+                <span class="text-[9px] px-1 py-0.2 rounded bg-indigo-500/30 border border-indigo-400 font-mono">SPEC 32</span>
+              </button>
+              <button id="tab-overview" onclick="setViewMode('overview')" class="px-3 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 text-slate-400 hover:text-white">
+                <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                <span>🌲 全景大纲</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="deck-meta-badge" class="flex items-center gap-2 text-xs font-mono text-slate-400">
+            <!-- 动态填充 -->
+          </div>
+        </div>
+
+        <!-- 视图主显示容器 -->
+        <div id="study-viewport" class="flex-1 overflow-y-auto max-h-[540px] pr-2">
+          <!-- 动态渲染导读或卡片 -->
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const DECKS_DATA = {
+      deck_http: {
+        id: "deck_http",
+        title: "HTTP 状态码与网络协议",
+        icon: "🌐",
+        description: "梳理 2xx 成功、3xx 重定向、4xx 客户端错误与 5xx 服务端错误，专攻 401 vs 403 等高频混淆考点。",
+        categoriesCount: 4,
+        entitiesCount: 12,
+        guide: {
+          summary: "HTTP 状态码是客户端与服务端在分布式无状态协议下的契约语言。从 1xx 到 5xx 构成了完整的请求生命周期诊断体系，重点攻坚 401（未认证）与 403（未授权）、502（坏网关）与 504（网关超时）等易混淆关系。",
+          relations: [
+            { source: "401", target: "403", type: "contrast", label: "401 未认证 (不知道你是谁) vs 403 权限不足 (知道你是谁但不让进)" },
+            { source: "301", target: "302", type: "contrast", label: "301 永久重定向 (浏览器强缓存+转移权重) vs 302 临时重定向" },
+            { source: "502", target: "504", type: "contrast", label: "502 错误网关 (上游挂了) vs 504 网关超时 (上游太慢)" },
+            { source: "200", target: "304", type: "family", label: "200 全量获取 vs 304 协商缓存命中 (零 Body 传输)" }
+          ],
+          markdown: `
+### 一、 HTTP 请求-响应生命周期的认知图式
+
+在深入具体状态码之前，必须建立**客户端 → CDN/反向代理 (Nginx) → 上游服务 (Node/Java/Python) → 数据库**的链路心智模型：
+
+- **1xx (Informational)**: 协议握手与传输准备（如 101 Switching Protocols 升级为 WebSocket）；
+- **2xx (Successful)**: 请求已被服务器接收、理解并成功交付（如 200 OK、204 No Content）；
+- **3xx (Redirection)**: 资源寻址转移，客户端需配合发起二次请求以达成目标；
+- **4xx (Client Error)**: **责任在客户端**，请求报文语法错误、未授权或路径不存在；
+- **5xx (Server Error)**: **责任在服务端**，服务器在处理有效请求时发生崩溃或下游网络超时。
+
+---
+
+### 二、 核心混淆双璧：全景对比矩阵
+
+| 状态码对照组 | 核心诱因 | 浏览器/客户端行为 | 经典排障场景 |
+| :--- | :--- | :--- | :--- |
+| **401 Unauthorized** | 缺少有效凭证 (未携带 Authorization 头或 Token 过期) | 弹出登录框或跳转 SSO 登录页 | 用户打开私人订单列表但未登录 |
+| **403 Forbidden** | 凭证有效，但身份所拥有的角色/权限受限 | 提示“无权访问该资源”，重试登录无效 | 普通员工尝试访问财务超管后台接口 |
+| **502 Bad Gateway** | 反向代理作为网关，向上游应用服务器请求时收到无效响应 | 直接返回错误页，链路中断 | 后端容器 OOM 崩溃或端口未正常监听 |
+| **504 Gateway Timeout** | 反向代理等待上游处理超时，超过 proxy_read_timeout | 等待漫长转圈后超时中断 | 复杂大数据报表 SQL 慢查询卡死 |
+
+---
+
+### 三、 协商缓存决策模型 (The 304 Caching Tree)
+
+浏览器发起资源请求时，优先检查本地强缓存（\`Cache-Control: max-age\`）。当强缓存失效时，发起**带条件请求 (Conditional Request)**：
+1. 客户端携带 \`If-None-Match: "etag_hash"\`；
+2. 服务端对比资源哈希：
+   - 若未发生任何修改：服务端**绝不重传主体内容 (Body)**，立即返回 **304 Not Modified**（节省 99% 带宽）；
+   - 若资源已改变：返回 **200 OK** 并携带最新实体报文。
+          `
+        }
+      },
+      deck_verbs: {
+        id: "deck_verbs",
+        title: "英语动词形态与变异法则",
+        icon: "⚡",
+        description: "涵盖 -ic 加 k 黄金特例、-ing/-ed 规则变化、不规则 AAA~ABC 五大阵营、三单特例与词性辨析。",
+        categoriesCount: 8,
+        entitiesCount: 46,
+        guide: {
+          summary: "英语动词变位的底层逻辑是由语音同化与历史借词演变决定的。抓住 -ic 变位锁 k 音铁律、闭音节辅元辅双写规律，以及 AAA~ABC 五大不规则阵营，建立网状发音与形态心智模型。",
+          relations: [
+            { source: "picnic", target: "panic", type: "family", label: "-ic 特例族：必须加 k 锁住 /k/ 的爆破发音" },
+            { source: "participle", target: "gerund", type: "contrast", label: "分词 (形容词性修饰) vs 动名词 (名词性作主宾)" }
+          ],
+          markdown: `
+### 一、 为什么以 -ic 结尾的动词变位必须加 k？
+
+很多学习者将 \`picnicking\`、\`panicked\` 视作孤立奇怪的特例死记硬背。但如果从**英语正字法与语音学演变**切入：
+- 在英语与古法语借词中，辅音字母 **c** 具有软硬两种发音：
+  - 在 **a, o, u** 前发清脆的硬音 **/k/**（如 *cat, cold, cup*）；
+  - 在 **e, i, y** 前发软音 **/s/**（如 *city, cell, cycle*）。
+- 动词以 \`-ic\` 结尾时，结尾原发音为 **/k/**（如 *panic* /ˈpænɪk/）；
+- 当我们要为它追加 \`-ing\` 或 \`-ed\` 时，词尾字母 c 紧邻了 **i** 或 **e**！如果不加干预，拼写成 \`panicing\` 会被自然拼读规则误读成 **/ˈpænɪsɪŋ/**！
+- 因此，英语古人发明了**“插入保护性辅音字母 k”**的铁律：用字母 k 强行锁住 **/k/** 的发音！
+
+> **黄金考点词库**：*picnic → picnicked, panic → panicking, mimic → mimicked, traffic → trafficked, frolic → frolicking*。一通百通！
+
+---
+
+### 二、 不规则动词五大阵营记忆模型
+
+| 阵营代码 | 模式规律 | 典型心智模型 | 代表单词清单 |
+| :--- | :--- | :--- | :--- |
+| **AAA 型** | 三态全同 | 坚如磐石，过去与完成态形态无波动 | *cost, put, cut, hit, let, read (读音改变 /red/)* |
+| **AAB/ABA 型**| 韵律回环 | 原形与过去分词呼应 | *come→came→come, run→ran→run, beat→beat→beaten* |
+| **ABB 型** | 核心大军 | 过去式与过去分词合并，占不规则词库 65% | *find→found, build→built, bring→brought, teach→taught* |
+| **ABC 型** | 强变化分裂 | 三态全异，通常分词以 -(e)n 结尾 | *go→went→gone, do→did→done, see→saw→seen, write→wrote→written* |
+          `
+        }
+      },
+      deck_python: {
+        id: "deck_python",
+        title: "Python 核心数据类型与内存模型",
+        icon: "🐍",
+        description: "透彻理解不可变对象与可变对象、引用计数、浅拷贝与深拷贝、默认参数跨调用共享等经典陷阱。",
+        categoriesCount: 3,
+        entitiesCount: 7,
+        guide: {
+          summary: "Python 的核心机制建立在 '一切皆对象'、PyObject 内存模型以及引用传递基础之上。理解可变对象与不可变对象在堆内存中的本质差异，掌握默认参数跨调用共享、深浅拷贝和 is vs == 判据。",
+          relations: [
+            { source: "is", target: "==", type: "contrast", label: "is 内存物理地址同一性 vs == 对象内容等价性" },
+            { source: "copy", target: "deepcopy", type: "contrast", label: "浅拷贝 (外壳复制嵌套共享) vs 深拷贝 (递归彻底克隆)" }
+          ],
+          markdown: `
+### 一、 Python 的“一切皆对象”与内存指针模型
+
+在 CPython 虚拟机实现中，所有变量本质上都是**指向堆中 PyObject 结构体的指针**：
+\`\`\`c
+struct _object {
+    _PyObject_HEAD_EXTRA
+    Py_ssize_t ob_refcnt;         // 引用计数
+    struct _typeobject *ob_type;  // 类型对象指针
+};
+\`\`\`
+
+- **不可变对象 (Immutable)**: \`int\`, \`float\`, \`str\`, \`tuple\`, \`frozenset\`。一旦创建，其内存地址中的值永不可更改！任何修改操作（如字符串拼接 \`s += 'a'\`）均是在堆中分配全新的内存对象；
+- **可变对象 (Mutable)**: \`list\`, \`dict\`, \`set\`。可在自身内存地址内进行原地修改（In-place mutation），如 \`append\`、\`pop\`。
+
+---
+
+### 二、 默认参数跨调用共享陷阱 (The Default Arg Gotcha)
+
+\`\`\`python
+def append_to(item, target_list=[]):
+    target_list.append(item)
+    return target_list
+\`\`\`
+
+**为什么第二次调用会记住第一次的值？**
+因为 Python 函数本身是一个**一级对象 (First-Class Object)**。默认参数表达式在**函数定义阶段（编译字节码时）**仅求值一次，并保存在函数对象的 \`__defaults__\` 元组中！所有未传该参数的调用，都在共享同一个列表引用！
+**标准正解**：永远使用不可变对象 \`None\` 作为占位符：
+\`\`\`python
+def append_to(item, target_list=None):
+    if target_list is None: target_list = []
+\`\`\`
+          `
+        }
+      },
+      deck_custom_empty: {
+        id: "deck_custom_empty",
+        title: "Docker 容器实战题库",
+        icon: "🐳",
+        description: "由用户导入的题库，当前尚未配备体系化导读长文。",
+        categoriesCount: 2,
+        entitiesCount: 8,
+        guide: null
+      }
+    };
+
+    let activeDeckId = 'deck_http';
+    let currentViewMode = 'guide';
+
+    function selectDeck(deckId) {
+      activeDeckId = deckId;
+      document.querySelectorAll('.deck-btn').forEach(btn => {
+        btn.classList.remove('border-indigo-700', 'bg-indigo-950/40');
+        btn.classList.add('border-slate-800', 'bg-slate-900/60');
+      });
+      const targetBtn = document.getElementById('btn-deck-' + deckId.replace('deck_', ''));
+      if (targetBtn) {
+        targetBtn.classList.add('border-indigo-700', 'bg-indigo-950/40');
+        targetBtn.classList.remove('border-slate-800', 'bg-slate-900/60');
+      }
+      renderViewport();
+    }
+
+    function setViewMode(mode) {
+      currentViewMode = mode;
+      const modes = ['focus', 'guide', 'overview'];
+      modes.forEach(m => {
+        const btn = document.getElementById('tab-' + m);
+        if (m === mode) {
+          btn.className = "px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-indigo-600 text-white shadow-md shadow-indigo-600/30";
+        } else {
+          btn.className = "px-3 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5 text-slate-400 hover:text-white";
+        }
+      });
+      renderViewport();
+    }
+
+    function renderViewport() {
+      const deck = DECKS_DATA[activeDeckId];
+      const viewport = document.getElementById('study-viewport');
+      const badge = document.getElementById('deck-meta-badge');
+      const relationsList = document.getElementById('linked-entities-list');
+      const countEl = document.getElementById('linked-count');
+
+      badge.innerHTML = `
+        <span>${deck.icon} ${deck.title}</span>
+        <span>·</span>
+        <span>${deck.categoriesCount} 分类 / ${deck.entitiesCount} 考点</span>
+      `;
+
+      // 渲染左侧关系网
+      if (deck.guide && deck.guide.relations) {
+        countEl.innerText = `${deck.guide.relations.length} 组核心对比`;
+        relationsList.innerHTML = deck.guide.relations.map(rel => `
+          <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] flex flex-col gap-1">
+            <div class="flex items-center justify-between font-mono text-[10px]">
+              <span class="text-indigo-400 font-bold">${rel.source} ↔ ${rel.target}</span>
+              <span class="px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">${rel.type}</span>
+            </div>
+            <p class="text-slate-300">${rel.label}</p>
+          </div>
+        `).join('');
+      } else {
+        countEl.innerText = '暂无关联映射';
+        relationsList.innerHTML = `
+          <div class="p-4 text-center text-slate-500 text-xs bg-slate-900/40 rounded-xl border border-slate-800/80">
+            该题库尚未提炼关系对照对
+          </div>
+        `;
+      }
+
+      if (currentViewMode === 'guide') {
+        renderGuideView(deck, viewport);
+      } else if (currentViewMode === 'focus') {
+        viewport.innerHTML = `
+          <div class="p-12 text-center surface-inset rounded-2xl text-slate-400 space-y-3">
+            <span class="text-3xl">🎯</span>
+            <h3 class="text-sm font-bold text-slate-200">聚焦精读模式 (Focus Mode)</h3>
+            <p class="text-xs text-slate-500 max-w-md mx-auto">以单考点为核心，三阶段逐级揭示释义遮罩、同胞辨析与易错陷阱。点击上方【📖 体系知识导读】可随时返回全局体系。</p>
+          </div>
+        `;
+      } else {
+        viewport.innerHTML = `
+          <div class="p-12 text-center surface-inset rounded-2xl text-slate-400 space-y-3">
+            <span class="text-3xl">🌲</span>
+            <h3 class="text-sm font-bold text-slate-200">全景大纲模式 (Overview Matrix)</h3>
+            <p class="text-xs text-slate-500 max-w-md mx-auto">多卡片平铺网格，查看全库所有考点的熟练度状态与分布。</p>
+          </div>
+        `;
+      }
+    }
+
+    function renderGuideView(deck, container) {
+      if (!deck.guide) {
+        // 空状态：引导用户由 AI 生成
+        container.innerHTML = `
+          <div class="p-12 text-center surface-inset rounded-2xl border border-slate-800/80 space-y-4 max-w-lg mx-auto my-8">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-950/60 border border-indigo-700/50 flex items-center justify-center text-indigo-400 mx-auto text-xl">
+              📖
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white">当前题库暂未编写体系化导读</h3>
+              <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+                知识导读能将碎片考点串联为网状心智模型。您可以手动编写，或借助 AI Agent 智能助手一键提炼全库知识架构！
+              </p>
+            </div>
+            <div class="pt-2">
+              <button onclick="simulateAiGenerateGuide()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition flex items-center gap-2 mx-auto shadow-lg shadow-indigo-600/30">
+                <svg class="w-4 h-4 text-current animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                <span>呼叫 AI 智囊一键生成系统化导读</span>
+              </button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <!-- 导读头部心智模型摘要卡片 -->
+        <div class="mb-6 p-4 rounded-2xl bg-gradient-to-r from-indigo-950/70 via-slate-900 to-indigo-950/40 border border-indigo-800/50 shadow-md">
+          <div class="flex items-center gap-2 text-indigo-400 font-mono text-xs font-bold mb-1.5">
+            <svg class="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            <span>先行组织者 · 核心心智模型 (Advance Organizer)</span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-200 leading-relaxed font-sans font-medium">
+            ${deck.guide.summary}
+          </p>
+        </div>
+
+        <!-- 导读 Markdown 正文流 -->
+        <div class="text-xs leading-relaxed text-slate-300 space-y-4 font-sans border-t border-slate-800/80 pt-4">
+          ${deck.guide.markdown.replace(/### (.*?)\n/g, '<h3 class="text-sm font-bold text-white mt-6 mb-2 flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>$1</h3>')
+                               .replace(/#### (.*?)\n/g, '<h4 class="text-xs font-bold text-indigo-200 mt-4 mb-1">$1</h4>')
+                               .replace(/```([a-z]*)\n([\s\S]*?)```/g, '<pre class="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] text-emerald-400 my-2 overflow-x-auto">$2</pre>')
+                               .replace(/\| (.*?) \|/g, (match) => match) // 表格暂简写
+                               .replace(/\n\n/g, '<br><br>')}
+        </div>
+
+        <!-- 底部行动唤起 (CTA) -->
+        <div class="mt-8 pt-4 border-t border-slate-800 flex items-center justify-between">
+          <span class="text-xs text-slate-400">已理解体系心智框架？现在开启检索练习加深记忆：</span>
+          <a href="../index.html" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition flex items-center gap-1.5 shadow-md shadow-indigo-600/30">
+            <span>进入自由沙盒刷题 →</span>
+          </a>
+        </div>
+      `;
+    }
+
+    function simulateAiGenerateGuide() {
+      const deck = DECKS_DATA[activeDeckId];
+      deck.guide = {
+        summary: "Docker 的核心本质是利用 Linux 内核的 Namespace (环境隔离) 与 Cgroups (资源配额) 实现的轻量级进程级沙箱。核心掌握容器生命周期命令、数据卷只读挂载与网络互联驱动。",
+        relations: [
+          { source: "run", target: "start", type: "contrast", label: "docker run (创建+启动) vs docker start (唤醒已存在容器)" },
+          { source: "-v", target: "--mount", type: "contrast", label: "-v 简写语法 vs --mount 现代强类型精确声明" }
+        ],
+        markdown: `
+### 一、 容器与虚拟机的核心本质差异
+
+容器并不是一个微型虚拟机，**容器本质上只是宿主机上的一个普通受限进程**！
+- **Namespace (命名空间)**：实现六项隔离（PID进程树、NET网络栈、IPC通信、MNT挂载点、UTS主机名、USER用户）；
+- **Cgroups (控制组)**：限制进程的资源配额上限（CPU使用核数、内存上限 Memory Limit、磁盘 I/O 权重）。
+
+---
+
+### 二、 容器生命周期四大核心状态机
+
+1. **Created (已创建)**: 镜像层之上叠加了可写容器层，但未分配 PID；
+2. **Running (运行中)**: 进程已在隔离命名空间内执行主进程 (CMD/ENTRYPOINT)；
+3. **Paused (已暂停)**: 使用 cgroups freezer 冻结 CPU 时钟；
+4. **Stopped / Exited (已停止)**: 收到 SIGTERM / SIGKILL 信号优雅退出。
+        `
+      };
+      renderViewport();
+    }
+
+    // 初始化加载
+    window.addEventListener('DOMContentLoaded', () => {
+      selectDeck('deck_http');
+    });
+  </script>
+</body>
+</html>
