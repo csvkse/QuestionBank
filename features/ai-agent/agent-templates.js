@@ -228,6 +228,7 @@ export function renderToolCard(msgId, tc) {
   const isPending = tc.status === 'pending';
   const isExecuting = tc.status === 'executing';
   const isRejected = tc.status === 'rejected';
+  const isError = tc.status === 'error';
 
   let statusBadge = '';
   if (isDone) {
@@ -236,6 +237,8 @@ export function renderToolCard(msgId, tc) {
     statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-indigo-950 text-indigo-400 border border-indigo-800 animate-pulse">执行中...</span>';
   } else if (isRejected) {
     statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-rose-950 text-rose-400 border border-rose-800">已拒绝</span>';
+  } else if (isError) {
+    statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-rose-950 text-rose-300 border border-rose-800">❌ 异常 (已转交 Agent)</span>';
   } else {
     statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-amber-950 text-amber-300 border border-amber-800">待确认</span>';
   }
@@ -244,35 +247,36 @@ export function renderToolCard(msgId, tc) {
   if (isPending) {
     actionsOrResult = `
       <div class="pt-2 flex items-center justify-end gap-2 border-t border-indigo-900/30">
-        <button onclick="app.aiAgent.approveToolCall('${msgId}', '${tc.id}')"
-          class="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-[11px] transition">
-          批准执行
-        </button>
-        <button onclick="app.aiAgent.rejectToolCall('${msgId}')"
-          class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 text-[11px] transition">
-          拒绝
-        </button>
-      </div>
-    `;
+        <button onclick="app.aiAgent.approveToolCall('${msgId}', '${tc.id}')" class="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-[11px] transition">批准执行</button>
+        <button onclick="app.aiAgent.rejectToolCall('${msgId}')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 text-[11px] transition">拒绝</button>
+      </div>`;
   } else if (isDone) {
     actionsOrResult = `
       <div class="pt-1.5 flex items-center justify-between text-[11px] text-emerald-400">
         <span>数据已同步至本地系统 (Local Storage)</span>
-        <button onclick="app.switchDeck('${tc.result?.deckId || 'deck_verbs'}'); app.router.navigate('study');" class="text-indigo-400 hover:underline">
-          去学习大厅查看 →
-        </button>
-      </div>
-    `;
+        <button onclick="app.switchDeck('${tc.result?.deckId || 'deck_verbs'}'); app.router.navigate('study');" class="text-indigo-400 hover:underline">去学习大厅查看 →</button>
+      </div>`;
+  } else if (isError) {
+    const err = tc.error || {};
+    actionsOrResult = `
+      <div class="pt-2 mt-1 border-t border-rose-950/80 flex flex-col gap-1 text-[11px]">
+        <div class="text-rose-300 font-semibold flex items-center gap-1.5">
+          <span class="px-1 py-0.5 rounded bg-rose-900/60 text-[9px] font-mono border border-rose-800">${escapeHtml(err.type || 'EXECUTION_ERROR')}</span>
+          <span>${escapeHtml(err.message || '方法执行未成功')}</span>
+        </div>
+        ${err.suggestion ? `<div class="text-[10px] text-amber-300/90 font-mono bg-amber-950/30 p-1.5 rounded border border-amber-900/40">💡 纠错建议: ${escapeHtml(err.suggestion)}</div>` : ''}
+      </div>`;
   }
 
-  // 待确认时默认展开 open，已完成或已拒绝默认收起 (Req 3)
-  const openAttr = isPending ? 'open' : '';
+  const openAttr = (isPending || isError) ? 'open' : '';
+  const borderClass = isError ? 'border-rose-900/60 bg-rose-950/20' : 'border-indigo-900/50 bg-slate-900/90';
+  const tagClass = isError ? 'bg-rose-950 text-rose-300 border-rose-800' : 'bg-indigo-950 text-indigo-300 border-indigo-800';
 
   return `
-    <details ${openAttr} class="p-3 rounded-xl mb-3 text-xs bg-slate-900/90 border border-indigo-900/50 group">
+    <details ${openAttr} class="p-3 rounded-xl mb-3 text-xs ${borderClass} border group">
       <summary class="flex items-center justify-between cursor-pointer list-none">
         <div class="flex items-center gap-2">
-          <span class="p-0.5 px-1 rounded bg-indigo-950 text-indigo-300 font-mono text-[9px] border border-indigo-800">TOOL CALL</span>
+          <span class="p-0.5 px-1 rounded ${tagClass} font-mono text-[9px] border">TOOL CALL</span>
           <span class="font-bold text-white font-mono">${escapeHtml(tc.name)}</span>
         </div>
         <div class="flex items-center gap-2">

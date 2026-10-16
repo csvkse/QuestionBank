@@ -9,7 +9,7 @@ globalThis.localStorage = {
   clear: () => memStore.clear()
 };
 
-import { AgentLoopEngine, SessionStore, AiAgentClient, renderLoadingState, renderMarkdown } from '../../features/ai-agent/index.js';
+import { AgentLoopEngine, SessionStore, AiAgentClient, renderLoadingState, renderMarkdown, ToolReferenceError, ToolFormatError, ToolPermissionError, DeckToolExecutor } from '../../features/ai-agent/index.js';
 
 console.log('🧪 Testing agent-loop.js...');
 
@@ -302,6 +302,170 @@ function createMockUI() {
   assert.ok(!html.includes('</li><div'), '列表项之间严禁产生幽灵 div 占位');
   // 验证段落包装
   assert.ok(html.includes('<p class="leading-relaxed">'), '文本段落必须使用统一行高 p 标签包装');
+}
+
+// 9. 测试工具异常捕获与结构化回传，驱动 Agent 自愈 (Self-Healing Loop)
+{
+  memStore.clear();
+  const store = new SessionStore();
+  store.config.autoApprove = true;
+
+  const executionLog = [];
+  const mockExecutor = {
+    execute: async (name, args) => {
+      executionLog.push({ name, args });
+      if (name === 'tool_get_deck' && args.deckId === 'deck_unknown') {
+        throw new ToolReferenceError(`未找到 ID 为 "${args.deckId}" 的题库`, 'DECK_NOT_FOUND', '请先调用 tool_list_decks 查询可用题库', { requestedDeckId: args.deckId });
+      }
+      if (name === 'tool_list_decks') {
+        return [{ id: 'deck_verbs', title: '英语动词' }];
+      }
+      return { success: true, deckId: 'deck_verbs' };
+    }
+  };
+
+  let stepsExecuted = 0;
+  const mockClient = {
+    sendChatStream: async ({ messages, callbacks, step }) => {
+      stepsExecuted++;
+      if (step === 1) {
+        // 第一步：模型发起错误参数调用 (引用不存在的题库)
+        await callbacks.onFinish({
+          content: '尝试提取未知题库',
+          reasoning: '第一步思考',
+          toolCall: { id: 'call_err_1', name: 'tool_get_deck', arguments: { deckId: 'deck_unknown' } }
+        });
+      } else if (step === 2) {
+        // 关键断言：验证第 2 步收到了 role: 'tool'，并且内容包含结构化异常与 suggestion
+        const toolMsg = messages.find(m => m.role === 'tool' && m.tool_call_id === 'call_err_1');
+        assert.ok(toolMsg, '第 2 步上下文必须包含第 1 步异常回传的 tool 消息');
+        const parsedToolContent = JSON.parse(toolMsg.content);
+        assert.strictEqual(parsedToolContent.success, false, '工具返回 success 必须为 false');
+        assert.strictEqual(parsedToolContent.error.type, 'REFERENCE_ERROR', '错误类型应为 REFERENCE_ERROR');
+        assert.strictEqual(parsedToolContent.error.code, 'DECK_NOT_FOUND', '错误码应为 DECK_NOT_FOUND');
+        assert.ok(parsedToolContent.error.suggestion.includes('tool_list_decks'), '错误中必须包含自愈纠错建议');
+
+        // 模型根据 suggestion 进行自愈：调用 tool_list_decks
+        await callbacks.onFinish({
+          content: '上一步题库未找到，正在自愈检索题库清单',
+          reasoning: '自愈思考：先查列表',
+          toolCall: { id: 'call_heal_2', name: 'tool_list_decks', arguments: {} }
+        });
+      } else if (step === 3) {
+        // 验证已获得正确列表，输出最终自愈成功结论
+        const healMsg = messages.find(m => m.role === 'tool' && m.tool_call_id === 'call_heal_2');
+        assert.ok(healMsg, '第 3 步上下文必须包含自愈检索到的 tool 返回');
+        await callbacks.onFinish({
+          content: '自愈成功！已确认系统题库。',
+          reasoning: '自愈闭环思考',
+          toolCall: null
+        });
+      }
+    }
+  };
+
+  const engine = new AgentLoopEngine({
+    client: mockClient,
+    executor: mockExecutor,
+    store,
+    ui: createMockUI()
+  });
+
+  await engine.startLoop('帮我查一下未知题库');
+
+  assert.strictEqual(stepsExecuted, 3, '应当完成 3 步：报错 -> 自愈检索 -> 闭环总结');
+  assert.strictEqual(executionLog.length, 2, '应当执行 2 次工具调用');
+  assert.strictEqual(executionLog[0].name, 'tool_get_deck');
+  assert.strictEqual(executionLog[1].name, 'tool_list_decks');
+
+  // 验证第 1 步助手卡片标记为 error 状态
+  const session = store.getActiveSession();
+  const firstAssistantMsg = session.messages.find(m => m.step === 1);
+  assert.strictEqual(firstAssistantMsg.toolCall.status, 'error', '第一步工具卡片状态应为 error');
+  assert.strictEqual(firstAssistantMsg.toolCall.error.code, 'DECK_NOT_FOUND');
+}
+
+// 10. 测试连续同类错误死循环熔断保护 (Consecutive Error Circuit Breaker)
+{
+  memStore.clear();
+  const store = new SessionStore();
+  store.config.autoApprove = true;
+
+  const mockExecutor = {
+    execute: async () => {
+      throw new ToolFormatError('缺少必填字段 title', 'MISSING_FIELD', '请传入 title');
+    }
+  };
+
+  let loopCalls = 0;
+  const mockClient = {
+    sendChatStream: async ({ callbacks, step }) => {
+      loopCalls++;
+      // 模型不思悔改，每一步都发起相同错误调用
+      await callbacks.onFinish({
+        content: `第 ${step} 步重试`,
+        toolCall: { id: `call_loop_${step}`, name: 'tool_create_deck', arguments: {} }
+      });
+    }
+  };
+
+  const engine = new AgentLoopEngine({
+    client: mockClient,
+    executor: mockExecutor,
+    store,
+    ui: createMockUI()
+  });
+
+  await engine.startLoop('测试死循环异常熔断');
+
+  // 连续相同工具相同错误在第 2 次执行后必须触发熔断，不得无限执行到 5 步
+  assert.strictEqual(loopCalls, 2, '连续触发 2 次同类工具异常后必须立即熔断');
+  assert.strictEqual(engine.isRunning, false, '熔断后 isRunning 必须为 false');
+  const lastAssistantMsg = store.getActiveSession().messages.slice().reverse().find(m => m.role === 'assistant');
+  assert.ok(lastAssistantMsg.content.includes('自愈熔断保护生效'), '熔断消息应包含自愈熔断提示');
+}
+
+// 11. 测试 DeckToolExecutor 领域校验异常与内置保护
+{
+  const mockApp = {
+    getAllDecks: () => [{ id: 'deck_verbs', title: '动词' }],
+    state: { customDecks: [] },
+    saveUserData: () => {},
+    renderAllViews: () => {}
+  };
+  const executor = new DeckToolExecutor(mockApp);
+
+  // 1) 测试缺少必填字段抛出 ToolFormatError
+  let errFormat = null;
+  try {
+    await executor.execute('tool_create_deck', { title: '无分类题库', categories: [] });
+  } catch (e) {
+    errFormat = e;
+  }
+  assert.ok(errFormat instanceof ToolFormatError, '缺少 categories 必须抛出 ToolFormatError');
+  assert.strictEqual(errFormat.type, 'FORMAT_ERROR');
+  assert.ok(errFormat.suggestion.length > 0, '异常必须附带纠错建议 suggestion');
+
+  // 2) 测试删除内置题库抛出 ToolPermissionError
+  let errPerm = null;
+  try {
+    await executor.execute('tool_delete_deck', { deckId: 'deck_verbs' });
+  } catch (e) {
+    errPerm = e;
+  }
+  assert.ok(errPerm instanceof ToolPermissionError, '删除内置题库必须抛出 ToolPermissionError');
+  assert.strictEqual(errPerm.type, 'PERMISSION_ERROR');
+  assert.strictEqual(errPerm.code, 'BUILTIN_PROTECTED');
+
+  // 3) 测试查询不存在词条抛出 ToolReferenceError
+  let errRef = null;
+  try {
+    await executor.execute('tool_update_entity', { deckId: 'deck_verbs', entityId: 'not_exist' });
+  } catch (e) {
+    errRef = e;
+  }
+  assert.ok(errRef instanceof ToolReferenceError, '词条不存在必须抛出 ToolReferenceError');
+  assert.strictEqual(errRef.code, 'ENTITY_NOT_FOUND');
 }
 
 console.log('✅ agent-loop.test.mjs PASSED!');

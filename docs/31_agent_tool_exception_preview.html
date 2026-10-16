@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Agent 工具方法异常反馈与自主修复预览工作台 (SPEC 31 Preview)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
+            slate: { 750: '#293548', 850: '#111c33', 925: '#070d19', 950: '#020617' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .surface-card { background-color: #0b1120; border: 1px solid #1e293b; }
+    .surface-inset { background-color: #111c33; border: 1px solid rgba(51, 65, 85, 0.45); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 sm:p-6 lg:p-8 selection:bg-indigo-500 selection:text-white">
+
+  <!-- 顶部主控头栏 -->
+  <header class="max-w-7xl mx-auto mb-6 pb-6 border-b border-slate-800">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-2">
+          <span>SPEC 31 架构方案预览</span>
+          <span>·</span>
+          <span>Agent 工具异常反馈与自主修复闭环</span>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+          <span>AI Agent 工具异常反馈与自愈工作台</span>
+          <span class="text-xs font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-normal">v2.4-SelfHealing</span>
+        </h1>
+        <p class="text-sm text-slate-400 mt-1 max-w-3xl">
+          演示工具方法调用失败时，将结构化异常（格式异常、参考异常、权限保护）封装为标准 <code class="text-indigo-300 font-mono text-xs">role: 'tool'</code> 响应回传给大模型，驱动 Agent 进行反思与自主修复。
+        </p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <a href="../index.html" class="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:text-white transition flex items-center gap-2">
+          <span>返回知识大厅</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主体工作区 -->
+  <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- 左侧控制面板与异常场景选择 -->
+    <section class="lg:col-span-4 flex flex-col gap-4">
+      <div class="surface-card rounded-2xl p-5 border border-slate-800 flex flex-col gap-4">
+        <h2 class="text-sm font-bold text-white flex items-center gap-2">
+          <svg class="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+          <span>自愈推演场景选择</span>
+        </h2>
+
+        <div class="grid grid-cols-1 gap-2.5">
+          <!-- 场景 1 -->
+          <button id="btn-scene-ref" onclick="selectScenario('reference')" class="scenario-btn p-3 rounded-xl border border-indigo-700 bg-indigo-950/40 text-left transition flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-indigo-200">场景 1: 参考引用异常自愈</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-indigo-900/80 text-indigo-300 border border-indigo-700">REFERENCE_ERROR</span>
+            </div>
+            <p class="text-[11px] text-slate-400">调用目标不存在的题库 ID，Agent 接收报错并自动检索可用列表纠错。</p>
+          </button>
+
+          <!-- 场景 2 -->
+          <button id="btn-scene-format" onclick="selectScenario('format')" class="scenario-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/60 text-left transition flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-300">场景 2: 参数格式校验自愈</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-amber-950 text-amber-300 border border-amber-800">FORMAT_ERROR</span>
+            </div>
+            <p class="text-[11px] text-slate-400">缺少必填分类与考点列表，Agent 接收 Schema 诊断后补全格式落库。</p>
+          </button>
+
+          <!-- 场景 3 -->
+          <button id="btn-scene-perm" onclick="selectScenario('permission')" class="scenario-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/60 text-left transition flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-300">场景 3: 内置保护与合理解释</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-rose-950 text-rose-300 border border-rose-800">PERMISSION_ERROR</span>
+            </div>
+            <p class="text-[11px] text-slate-400">试图删除内置只读保护题库，Agent 识别权限规则并委婉引导用户。</p>
+          </button>
+
+          <!-- 场景 4 -->
+          <button id="btn-scene-breaker" onclick="selectScenario('breaker')" class="scenario-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/60 text-left transition flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-300">场景 4: 连续同类错误死循环熔断</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-slate-800 text-slate-300 border border-slate-700">CIRCUIT_BREAKER</span>
+            </div>
+            <p class="text-[11px] text-slate-400">同一工具连续失败达到预算限制（≥2次），触发硬熔断保护。</p>
+          </button>
+        </div>
+
+        <div class="pt-3 border-t border-slate-800 flex items-center gap-2">
+          <button id="btn-run-all" onclick="runFullAuto()" class="flex-1 py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition flex items-center justify-center gap-1.5">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>自动推演全流程</span>
+          </button>
+          <button onclick="stepForward()" class="py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition flex items-center gap-1">
+            <span>单步单推</span>
+          </button>
+          <button onclick="resetSimulation()" class="py-2 px-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-rose-400 text-xs transition" title="重置">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 实时线上传输载荷 (Wire Format Inspector) -->
+      <div class="surface-card rounded-2xl p-5 border border-slate-800 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+            <span>底层工具回传载荷 (role: 'tool')</span>
+          </h3>
+          <span id="wire-status" class="text-[10px] font-mono text-slate-500">空闲</span>
+        </div>
+        <pre id="wire-json" class="p-3 rounded-xl bg-slate-950 border border-slate-800/80 text-[11px] font-mono text-emerald-400 overflow-x-auto max-h-56 leading-tight">{\n  "status": "等待执行..."\n}</pre>
+      </div>
+    </section>
+
+    <!-- 右侧会话流与卡片实时展示区 -->
+    <section class="lg:col-span-8 flex flex-col gap-4">
+      <div class="surface-card rounded-2xl p-5 border border-slate-800 flex-1 flex flex-col min-h-[580px]">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800/80 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="font-bold text-white">Agentic 对话与自愈流</span>
+          </div>
+          <div class="text-[11px] font-mono text-slate-400">
+            <span>当前步数：<strong id="current-step-display" class="text-indigo-400">0 / 5</strong></span>
+          </div>
+        </div>
+
+        <!-- 消息流容器 -->
+        <div id="messages-container" class="flex-1 overflow-y-auto space-y-4 pr-1 max-h-[520px]">
+          <!-- 动态填充 -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const SCENARIOS = {
+      reference: {
+        title: "场景 1: 参考引用异常自愈",
+        userPrompt: "帮我查询一下目标题库 deck_kubernetes 的所有考点和层级数据",
+        steps: [
+          {
+            step: 1,
+            thought: "用户希望查看题库 deck_kubernetes。调用 tool_get_deck 提取该题库考点详情。",
+            toolCall: {
+              id: "call_ref_1",
+              name: "tool_get_deck",
+              arguments: { deckId: "deck_kubernetes" },
+              status: "error",
+              error: {
+                type: "REFERENCE_ERROR",
+                code: "DECK_NOT_FOUND",
+                message: "未找到 ID 为 \"deck_kubernetes\" 的题库",
+                suggestion: "请先调用 tool_list_decks 查询当前系统内所有可用题库清单，核对准确的 deckId 后再重试。",
+                details: { requestedDeckId: "deck_kubernetes" }
+              }
+            },
+            reply: "正在尝试查询《Kubernetes》题库元数据..."
+          },
+          {
+            step: 2,
+            thought: "【反思与自愈】上一步工具返回 REFERENCE_ERROR: DECK_NOT_FOUND。题库 deck_kubernetes 不存在。根据 suggestion 指引，先调用 tool_list_decks 查验当前系统存在的题库。",
+            toolCall: {
+              id: "call_ref_2",
+              name: "tool_list_decks",
+              arguments: {},
+              status: "success",
+              result: [
+                { id: "deck_verbs", title: "不规则动词", entitiesCount: 46 },
+                { id: "deck_http", title: "HTTP 协议核心", entitiesCount: 30 },
+                { id: "deck_python", title: "Python 核心特性", entitiesCount: 28 }
+              ]
+            },
+            reply: "检测到目标题库不存在，正在检索系统题库清单以协助纠错..."
+          },
+          {
+            step: 3,
+            thought: "【闭环总结】已获取题库列表。确认系统当前尚未创建 Kubernetes 题库，但有 HTTP 与 Python 等。输出友好提示并给出创建建议。",
+            toolCall: null,
+            reply: "🔍 **查询结果报告**：\n\n系统中目前尚未录入 `deck_kubernetes` 题库。当前系统已有题库包含：\n- 📘 **不规则动词题库** (46 词条)\n- 🌐 **HTTP 协议核心** (30 词条)\n- 🐍 **Python 核心特性** (28 词条)\n\n如果您需要，我可以马上为您生成并创建一份全新的《Kubernetes 核心架构》题库！随时输入“立即创建”即可。"
+          }
+        ]
+      },
+      format: {
+        title: "场景 2: 参数格式校验自愈",
+        userPrompt: "为我快速创建一个简易的 Git 常用指令题库",
+        steps: [
+          {
+            step: 1,
+            thought: "用户要求创建 Git 题库。尝试调用 tool_create_deck，但缺少 categories 字段。",
+            toolCall: {
+              id: "call_fmt_1",
+              name: "tool_create_deck",
+              arguments: { title: "Git 核心指令", icon: "🌱" },
+              status: "error",
+              error: {
+                type: "FORMAT_ERROR",
+                code: "MISSING_REQUIRED_FIELD",
+                message: "创建题库失败：缺失必填参数 categories 与 entities",
+                suggestion: "请按照 Core 2.1 规约提供至少一个包含 id, name 的分类，以及至少包含 id, categoryId, title, prompt, answer 的考点列表。",
+                details: { missingFields: ["categories", "entities"] }
+              }
+            },
+            reply: "正在创建 Git 题库框架..."
+          },
+          {
+            step: 2,
+            thought: "【反思与自愈】上一步返回 FORMAT_ERROR: 缺少 categories 和 entities。根据 suggestion 规范，立即补充三维分类体系与 4 个考点实体重新落库。",
+            toolCall: {
+              id: "call_fmt_2",
+              name: "tool_create_deck",
+              arguments: {
+                title: "Git 核心指令实战",
+                icon: "🌿",
+                categories: [{ id: "cat_git_branch", name: "分支与提交管理", group: "一、基础指令" }],
+                entities: [
+                  { id: "g1", categoryId: "cat_git_branch", layer: 1, title: "git init", prompt: "初始化新仓库", answer: "git init" },
+                  { id: "g2", categoryId: "cat_git_branch", layer: 1, title: "git commit", prompt: "提交变更到本地", answer: "git commit" },
+                  { id: "g3", categoryId: "cat_git_branch", layer: 2, title: "git branch", prompt: "列出或创建分支", answer: "git branch" },
+                  { id: "g4", categoryId: "cat_git_branch", layer: 3, title: "git rebase", prompt: "变基衍合提交历史", answer: "git rebase" }
+                ]
+              },
+              status: "success",
+              result: { success: true, deckId: "deck_git_101", count: 4 }
+            },
+            reply: "已根据数据规范补全完整题库结构，正在执行写入落库..."
+          },
+          {
+            step: 3,
+            thought: "【闭环总结】题库创建成功！输出落库确认卡片与刷题指引。",
+            toolCall: null,
+            reply: "🎉 **Git 核心指令题库已成功创建！**\n\n- 题库标题：🌿 《Git 核心指令实战》\n- 录入考点：4 个核心指令（涵盖 init、commit、branch、rebase）\n- 数据完整度：100% 通过健康度门禁！您可以在学习大厅直接开启刷题！"
+          }
+        ]
+      },
+      permission: {
+        title: "场景 3: 内置保护与合理解释",
+        userPrompt: "把系统里的 deck_verbs 动词题库删掉，我不需要它",
+        steps: [
+          {
+            step: 1,
+            thought: "用户请求删除 deck_verbs。调用 tool_delete_deck 发起删除请求。",
+            toolCall: {
+              id: "call_perm_1",
+              name: "tool_delete_deck",
+              arguments: { deckId: "deck_verbs" },
+              status: "error",
+              error: {
+                type: "PERMISSION_ERROR",
+                code: "BUILTIN_PROTECTED",
+                message: "系统内置预设题库受系统保护，不可删除！",
+                suggestion: "内置题库受只读保护，禁止删除。若用户不想看到，可向用户解释该保护机制，切勿重复发起删除；若需深度个性化，建议指导用户新建自定义题库。",
+                details: { targetDeckId: "deck_verbs" }
+              }
+            },
+            reply: "正在尝试删除指定题库..."
+          },
+          {
+            step: 2,
+            thought: "【反思与策略调整】上一步返回 PERMISSION_ERROR: BUILTIN_PROTECTED。系统规则明确禁止删除预设题库。不再重试删除，转为向用户礼貌解释架构保护机制，并提供折中方案。",
+            toolCall: null,
+            reply: "⚠️ **操作受限提示**：\n\n抱歉，《英语不规则动词》(deck_verbs) 属于系统**核心预设保护题库**，内置于系统只读存储中，用于兜底训练和算法校准，无法被删除。\n\n💡 **替代解决方案**：\n- 您可以在**【题库工坊】**中自由创建您专属的个性化题库；\n- 您可以随时切换当前活跃题库为其他学科，该动词题库不会干扰您的日常学习进度！"
+          }
+        ]
+      },
+      breaker: {
+        title: "场景 4: 连续同类错误死循环熔断",
+        userPrompt: "反复尝试获取不存在的错误实体",
+        steps: [
+          {
+            step: 1,
+            thought: "尝试更新实体 e_ghost_1。",
+            toolCall: {
+              id: "call_bk_1",
+              name: "tool_update_entity",
+              arguments: { deckId: "deck_http", entityId: "e_ghost_1" },
+              status: "error",
+              error: {
+                type: "REFERENCE_ERROR",
+                code: "ENTITY_NOT_FOUND",
+                message: "考点词条 e_ghost_1 在题库 deck_http 中不存在",
+                suggestion: "请核实目标 entityId"
+              }
+            },
+            reply: "正在尝试更新考点..."
+          },
+          {
+            step: 2,
+            thought: "模型未加纠正再次传入相同错误 ID。",
+            toolCall: {
+              id: "call_bk_2",
+              name: "tool_update_entity",
+              arguments: { deckId: "deck_http", entityId: "e_ghost_1" },
+              status: "error",
+              error: {
+                type: "REFERENCE_ERROR",
+                code: "ENTITY_NOT_FOUND",
+                message: "考点词条 e_ghost_1 在题库 deck_http 中不存在",
+                suggestion: "请核实目标 entityId"
+              }
+            },
+            reply: "再次尝试更新考点..."
+          },
+          {
+            step: 3,
+            thought: "【熔断触发】检测到工具 tool_update_entity:ENTITY_NOT_FOUND 连续触发 2 次，触达 Consecutive Error Budget 上限！立即熔断暂停。",
+            toolCall: null,
+            reply: "🛑 **自愈熔断保护触发**：\n\n检测到工具 `tool_update_entity` 连续触发相同异常（`ENTITY_NOT_FOUND` ≥ 2次）。为防止无限循环与资源浪费，已自动暂停执行。请检查参数或手动在工坊中核实词条！"
+          }
+        ]
+      }
+    };
+
+    let currentScenarioKey = 'reference';
+    let currentStepIndex = 0;
+    let autoTimer = null;
+
+    function selectScenario(key) {
+      if (autoTimer) clearInterval(autoTimer);
+      currentScenarioKey = key;
+      currentStepIndex = 0;
+
+      // 更新按钮高亮
+      document.querySelectorAll('.scenario-btn').forEach(btn => {
+        btn.classList.remove('border-indigo-700', 'bg-indigo-950/40');
+        btn.classList.add('border-slate-800', 'bg-slate-900/60');
+      });
+      const activeBtn = document.getElementById('btn-scene-' + key);
+      if (activeBtn) {
+        activeBtn.classList.add('border-indigo-700', 'bg-indigo-950/40');
+        activeBtn.classList.remove('border-slate-800', 'bg-slate-900/60');
+      }
+
+      resetSimulation();
+    }
+
+    function resetSimulation() {
+      if (autoTimer) clearInterval(autoTimer);
+      currentStepIndex = 0;
+      document.getElementById('current-step-display').innerText = `0 / ${SCENARIOS[currentScenarioKey].steps.length}`;
+      document.getElementById('messages-container').innerHTML = '';
+      document.getElementById('wire-status').innerText = '空闲';
+      document.getElementById('wire-json').innerText = '{\n  "status": "等待执行..."\n}';
+
+      // 渲染初始用户消息
+      const container = document.getElementById('messages-container');
+      container.insertAdjacentHTML('beforeend', `
+        <div class="flex gap-3 justify-end">
+          <div class="p-3.5 rounded-2xl rounded-tr-sm text-xs leading-relaxed text-slate-100 bg-indigo-600/90 border border-indigo-500 shadow-sm max-w-xl">
+            ${SCENARIOS[currentScenarioKey].userPrompt}
+          </div>
+        </div>
+      `);
+    }
+
+    function stepForward() {
+      const scenario = SCENARIOS[currentScenarioKey];
+      if (currentStepIndex >= scenario.steps.length) return;
+
+      const stepData = scenario.steps[currentStepIndex];
+      currentStepIndex++;
+      document.getElementById('current-step-display').innerText = `${currentStepIndex} / ${scenario.steps.length}`;
+
+      renderStep(stepData);
+    }
+
+    function renderStep(stepData) {
+      const container = document.getElementById('messages-container');
+      
+      let reasoningHtml = '';
+      if (stepData.thought) {
+        reasoningHtml = `
+          <details open class="mb-3 p-2.5 rounded-xl bg-slate-950/90 border border-indigo-950 group">
+            <summary class="flex items-center justify-between cursor-pointer list-none text-[11px] text-indigo-300 font-mono">
+              <span class="flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                <span>深度思考过程 (第 ${stepData.step} 步)</span>
+              </span>
+              <span class="text-[10px] text-slate-500 group-open:rotate-180 transition">▼</span>
+            </summary>
+            <div class="mt-2 text-[11px] text-slate-400 leading-relaxed font-sans border-t border-slate-900 pt-2">
+              ${stepData.thought}
+            </div>
+          </details>
+        `;
+      }
+
+      let toolHtml = '';
+      if (stepData.toolCall) {
+        const tc = stepData.toolCall;
+        const isError = tc.status === 'error';
+        const isSuccess = tc.status === 'success';
+
+        let badge = '';
+        let resultSection = '';
+
+        if (isError) {
+          badge = '<span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-rose-950 text-rose-300 border border-rose-800">❌ 异常 (已转交 Agent 自愈)</span>';
+          resultSection = `
+            <div class="pt-2 mt-2 border-t border-rose-950/80 flex flex-col gap-1 text-[11px]">
+              <div class="text-rose-300 font-semibold flex items-center gap-1">
+                <span class="px-1 py-0.2 rounded bg-rose-900/60 text-[9px] font-mono">${tc.error.type}</span>
+                <span>${tc.error.message}</span>
+              </div>
+              <div class="text-[10px] text-amber-300/90 font-mono bg-amber-950/30 p-1.5 rounded-lg border border-amber-900/40">
+                💡 纠错建议: ${tc.error.suggestion}
+              </div>
+            </div>
+          `;
+
+          // 更新底层传输载荷监视器
+          document.getElementById('wire-status').innerText = '异常反馈载荷';
+          document.getElementById('wire-json').innerText = JSON.stringify({
+            role: "tool",
+            tool_call_id: tc.id,
+            name: tc.name,
+            content: {
+              success: false,
+              error: tc.error
+            }
+          }, null, 2);
+
+        } else if (isSuccess) {
+          badge = '<span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">已执行并回传</span>';
+          resultSection = `
+            <div class="pt-2 mt-2 border-t border-slate-800 text-[11px] text-emerald-400 font-mono">
+              ✅ 执行成功，已回传数据至大模型上下文
+            </div>
+          `;
+
+          document.getElementById('wire-status').innerText = '成功结果载荷';
+          document.getElementById('wire-json').innerText = JSON.stringify({
+            role: "tool",
+            tool_call_id: tc.id,
+            name: tc.name,
+            content: {
+              success: true,
+              result: tc.result
+            }
+          }, null, 2);
+        }
+
+        toolHtml = `
+          <details open class="p-3 rounded-xl mb-3 text-xs bg-slate-900/90 border ${isError ? 'border-rose-900/60 bg-rose-950/10' : 'border-indigo-900/50'} group">
+            <summary class="flex items-center justify-between cursor-pointer list-none">
+              <div class="flex items-center gap-2">
+                <span class="p-0.5 px-1 rounded ${isError ? 'bg-rose-950 text-rose-300 border-rose-800' : 'bg-indigo-950 text-indigo-300 border-indigo-800'} font-mono text-[9px] border">TOOL CALL</span>
+                <span class="font-bold text-white font-mono">${tc.name}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                ${badge}
+                <span class="text-[10px] text-slate-500 group-open:rotate-180 transition">▼</span>
+              </div>
+            </summary>
+            <div class="py-2 text-[11px] text-slate-400 font-mono border-t border-slate-800/80 mt-2">
+              参数: ${JSON.stringify(tc.arguments)}
+            </div>
+            ${resultSection}
+          </details>
+        `;
+      }
+
+      const assistantMsg = `
+        <div class="flex gap-3 justify-start">
+          <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 text-indigo-400">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          </div>
+          <div class="max-w-2xl flex-1 flex flex-col items-start">
+            <div class="p-4 rounded-2xl rounded-tl-sm text-xs leading-relaxed text-slate-200 bg-[#0b1120] border border-slate-800 shadow-md w-full">
+              ${reasoningHtml}
+              ${toolHtml}
+              <div class="space-y-1.5 leading-relaxed">${stepData.reply.replace(/\n/g, '<br>')}</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      container.insertAdjacentHTML('beforeend', assistantMsg);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function runFullAuto() {
+      resetSimulation();
+      const scenario = SCENARIOS[currentScenarioKey];
+      autoTimer = setInterval(() => {
+        if (currentStepIndex >= scenario.steps.length) {
+          clearInterval(autoTimer);
+          return;
+        }
+        stepForward();
+      }, 1200);
+    }
+
+    // 初始化加载
+    window.addEventListener('DOMContentLoaded', () => {
+      resetSimulation();
+    });
+  </script>
+</body>
+</html>
