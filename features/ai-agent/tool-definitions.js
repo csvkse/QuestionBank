@@ -16,11 +16,13 @@ export const DECK_TOOL_DEFINITIONS = [
     type: 'function',
     function: {
       name: 'tool_get_deck',
-      description: '通过题库 ID 查询其完整的分类、分层及全部考点词条。',
+      description: '通过题库 ID 或题库名称查询其完整的分类、分层及全部考点词条。',
       parameters: {
         type: 'object',
-        properties: { deckId: { type: 'string', description: '题库唯一标识符' } },
-        required: ['deckId']
+        properties: {
+          deckId: { type: 'string', description: '题库唯一标识符或完整名称' },
+          title: { type: 'string', description: '可选，题库名称' }
+        }
       }
     }
   },
@@ -80,12 +82,7 @@ export const DECK_TOOL_DEFINITIONS = [
       description: '修改指定题库的标题、图标或简介。',
       parameters: {
         type: 'object',
-        properties: {
-          deckId: { type: 'string' },
-          title: { type: 'string' },
-          icon: { type: 'string' },
-          description: { type: 'string' }
-        },
+        properties: { deckId: { type: 'string' }, title: { type: 'string' }, icon: { type: 'string' }, description: { type: 'string' } },
         required: ['deckId']
       }
     }
@@ -95,11 +92,7 @@ export const DECK_TOOL_DEFINITIONS = [
     function: {
       name: 'tool_delete_deck',
       description: '删除用户自定义题库及其答题记录。受保护的系统预设题库将被拒绝。',
-      parameters: {
-        type: 'object',
-        properties: { deckId: { type: 'string' } },
-        required: ['deckId']
-      }
+      parameters: { type: 'object', properties: { deckId: { type: 'string' } }, required: ['deckId'] }
     }
   },
   {
@@ -109,10 +102,7 @@ export const DECK_TOOL_DEFINITIONS = [
       description: '向指定题库中批量追加新考点词条。',
       parameters: {
         type: 'object',
-        properties: {
-          deckId: { type: 'string' },
-          entities: { type: 'array' }
-        },
+        properties: { deckId: { type: 'string' }, entities: { type: 'array' } },
         required: ['deckId', 'entities']
       }
     }
@@ -124,11 +114,7 @@ export const DECK_TOOL_DEFINITIONS = [
       description: '修改指定题库中特定词条的内容（题干、标准答案、易错陷阱说明或解析）。',
       parameters: {
         type: 'object',
-        properties: {
-          deckId: { type: 'string' },
-          entityId: { type: 'string' },
-          updates: { type: 'object' }
-        },
+        properties: { deckId: { type: 'string' }, entityId: { type: 'string' }, updates: { type: 'object' } },
         required: ['deckId', 'entityId', 'updates']
       }
     }
@@ -176,8 +162,10 @@ export const DECK_TOOL_DEFINITIONS = [
       description: '获取指定题库的系统化知识导学图与核心全景概览。',
       parameters: {
         type: 'object',
-        properties: { deckId: { type: 'string', description: '题库唯一标识符' } },
-        required: ['deckId']
+        properties: {
+          deckId: { type: 'string', description: '题库唯一标识符或完整名称' },
+          title: { type: 'string', description: '可选，题库名称' }
+        }
       }
     }
   },
@@ -189,17 +177,18 @@ export const DECK_TOOL_DEFINITIONS = [
       parameters: {
         type: 'object',
         properties: {
-          deckId: { type: 'string', description: '题库唯一标识符' },
+          deckId: { type: 'string', description: '题库唯一标识符或完整名称' },
+          title: { type: 'string', description: '可选，题库名称' },
           guide: {
             type: 'object',
             properties: {
-              summary: { type: 'string', description: '知识体系一句话或段落全景摘要' },
+              summary: { type: 'string', description: '先行组织者 · 核心心智模型一句话概要' },
               markdown: { type: 'string', description: '系统化 Markdown 导学知识内容，支持考点链接与分类图解' }
             },
             required: ['summary', 'markdown']
           }
         },
-        required: ['deckId', 'guide']
+        required: ['guide']
       }
     }
   },
