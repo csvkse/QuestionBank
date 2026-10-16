@@ -214,24 +214,33 @@ export class AiAgentClient {
       } else {
         // 第二步或后续步骤：已经收到了工具反馈！
         const lastToolMsg = messages.filter(m => m.role === 'tool').pop();
-        if (lastToolMsg && lastToolMsg.name === 'tool_list_decks' && (userQuery.includes('Docker') || userQuery.includes('建'))) {
+        if (lastToolMsg && lastToolMsg.content.includes('"success":false')) {
+          if (lastToolMsg.content.includes('DECK_NOT_FOUND')) {
+            reasoningText = `[第 ${step} 步思考] 上一步工具返回引用异常 (DECK_NOT_FOUND)。正在自愈纠错：先调用只读工具 tool_list_decks 查验真实存在的题库清单。`;
+            toolCall = { id: 'call_mock_heal_' + Date.now(), name: 'tool_list_decks', arguments: {} };
+            replyText = '检测到目标题库不存在，正在为您检索系统题库列表以获取正确 ID 进行自愈...';
+          } else if (lastToolMsg.content.includes('BUILTIN_PROTECTED')) {
+            reasoningText = `[第 ${step} 步思考] 上一步工具返回权限保护异常 (BUILTIN_PROTECTED)。内置预设题库受系统保护禁止删除。向用户说明原因并给出合理建议。`;
+            replyText = `⚠️ **系统提示**：内置预设题库属于系统只读保护资源，无法直接修改或删除。如果您需要定制，我可以为您克隆一套全新的独立题库！`;
+            toolCall = null;
+          } else {
+            reasoningText = `[第 ${step} 步思考] 上一步工具返回异常。根据 suggestion 规范调整策略。`;
+            replyText = '已收到工具执行反馈，已根据系统纠错建议完成策略调整。';
+            toolCall = null;
+          }
+        } else if (lastToolMsg && lastToolMsg.name === 'tool_list_decks' && (userQuery.includes('Docker') || userQuery.includes('建'))) {
           reasoningText = `[第 ${step} 步思考] 已成功获取题库列表。确认无重名冲突！开始规划 Docker 三维知识结构（2大分类，8个考点，满足 >=4 门禁），调用 tool_create_deck 进行落库。`;
           toolCall = {
             id: 'call_mock_create_' + Date.now(),
             name: 'tool_create_deck',
             arguments: {
-              title: 'Docker 容器架构与命令实战',
-              icon: '🐳',
+              title: 'Docker 容器架构与命令实战', icon: '🐳',
               description: '包含容器生命周期指令、数据卷驱动与网络互联',
               categories: [
                 { id: 'cat_lifecycle', name: '容器生命周期指令', group: '一、基础架构' },
                 { id: 'cat_storage', name: '数据卷与存储驱动', group: '二、存储网络' }
               ],
-              layers: [
-                { level: 1, name: 'Layer 1: 基础认知' },
-                { level: 2, name: 'Layer 2: 规律运用' },
-                { level: 3, name: 'Layer 3: 陷阱特例' }
-              ],
+              layers: [{ level: 1, name: '基础' }, { level: 2, name: '运用' }, { level: 3, name: '特例' }],
               entities: [
                 { id: 'e_run', categoryId: 'cat_lifecycle', layer: 1, title: 'docker run', prompt: '创建并启动容器：', answer: 'docker run' },
                 { id: 'e_start', categoryId: 'cat_lifecycle', layer: 1, title: 'docker start', prompt: '启动已停止容器：', answer: 'docker start' },

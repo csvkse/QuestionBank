@@ -4,6 +4,7 @@
  */
 
 import { DECK_TOOL_DEFINITIONS } from './tool-definitions.js';
+import { toToolErrorPayload } from './tool-errors.js';
 
 export class AgentLoopEngine {
   constructor({ client, executor, store, ui }) {
@@ -17,14 +18,14 @@ export class AgentLoopEngine {
     this.isPausedForApproval = false;
     this.pendingAssistantMsgId = null;
     this.pendingToolCall = null;
+    this.consecutiveErrorCounts = {};
   }
 
   abort() {
     this.store.saveSessions();
-    this.isRunning = false;
-    this.isPausedForApproval = false;
-    this.pendingAssistantMsgId = null;
-    this.pendingToolCall = null;
+    this.isRunning = false; this.isPausedForApproval = false;
+    this.pendingAssistantMsgId = null; this.pendingToolCall = null;
+    this.consecutiveErrorCounts = {};
     this.client.abort();
     this.ui.toggleSendButtonState(false);
     this.ui.renderCurrentSession();
@@ -34,6 +35,7 @@ export class AgentLoopEngine {
     if (this.isRunning) return;
     this.isRunning = true;
     this.currentStep = 0;
+    this.consecutiveErrorCounts = {};
 
     // 1. 追加用户问题
     this.store.appendMessage({ id: 'msg_' + Date.now(), role: 'user', content: userContent });
@@ -156,18 +158,31 @@ export class AgentLoopEngine {
   }
 
   async executeAndFeedBack(assistantMsgId, toolCall) {
-    try {
-      const execResult = await this.executor.execute(toolCall.name, toolCall.arguments);
+    let execResult;
+    let isError = false;
 
-      // 1. 标记当前助手卡片完成
+    try {
+      execResult = await this.executor.execute(toolCall.name, toolCall.arguments);
+    } catch (err) {
+      isError = true;
+      execResult = toToolErrorPayload(err, toolCall);
+    }
+
+    if (isError) {
+      const errObj = execResult.error || {};
+      const errorKey = `${toolCall.name}:${errObj.code || 'UNKNOWN'}`;
+      this.consecutiveErrorCounts[errorKey] = (this.consecutiveErrorCounts[errorKey] || 0) + 1;
+
+      // 1. 标记当前助手卡片为 error 状态并记录结构化错误
       this.store.updateMessage(assistantMsgId, m => {
         if (m.toolCall) {
-          m.toolCall.status = 'success';
-          m.toolCall.result = execResult;
+          m.toolCall.status = 'error';
+          m.toolCall.error = errObj;
+          m.toolCall.previewText = `[第 ${this.currentStep} 步] 调用 ${toolCall.name} 失败: ${errObj.message}`;
         }
       });
 
-      // 2. 将执行结果作为 role: 'tool' 存入上下文流
+      // 2. 将错误结构作为 role: 'tool' 存入上下文流，让 Agent 自愈
       this.store.appendMessage({
         id: 'msg_tool_' + Date.now(),
         role: 'tool',
@@ -178,24 +193,56 @@ export class AgentLoopEngine {
 
       this.ui.renderCurrentSession();
 
-      // 3. 💥 关键点：自动推进进入下一步循环！
+      // 3. 连续同类错误死循环熔断保护 (>= 2 次相同工具与错误代码)
+      if (this.consecutiveErrorCounts[errorKey] >= 2) {
+        this.finishLoop(`\n\n⚠️ 检测到工具 \`${toolCall.name}\` 连续异常 (${errObj.message})，自愈熔断保护生效已暂停执行。请检查参数或手动操作。`);
+        return;
+      }
+
+      // 4. 推动进入下一步循环，让 Agent 读取错误自愈/修正/解释！
       this.isPausedForApproval = false;
       this.pendingToolCall = null;
       await this.stepLoop();
 
-    } catch (err) {
-      this.finishLoop(`\n\n❌ 工具执行失败: ${err.message}`);
+    } else {
+      this.consecutiveErrorCounts = {}; // 成功调用，重置连续错误计数
+
+      this.store.updateMessage(assistantMsgId, m => {
+        if (m.toolCall) {
+          m.toolCall.status = 'success';
+          m.toolCall.result = execResult;
+        }
+      });
+
+      this.store.appendMessage({
+        id: 'msg_tool_' + Date.now(),
+        role: 'tool',
+        name: toolCall.name,
+        tool_call_id: toolCall.id,
+        content: JSON.stringify(execResult)
+      });
+
+      this.ui.renderCurrentSession();
+
+      this.isPausedForApproval = false;
+      this.pendingToolCall = null;
+      await this.stepLoop();
     }
   }
 
   async resumeWithApproval(msgId, toolCallId) {
     if (!this.pendingToolCall || this.pendingToolCall.id !== toolCallId) {
-      // 如果不是当前挂起的工具，按常规执行
       const msg = this.store.getActiveSession()?.messages.find(m => m.id === msgId);
       if (msg?.toolCall) {
-        const res = await this.executor.execute(msg.toolCall.name, msg.toolCall.arguments);
-        msg.toolCall.status = 'success';
-        msg.toolCall.result = res;
+        try {
+          const res = await this.executor.execute(msg.toolCall.name, msg.toolCall.arguments);
+          msg.toolCall.status = 'success';
+          msg.toolCall.result = res;
+        } catch (err) {
+          const payload = toToolErrorPayload(err, msg.toolCall);
+          msg.toolCall.status = 'error';
+          msg.toolCall.error = payload.error;
+        }
         this.store.saveSessions();
         this.ui.renderCurrentSession();
       }
@@ -233,17 +280,13 @@ export class AgentLoopEngine {
   }
 
   finishLoop(errorMessage = null) {
-    this.isRunning = false;
-    this.isPausedForApproval = false;
-    this.pendingToolCall = null;
-    this.pendingAssistantMsgId = null;
+    this.isRunning = false; this.isPausedForApproval = false;
+    this.pendingToolCall = null; this.pendingAssistantMsgId = null;
 
     if (errorMessage) {
       const activeSession = this.store.getActiveSession();
-      const lastMsg = activeSession?.messages[activeSession.messages.length - 1];
-      if (lastMsg && lastMsg.role === 'assistant') {
-        lastMsg.content += errorMessage;
-      }
+      const lastMsg = activeSession?.messages.slice().reverse().find(m => m.role === 'assistant');
+      if (lastMsg) lastMsg.content += errorMessage;
     }
 
     this.store.saveSessions();

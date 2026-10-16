@@ -11,3 +11,4 @@ export { REFERENCE_PRESET_PROVIDERS, DEFAULT_PROVIDERS, API_PROTOCOLS } from './
 export { AiAgentClient } from './client.js';
 export { AgentLoopEngine } from './agent-loop.js';
 export { renderLoadingState, renderMarkdown } from './agent-templates.js';
+export { ToolError, ToolFormatError, ToolReferenceError, ToolPermissionError, ToolExecutionError, toToolErrorPayload } from './tool-errors.js';

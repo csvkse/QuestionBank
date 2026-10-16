@@ -74,6 +74,7 @@ try {
     'features/review-board/timeline-board.js',
     'features/review-board/radar-chart.js',
     'vendor/ai-sdk/ai-agent-bundle.js',
+    'features/ai-agent/tool-errors.js',
     'features/ai-agent/tool-definitions.js',
     'features/ai-agent/tool-executor.js',
     'features/ai-agent/provider-presets.js',

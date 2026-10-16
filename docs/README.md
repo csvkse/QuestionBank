@@ -52,9 +52,13 @@
 | **28** | [28_PANORAMA_COLLAPSE_SOVEREIGNTY_BUG_POSTMORTEM_AND_GATES.md](./28_PANORAMA_COLLAPSE_SOVEREIGNTY_BUG_POSTMORTEM_AND_GATES.md) | **熟练度全景大类无法折叠故障复盘、修复方案与架构门禁升级规约 (FE-PANORAMA-002)**<br>• **部分大类无法折叠故障复盘** (焦点大类点击折叠瞬间被 DOM 渲染循环强行抹除)<br>• **渲染纯洁性与副作用清零** (`renderDeckCategoryBars` 纯函数式投影，严禁篡改用户交互状态)<br>• **单次智能引导防重入机制** (`_lastAutoExpandedJevTarget` 避免自动化研判永久覆盖折叠控制权)<br>• **增设 `FE-PANORAMA-002` 架构门禁** (折叠主权硬门禁 + 全套行为单元测试套件) |
 | **29** | [29_NAVBAR_DISPLAY_OPTIMIZATION_SPEC.md](./29_NAVBAR_DISPLAY_OPTIMIZATION_SPEC.md) | **导航栏多端自适应流式排版、防折行解耦与视觉精细化重构规约 (FE-NAV-002)**<br>• **中心分段路由文字折行故障排查** (平板/小屏视口两翼挤压致使“仪表\n盘”、“知识精\n读”双行崩坏)<br>• **响应式弹性空间回收机制** (左侧品牌与右侧动作标签优先级折叠，释放 140px+ 呼吸空间)<br>• **分段路由防折行与紧凑微排版** (`whitespace-nowrap`、`shrink-0`、全交互胶囊统一度量 32px 标顶对齐)<br>• **视觉层级精修与磨砂微光** (微渐变焦点、高反差徽标、单色矢量化与零依赖流动)<br>• **增设 `FE-NAV-002` 架构门禁** (防折行与全视口单行流式硬门禁 + [交互预览工作台](./29_navbar_display_preview.html)) |
 
+| **30** | [30_LONG_CONVERSATION_PERFORMANCE_POSTMORTEM_AND_GATES.md](./30_LONG_CONVERSATION_PERFORMANCE_POSTMORTEM_AND_GATES.md) | **长篇对话卡顿：原因调研、修复和回归门禁**<br>• 本地证据与复现（全历史重复渲染、全会话同步保存、强制滚动排版）<br>• 架构修复（局部更新、分片刷新合并、合并保存与终态立即保存）<br>• 增设 FE-CHAT-PERF-001 性能门禁与自动化断言 |
+| **31** | [31_AGENT_TOOL_CALL_EXCEPTION_FEEDBACK_AND_SELF_HEALING_SPEC.md](./31_AGENT_TOOL_CALL_EXCEPTION_FEEDBACK_AND_SELF_HEALING_SPEC.md) | **页面 Agent 工具方法调用异常反馈与自主修复闭环规约 (Agent Tool Calling Exception Feedback & Self-Healing Spec)**<br>• **异常拦截与回传闭环** (工具失败不再熔断会话，结构化封装并回传 `role: 'tool'` 消息驱动模型反思)<br>• **四维异常分类学规约** (`FORMAT_ERROR`、`REFERENCE_ERROR`、`PERMISSION_ERROR`、`EXECUTION_ERROR`)<br>• **连续同类错误预算与防死循环熔断** (同一工具相同错误码连续失败 ≥2 次安全熔断)<br>• **错误卡片状态视觉规范** (红底高亮警示、失败类型、原因说明与 Agent 纠错建议)<br>• **[交互预览工作台](./31_agent_tool_exception_preview.html)** (四大核心场景交互模拟推演与 Wire 载荷监视) |
+
 ---
 
 长篇对话性能调研与已执行的修复、浏览器复现证据和回归门禁见 [30_LONG_CONVERSATION_PERFORMANCE_POSTMORTEM_AND_GATES.md](./30_LONG_CONVERSATION_PERFORMANCE_POSTMORTEM_AND_GATES.md)。
+Agent 工具方法调用异常反馈与自主修复闭环规约见 [31_AGENT_TOOL_CALL_EXCEPTION_FEEDBACK_AND_SELF_HEALING_SPEC.md](./31_AGENT_TOOL_CALL_EXCEPTION_FEEDBACK_AND_SELF_HEALING_SPEC.md)。
 
 ## 🗄️ 历史版本归档
 
