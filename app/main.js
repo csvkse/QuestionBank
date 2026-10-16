@@ -112,7 +112,7 @@ export class KnowledgeMasterApp {
     const deckTitle = deck ? deck.title : deckId;
     this.router.navigate('agent');
     const prompt = `请为题库《${deckTitle}》(ID: ${deckId}) 生成系统化知识导学内容（Advance Organizer）。
-请先调用 tool_get_deck 分析该题库的知识分类与考点，梳理核心认知模型与易混淆对比表，然后调用 tool_update_deck_guide 为题库配置系统化导学页！`;
+请先调用 tool_get_deck(deckId="${deckId}", title="${deckTitle}") 分析题库《${deckTitle}》的知识分类与考点，梳理核心认知模型与易混淆对比表，然后调用 tool_update_deck_guide(deckId="${deckId}", title="${deckTitle}") 为题库《${deckTitle}》配置系统化导学页！`;
     setTimeout(() => {
       const input = document.getElementById('ai-chat-input');
       if (input) {

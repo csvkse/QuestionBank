@@ -123,6 +123,32 @@ const x = 1;
     formatErrorThrown = err instanceof ToolFormatError;
   }
   assert(formatErrorThrown, 'Missing guide parameter should throw ToolFormatError');
+
+  // 3.5 携带题库名称（title / deckTitle）或仅传题库名称均能精准寻址
+  const deckByTitle = await executor.execute('tool_get_deck', { title: '自定义题库' });
+  assert(deckByTitle.id === 'custom_1', 'Should resolve deck by title');
+
+  const deckByNameAsId = await executor.execute('tool_get_deck', { deckId: '自定义题库' });
+  assert(deckByNameAsId.id === 'custom_1', 'Should resolve deck when title is passed as deckId');
+
+  const resUpdateWithTitle = await executor.execute('tool_update_deck_guide', {
+    deckId: 'custom_1',
+    title: '自定义题库',
+    guide: {
+      summary: '双参携带题库名称更新成功',
+      markdown: '### 结构化双参导读'
+    }
+  });
+  assert(resUpdateWithTitle.success === true && resUpdateWithTitle.title === '自定义题库', 'Update guide with title parameter should succeed');
+
+  const resUpdateByNameOnly = await executor.execute('tool_update_deck_guide', {
+    title: '自定义题库',
+    guide: {
+      summary: '仅凭题库名称成功更新导读',
+      markdown: '### 纯题库名称导读'
+    }
+  });
+  assert(resUpdateByNameOnly.success === true && resUpdateByNameOnly.deckId === 'custom_1', 'Update guide by title only should succeed');
 }
 
 console.log('✅ guide.test.mjs PASSED!');

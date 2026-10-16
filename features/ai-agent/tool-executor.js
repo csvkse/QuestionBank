@@ -17,6 +17,21 @@ export class DeckToolExecutor {
     this.app.renderAllViews();
   }
 
+  _resolveDeck(queryId, queryTitle, customOnly = false) {
+    const list = customOnly ? (this.app.state.customDecks || []) : this.app.getAllDecks();
+    if (queryId) {
+      const byId = list.find(d => d.id === queryId);
+      if (byId) return byId;
+      const byTitleAsId = list.find(d => d.title === queryId);
+      if (byTitleAsId) return byTitleAsId;
+    }
+    if (queryTitle) {
+      const byTitle = list.find(d => d.title === queryTitle || d.title.includes(queryTitle));
+      if (byTitle) return byTitle;
+    }
+    return null;
+  }
+
   async execute(toolName, args = {}) {
     switch (toolName) {
       case 'tool_list_decks': {
@@ -33,10 +48,9 @@ export class DeckToolExecutor {
       }
 
       case 'tool_get_deck': {
-        if (!args?.deckId) throw new ToolFormatError('缺少必填参数 deckId', 'MISSING_FIELD', '调用 tool_get_deck 必须传入具体的 deckId 字符串');
-        const deck = this.app.getAllDecks().find(d => d.id === args.deckId);
-        if (!deck) throw new ToolReferenceError(`未找到 ID 为 "${args.deckId}" 的题库`, 'DECK_NOT_FOUND', '请核对准确的 deckId 后再重试', { requestedDeckId: args.deckId });
-        return deck;
+        const target = this._resolveDeck(args?.deckId || args?.id, args?.title || args?.deckTitle, false);
+        if (!target) throw new ToolReferenceError(`未找到题库 "${args?.deckId || args?.title || ''}"`, 'DECK_NOT_FOUND', '请核对准确的 deckId 或题库名称后再重试', { requested: args?.deckId || args?.title });
+        return target;
       }
 
       case 'tool_create_deck': {
@@ -164,37 +178,45 @@ export class DeckToolExecutor {
       }
 
       case 'tool_get_deck_guide': {
-        if (!args?.deckId) throw new ToolFormatError('缺少必填参数 deckId', 'MISSING_FIELD', '必须传入具体的 deckId 字符串');
-        const deck = this.app.getAllDecks().find(d => d.id === args.deckId);
-        if (!deck) throw new ToolReferenceError(`未找到 ID 为 "${args.deckId}" 的题库`, 'DECK_NOT_FOUND', '请核对 deckId 是否正确');
+        const queryId = args?.deckId || args?.id;
+        const queryTitle = args?.title || args?.deckTitle;
+        if (!queryId && !queryTitle) throw new ToolFormatError('缺少必填参数 deckId 或 title', 'MISSING_FIELD', '必须传入具体的 deckId 或 title 字符串');
+        const deck = this._resolveDeck(queryId, queryTitle, false);
+        if (!deck) throw new ToolReferenceError(`未找到题库 "${queryId || queryTitle}"`, 'DECK_NOT_FOUND', '请核对 deckId 或题库名称是否正确');
         return { deckId: deck.id, title: deck.title, hasGuide: Boolean(deck.guide && (deck.guide.summary || deck.guide.markdown)), guide: deck.guide || null };
       }
 
       case 'tool_update_deck_guide': {
-        if (!args?.deckId || !args.guide || typeof args.guide !== 'object') throw new ToolFormatError('缺少 deckId 或 guide 对象', 'MISSING_FIELD', 'guide 必须包含 summary 和 markdown 字段');
-        const deck = (this.app.state.customDecks || []).find(d => d.id === args.deckId);
-        if (!deck) {
-          if ((this.app.getAllDecks() || []).some(d => d.id === args.deckId)) throw new ToolPermissionError(`预设题库 "${args.deckId}" 导学页受只读保护`, 'READONLY_PRESET_DECK', '内置题库导学页不支持在线覆盖');
-          throw new ToolReferenceError(`未找到自定义题库 "${args.deckId}"`, 'DECK_NOT_FOUND', '请检查 deckId 是否存在于自定义题库中');
-        }
+        const queryId = args?.deckId || args?.id;
+        const queryTitle = args?.title || args?.deckTitle;
+        if ((!queryId && !queryTitle) || !args?.guide || typeof args.guide !== 'object') throw new ToolFormatError('缺少 deckId/title 或 guide 对象', 'MISSING_FIELD', 'guide 必须包含 summary 和 markdown 字段');
+        const target = this._resolveDeck(queryId, queryTitle, false);
+        if (!target) throw new ToolReferenceError(`未找到题库 "${queryId || queryTitle}"`, 'DECK_NOT_FOUND', '请检查题库是否存在');
+        if (['deck_verbs', 'deck_http', 'deck_python'].includes(target.id)) throw new ToolPermissionError(`预设题库 "${target.title}" 导学页受只读保护`, 'READONLY_PRESET_DECK', '内置题库导学页不支持在线覆盖');
+        const deck = (this.app.state.customDecks || []).find(d => d.id === target.id);
+        if (!deck) throw new ToolReferenceError(`未找到自定义题库 "${target.title}"`, 'DECK_NOT_FOUND', '只能修改用户自定义题库');
         deck.guide = { summary: String(args.guide.summary || '').trim(), markdown: String(args.guide.markdown || '').trim() };
         this._saveAndRender();
         return { success: true, deckId: deck.id, title: deck.title, guide: deck.guide };
       }
 
       case 'tool_delete_deck_guide': {
-        if (!args?.deckId) throw new ToolFormatError('缺少 deckId', 'MISSING_FIELD', '必须指定 deckId');
+        const target = this._resolveDeck(args?.deckId || args?.id, args?.title || args?.deckTitle, true);
+        const resolvedId = target ? target.id : (args?.deckId || args?.id);
+        if (!resolvedId) throw new ToolFormatError('缺少 deckId 或 title', 'MISSING_FIELD', '必须指定 deckId 或 title');
         try {
-          return this.app.deckVersioning.deleteDeckGuide(args.deckId);
+          return this.app.deckVersioning.deleteDeckGuide(resolvedId);
         } catch (e) {
           throw new ToolReferenceError(e.message, 'DELETE_GUIDE_FAILED', '清空导学失败');
         }
       }
 
       case 'tool_patch_deck_guide': {
-        if (!args?.deckId || !args?.operation) throw new ToolFormatError('缺少 deckId 或 operation', 'MISSING_FIELD', '必须指定 deckId 与 operation');
+        const target = this._resolveDeck(args?.deckId || args?.id, args?.title || args?.deckTitle, true);
+        const resolvedId = target ? target.id : (args?.deckId || args?.id);
+        if (!resolvedId || !args?.operation) throw new ToolFormatError('缺少 deckId/title 或 operation', 'MISSING_FIELD', '必须指定 deckId/title 与 operation');
         try {
-          return this.app.deckVersioning.patchDeckGuide(args.deckId, args);
+          return this.app.deckVersioning.patchDeckGuide(resolvedId, args);
         } catch (e) {
           throw new ToolReferenceError(e.message, 'PATCH_GUIDE_FAILED', '导学增量修改失败');
         }
