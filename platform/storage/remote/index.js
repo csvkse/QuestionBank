@@ -12,12 +12,13 @@ import {
   PreconditionFailedError,
   NetworkError
 } from './remote-adapter.js';
-import { WebDavAdapter } from './webdav-adapter.js';
+import { WebDavAdapter, mergeSegmentsWithoutOverlap } from './webdav-adapter.js';
 
 export {
   RemoteObjectStore,
   MemoryRemoteAdapter,
   WebDavAdapter,
+  mergeSegmentsWithoutOverlap,
   RemoteStorageError,
   AuthenticationError,
   NotFoundError,

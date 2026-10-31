@@ -12,6 +12,17 @@ import {
   NetworkError
 } from './remote-adapter.js';
 
+export function mergeSegmentsWithoutOverlap(a, b) {
+  for (let k = Math.min(a.length, b.length); k > 0; k--) {
+    let match = true;
+    for (let i = 0; i < k; i++) {
+      if (a[a.length - k + i] !== b[i]) { match = false; break; }
+    }
+    if (match) return [...a, ...b.slice(k)];
+  }
+  return [...a, ...b];
+}
+
 export class WebDavAdapter extends RemoteObjectStore {
   constructor(config = {}) {
     super(config);
@@ -44,30 +55,21 @@ export class WebDavAdapter extends RemoteObjectStore {
     let cleanRel = (relPath || '').replace(/\\/g, '/').replace(/^\/+/, '');
     if (cleanRel.includes('..')) throw new RemoteStorageError('Relative path traversal (..) forbidden');
 
-    let endpointPath = '';
+    let endpointObj = null, endpointSegments = [];
     try {
-      endpointPath = new URL(this.endpoint).pathname.replace(/^\/+|\/+$/g, '');
-    } catch {
-      endpointPath = '';
-    }
+      endpointObj = new URL(this.endpoint);
+      endpointSegments = endpointObj.pathname.split('/').filter(Boolean);
+    } catch { endpointSegments = []; }
 
-    const base = this.basePath;
-    const endpointEndsWithBase = Boolean(base && (endpointPath === base || endpointPath.endsWith('/' + base)));
+    const baseSegments = (this.basePath || '').split('/').filter(Boolean);
+    const relSegments = cleanRel.split('/').filter(Boolean);
 
-    if (base && (cleanRel === base || cleanRel.startsWith(base + '/'))) {
-      cleanRel = cleanRel.slice(base.length).replace(/^\/+/, '');
-    }
+    const endPlusBase = mergeSegmentsWithoutOverlap(endpointSegments, baseSegments);
+    const allSegments = mergeSegmentsWithoutOverlap(endPlusBase, relSegments);
 
-    const segments = [];
-    if (base && !endpointEndsWithBase) segments.push(base);
-
-    if (cleanRel) {
-      cleanRel.split('/').forEach(s => {
-        const t = s.trim();
-        if (t && t !== '.') segments.push(encodeURIComponent(t));
-      });
-    }
-    return `${this.endpoint}/${segments.join('/')}`;
+    const encodedPath = allSegments.map(s => encodeURIComponent(s)).join('/');
+    const origin = endpointObj ? endpointObj.origin : this.endpoint.replace(/\/+$/, '');
+    return `${origin}/${encodedPath}`;
   }
 
   async _request(method, relPath, options = {}) {
@@ -129,17 +131,16 @@ export class WebDavAdapter extends RemoteObjectStore {
   }
 
   async ensureParentCollections(filePath, signal) {
-    let clean = (filePath || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-    if (this.basePath && (clean === this.basePath || clean.startsWith(this.basePath + '/'))) {
-      clean = clean.slice(this.basePath.length).replace(/^\/+/, '');
-    }
-    const parts = clean.split('/').filter(Boolean);
-    if (parts.length <= 1) return;
-    parts.pop();
+    const baseSegments = (this.basePath || '').split('/').filter(Boolean);
+    const cleanRel = (filePath || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    const relSegments = cleanRel.split('/').filter(Boolean);
+    const fileParentSegments = relSegments.slice(0, -1);
 
-    let current = '';
-    for (const part of parts) {
-      current = current ? `${current}/${part}` : part;
+    const dirSegments = mergeSegmentsWithoutOverlap(baseSegments, fileParentSegments);
+    if (dirSegments.length === 0) return;
+
+    for (let i = 1; i <= dirSegments.length; i++) {
+      const current = dirSegments.slice(0, i).join('/');
       if (this._ensuredCollections.has(current)) continue;
       try {
         await this.mkcol(current, { signal });
@@ -188,19 +189,14 @@ export class WebDavAdapter extends RemoteObjectStore {
   }
 
   async remove(path, options = {}, signal) {
-    const headers = {};
-    if (options.ifMatch) headers['If-Match'] = options.ifMatch;
+    const headers = options.ifMatch ? { 'If-Match': options.ifMatch } : {};
     await this._request('DELETE', path, { headers, signal });
     return { success: true };
   }
 
   async list(prefix = '', signal) {
     const propfindXml = `<?xml version="1.0" encoding="utf-8" ?>\n<d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/><d:getetag/><d:getlastmodified/></d:prop></d:propfind>`;
-    const res = await this._request('PROPFIND', prefix, {
-      headers: { Depth: '1' },
-      body: propfindXml,
-      signal
-    });
+    const res = await this._request('PROPFIND', prefix, { headers: { Depth: '1' }, body: propfindXml, signal });
     return this._parseMultistatusXml(await res.text());
   }
 
@@ -234,17 +230,22 @@ export class WebDavAdapter extends RemoteObjectStore {
 
   _normalizeListedPath(href) {
     try {
-      const u = new URL(href, this.endpoint);
-      let p = u.pathname;
-      let endpointPath = '';
-      try { endpointPath = new URL(this.endpoint).pathname.replace(/\/+$/, ''); } catch {}
+      let p = new URL(href, this.endpoint).pathname;
+      let endpointSegments = [];
+      try { endpointSegments = new URL(this.endpoint).pathname.split('/').filter(Boolean); } catch {}
+      const baseSegments = (this.basePath || '').split('/').filter(Boolean);
+      const effectiveBaseSegments = mergeSegmentsWithoutOverlap(endpointSegments, baseSegments);
+      const effectiveBasePath = '/' + effectiveBaseSegments.join('/');
 
-      if (endpointPath && p.startsWith(endpointPath)) p = p.slice(endpointPath.length);
-      p = p.replace(/^\/+/, '');
-      if (this.basePath && (p === this.basePath || p.startsWith(this.basePath + '/'))) {
-        p = p.slice(this.basePath.length).replace(/^\/+/, '');
+      if (effectiveBasePath !== '/' && p.startsWith(effectiveBasePath)) {
+        p = p.slice(effectiveBasePath.length);
+      } else {
+        const epPath = '/' + endpointSegments.join('/');
+        if (epPath !== '/' && p.startsWith(epPath)) p = p.slice(epPath.length);
+        const basePathPref = '/' + baseSegments.join('/');
+        if (basePathPref !== '/' && p.startsWith(basePathPref)) p = p.slice(basePathPref.length);
       }
-      return p;
+      return p.replace(/^\/+/, '');
     } catch {
       return href.replace(/^\/+/, '');
     }
@@ -272,7 +273,7 @@ export class WebDavAdapter extends RemoteObjectStore {
         try {
           await this.put(probeFilename, JSON.stringify({ probe: true, step: 2 }), { ifMatch: etag, signal });
           conditionalReplace = true;
-        } catch { conditionalReplace = false; }
+        } catch {}
       }
 
       await this.remove(probeFilename, {}, signal).catch(() => {});

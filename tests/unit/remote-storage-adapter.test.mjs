@@ -7,6 +7,7 @@ import {
   createRemoteAdapter,
   MemoryRemoteAdapter,
   WebDavAdapter,
+  mergeSegmentsWithoutOverlap,
   PreconditionFailedError,
   AuthenticationError,
   NotFoundError,
@@ -114,6 +115,22 @@ function assert(condition, message) {
   });
   const endpointDupUrl = nestedDav._buildUrl('arena-root/backups/user/snap.json');
   assert(endpointDupUrl === 'https://dav.example.com/webdav/arena-root/backups/user/snap.json', '当 endpoint 已包含 basePath 时不应重复追加');
+
+  // 2.2c 边界重叠消除 (如 endpoint /dav 与 basePath dav/ 重叠消除，严禁出现 /dav/dav/)
+  const overlapDav = new WebDavAdapter({
+    endpoint: 'https://proxy.example.com/proxy/dav.example.com/dav',
+    basePath: 'dav/knowledge-arena'
+  });
+  const probeUrl = overlapDav._buildUrl('.probe_1793469329883_xz38r3.tmp');
+  assert(
+    probeUrl === 'https://proxy.example.com/proxy/dav.example.com/dav/knowledge-arena/.probe_1793469329883_xz38r3.tmp',
+    '端点尾部与基础路径头部重叠的 dav 必须自动消除，严禁出现 /dav/dav/'
+  );
+
+  // 2.2d 数学重叠消除算法契约
+  assert(mergeSegmentsWithoutOverlap(['dav'], ['dav', 'arena']).join('/') === 'dav/arena', '单段重叠应消除');
+  assert(mergeSegmentsWithoutOverlap(['a', 'b', 'c'], ['b', 'c', 'd']).join('/') === 'a/b/c/d', '多段重叠应按最大公共子列消除');
+  assert(mergeSegmentsWithoutOverlap(['a'], ['b']).join('/') === 'a/b', '无重叠应正常拼接');
 
   // 2.3 Basic 授权头
   const authHeader = dav._getAuthHeader();
@@ -237,7 +254,7 @@ function assert(condition, message) {
       const method = options.method || 'GET';
       if (method === 'MKCOL') {
         mkcolCalls.push(url);
-        if (url.endsWith('/default')) {
+        if (url.endsWith('/arena-root')) {
           return new Response('Created', { status: 201 });
         }
         if (url.endsWith('/default/backups')) {
@@ -252,16 +269,24 @@ function assert(condition, message) {
       return new Response('OK', { status: 200 });
     };
 
-    // 4.1 首次写入多层深路径：自动逐级执行 MKCOL
+    // 4.1 写入根级探针文件：必须自动确保根集合 arena-root 存在
+    const probeRes = await dav.put('.probe_root.tmp', { probe: true });
+    assert(probeRes.etag === '"put-etag-1"', '根级探针写入应成功');
+    assert(mkcolCalls.length === 1, '应确保根集合 arena-root 存在 (1 次 MKCOL)');
+    assert(mkcolCalls[0].endsWith('/arena-root'), '根集合 MKCOL 路径正确');
+
+    // 4.2 首次写入多层深路径：自动逐级执行未缓存的各层 MKCOL
+    mkcolCalls.length = 0;
+    putCalls.length = 0;
     const res1 = await dav.put('default/backups/dev_001/snap.json', { ok: true });
     assert(res1.etag === '"put-etag-1"', '首次写入应成功');
-    assert(mkcolCalls.length === 3, '应按序创建 default, default/backups, default/backups/dev_001 共 3 级父目录');
-    assert(mkcolCalls[0].endsWith('/arena-root/default'), '第 1 级 MKCOL 路径正确');
-    assert(mkcolCalls[1].endsWith('/arena-root/default/backups'), '第 2 级 MKCOL 路径正确');
-    assert(mkcolCalls[2].endsWith('/arena-root/default/backups/dev_001'), '第 3 级 MKCOL 路径正确');
+    assert(mkcolCalls.length === 3, '应按序创建 default, default/backups, default/backups/dev_001 共 3 级子目录 (根级已缓存)');
+    assert(mkcolCalls[0].endsWith('/arena-root/default'), '第 1 级子目录 MKCOL 路径正确');
+    assert(mkcolCalls[1].endsWith('/arena-root/default/backups'), '第 2 级子目录 MKCOL 路径正确');
+    assert(mkcolCalls[2].endsWith('/arena-root/default/backups/dev_001'), '第 3 级子目录 MKCOL 路径正确');
     assert(putCalls.length === 1 && putCalls[0].endsWith('/snap.json'), '最终 PUT 请求路径正确');
 
-    // 4.2 再次写入同级目录文件：应命中 _ensuredCollections 缓存，不再发出任何 MKCOL
+    // 4.3 再次写入同级目录文件：应命中 _ensuredCollections 缓存，不再发出任何 MKCOL
     mkcolCalls.length = 0;
     putCalls.length = 0;
     const res2 = await dav.put('default/backups/dev_001/snap_2.json', { ok: true });
