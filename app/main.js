@@ -1543,7 +1543,7 @@ export class KnowledgeMasterApp {
     if (epInput && cfg.endpoint) epInput.value = cfg.endpoint;
     if (userInput && cfg.username) userInput.value = cfg.username;
     if (passInput && cfg.password) passInput.value = cfg.password;
-    if (baseInput && cfg.basePath) baseInput.value = cfg.basePath;
+    if (baseInput) baseInput.value = cfg.basePath || '';
     if (wsInput && cfg.workspaceId) wsInput.value = cfg.workspaceId;
   }
 
@@ -1551,7 +1551,7 @@ export class KnowledgeMasterApp {
     const ep = document.getElementById('webdav-input-endpoint')?.value?.trim() || '';
     const user = document.getElementById('webdav-input-username')?.value?.trim() || '';
     const pass = document.getElementById('webdav-input-password')?.value || '';
-    const base = document.getElementById('webdav-input-basepath')?.value?.trim() || 'knowledge-arena';
+    const base = document.getElementById('webdav-input-basepath')?.value?.trim() || '';
     const ws = document.getElementById('webdav-input-workspace')?.value?.trim() || 'default';
 
     this.dataSyncManager.saveConfig({

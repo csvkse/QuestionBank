@@ -47,7 +47,7 @@ export class DataSyncManager {
       endpoint: '',
       username: '',
       password: '',
-      basePath: 'knowledge-arena',
+      basePath: '',
       workspaceId: 'default'
     };
   }
@@ -91,9 +91,10 @@ export class DataSyncManager {
       state
     });
 
-    const basePath = (this.config.basePath || 'knowledge-arena').replace(/^\/+|\/+$/g, '');
-    const ws = (this.config.workspaceId || 'default').replace(/^\/+|\/+$/g, '');
-    const path = `${basePath}/${ws}/backups/${this.deviceId}/${snapshot.snapshotId}.json`;
+    const basePath = (this.config.basePath || '').trim().replace(/^\/+|\/+$/g, '');
+    const ws = (this.config.workspaceId || 'default').trim().replace(/^\/+|\/+$/g, '');
+    const relParts = [basePath, ws, 'backups', this.deviceId, `${snapshot.snapshotId}.json`].filter(Boolean);
+    const path = relParts.join('/');
 
     const adapter = this.getAdapter();
     const putRes = await adapter.put(path, snapshot, {
@@ -112,9 +113,10 @@ export class DataSyncManager {
 
   async listBackups(signal) {
     const adapter = this.getAdapter();
-    const basePath = (this.config.basePath || 'knowledge-arena').replace(/^\/+|\/+$/g, '');
-    const ws = (this.config.workspaceId || 'default').replace(/^\/+|\/+$/g, '');
-    const prefix = `${basePath}/${ws}/backups/`;
+    const basePath = (this.config.basePath || '').trim().replace(/^\/+|\/+$/g, '');
+    const ws = (this.config.workspaceId || 'default').trim().replace(/^\/+|\/+$/g, '');
+    const prefixParts = [basePath, ws, 'backups'].filter(Boolean);
+    const prefix = prefixParts.length > 0 ? `${prefixParts.join('/')}/` : '';
 
     const items = await adapter.list(prefix, signal);
     const backups = items

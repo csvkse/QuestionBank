@@ -177,6 +177,22 @@ function createMockAppStorage() {
   const rollbackPoint = syncManager.getRollbackSafetyPoint();
   assert(rollbackPoint !== null, '恢复前必须自动生成本地回滚安全点');
   assert(rollbackPoint.customDecks.length === 0, '安全回滚点应记录恢复前的本地状态');
+
+  // 3.7 遵守用户输入：basePath 留空时严禁注入任何默认路径 (如 knowledge-arena)
+  syncManager.saveConfig({
+    provider: 'memory',
+    basePath: '',
+    workspaceId: 'team_b'
+  });
+  const backupEmpty = await syncManager.createBackup(() => ({
+    profile: { version: 2, deckStates: {} },
+    customDecks: [{ id: 'd_empty', title: '无隐藏路径库', entities: [] }]
+  }));
+  assert(backupEmpty.success, '留空 basePath 上传应成功');
+  assert(!backupEmpty.path.includes('knowledge-arena'), 'basePath 留空时严禁包含任何隐藏的 knowledge-arena 路径');
+  assert(backupEmpty.path.startsWith('team_b/backups/'), 'basePath 留空时路径必须直接始于工作区/backups');
+  const emptyList = await syncManager.listBackups();
+  assert(emptyList.some(b => b.path === backupEmpty.path), 'basePath 留空时列表应能准确匹配');
 }
 
 console.log('✅ webdav-backup-restore.test.mjs PASSED!');

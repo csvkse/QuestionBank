@@ -108,7 +108,7 @@ export class WebDavAdapter extends RemoteObjectStore {
   }
 
   async mkcol(colPath, options = {}) {
-    const url = this._buildUrl(colPath);
+    const url = (colPath.startsWith('http://') || colPath.startsWith('https://')) ? colPath : this._buildUrl(colPath);
     const headers = new Headers(options.headers || {});
     const auth = this._getAuthHeader();
     if (auth && !headers.has('Authorization')) headers.set('Authorization', auth);
@@ -132,26 +132,28 @@ export class WebDavAdapter extends RemoteObjectStore {
   }
 
   async ensureParentCollections(filePath, signal) {
-    const baseSegments = (this.basePath || '').split('/').filter(Boolean);
-    const cleanRel = (filePath || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-    const relSegments = cleanRel.split('/').filter(Boolean);
-    const fileParentSegments = relSegments.slice(0, -1);
+    const fileUrl = this._buildUrl(filePath);
+    let urlObj;
+    try { urlObj = new URL(fileUrl); } catch { return; }
 
-    const dirSegments = mergeSegmentsWithoutOverlap(baseSegments, fileParentSegments);
-    if (dirSegments.length === 0) return;
+    const fileSegments = urlObj.pathname.split('/').filter(Boolean);
+    if (fileSegments.length <= 1) return;
+    fileSegments.pop();
 
-    for (let i = 1; i <= dirSegments.length; i++) {
-      const current = dirSegments.slice(0, i).join('/');
-      if (this._ensuredCollections.has(current)) continue;
+    let endpointSegments = [];
+    try { endpointSegments = new URL(this.endpoint).pathname.split('/').filter(Boolean); } catch {}
+
+    const startIndex = endpointSegments.length;
+    for (let i = startIndex + 1; i <= fileSegments.length; i++) {
+      const colUrl = `${urlObj.origin}/${fileSegments.slice(0, i).join('/')}`;
+      if (this._ensuredCollections.has(colUrl)) continue;
+
       try {
-        await this.mkcol(current, { signal });
-        this._ensuredCollections.add(current);
+        await this.mkcol(colUrl, { signal });
+        this._ensuredCollections.add(colUrl);
       } catch (err) {
-        if (err.statusCode === 405) {
-          this._ensuredCollections.add(current);
-        } else {
-          throw err;
-        }
+        if (err.statusCode === 405) this._ensuredCollections.add(colUrl);
+        else throw err;
       }
     }
   }

@@ -318,6 +318,41 @@ function assert(condition, message) {
     assert(res2.etag === '"put-etag-1"', '二次写入应成功');
     assert(mkcolCalls.length === 0, '目录已缓存时严禁发出多余 MKCOL 请求');
     assert(putCalls.length === 1, '仅发出 1 次 PUT 请求');
+
+    // 4.4 针对多级路径 (如 root/knowledge-arena) 祖先推导：严禁在尾部多出重复 root
+    const multiDav = new WebDavAdapter({
+      endpoint: 'https://proxy.example.com/proxy/dav.example.com/dav',
+      basePath: 'root/knowledge-arena'
+    });
+    mkcolCalls.length = 0;
+    putCalls.length = 0;
+    await multiDav.put('.probe_nested.tmp', { probe: true });
+    assert(mkcolCalls.length === 2, '多级 basePath 探针应依次创建 root 与 root/knowledge-arena');
+    assert(mkcolCalls[0] === 'https://proxy.example.com/proxy/dav.example.com/dav/root', '第 1 级 MKCOL 为 /dav/root');
+    assert(mkcolCalls[1] === 'https://proxy.example.com/proxy/dav.example.com/dav/root/knowledge-arena', '第 2 级 MKCOL 为 /dav/root/knowledge-arena');
+    assert(!mkcolCalls.some(url => url.endsWith('/knowledge-arena/root')), '严禁在末尾出现多余的 /root');
+
+    // 4.5 针对带路径端点 (如 /dav/root) 与重叠/空 basePath (如 /root/abc 或 空)：严禁多余 MKCOL 或路径重叠
+    const aliasDav = new WebDavAdapter({
+      endpoint: 'https://proxy.example.com/proxy/dav.example.com/dav/root',
+      basePath: '/root/abc'
+    });
+    mkcolCalls.length = 0;
+    await aliasDav.put('.probe_alias.tmp', { probe: true });
+    assert(mkcolCalls.length === 1, '端点已含 root 时仅创建子目录 abc');
+    assert(mkcolCalls[0] === 'https://proxy.example.com/proxy/dav.example.com/dav/root/abc', 'MKCOL 目标为 /dav/root/abc');
+
+    const emptyDav = new WebDavAdapter({
+      endpoint: 'https://proxy.example.com/proxy/dav.example.com/dav/root',
+      basePath: ''
+    });
+    mkcolCalls.length = 0;
+    await emptyDav.put('default/backups/dev_1/snap.json', { probe: true });
+    assert(mkcolCalls.length === 3, '留空 basePath 时根据嵌套文件逐级创建目录');
+    assert(mkcolCalls[0] === 'https://proxy.example.com/proxy/dav.example.com/dav/root/default');
+    assert(mkcolCalls[1] === 'https://proxy.example.com/proxy/dav.example.com/dav/root/default/backups');
+    assert(mkcolCalls[2] === 'https://proxy.example.com/proxy/dav.example.com/dav/root/default/backups/dev_1');
+    assert(!mkcolCalls.some(url => url.includes('/root/root')), '严禁出现 /root/root 重复');
   } finally {
     globalThis.fetch = originalFetch;
   }

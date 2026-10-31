@@ -1447,8 +1447,8 @@
 
             <div class="grid grid-cols-2 gap-2">
               <div>
-                <label class="block text-[11px] font-semibold text-slate-400 mb-1">存储根目录 (支持多级)</label>
-                <input id="webdav-input-basepath" type="text" value="knowledge-arena" placeholder="如: knowledge-arena 或 root/abc" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">存储根目录 (选填，支持多级)</label>
+                <input id="webdav-input-basepath" type="text" value="" placeholder="选填，如: root/abc，留空直接保存在端点根目录" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
               </div>
               <div>
                 <label class="block text-[11px] font-semibold text-slate-400 mb-1">工作区标识 (Workspace)</label>
@@ -4227,7 +4227,7 @@ class WebDavAdapter extends RemoteObjectStore {
   }
 
   async mkcol(colPath, options = {}) {
-    const url = this._buildUrl(colPath);
+    const url = (colPath.startsWith('http://') || colPath.startsWith('https://')) ? colPath : this._buildUrl(colPath);
     const headers = new Headers(options.headers || {});
     const auth = this._getAuthHeader();
     if (auth && !headers.has('Authorization')) headers.set('Authorization', auth);
@@ -4251,26 +4251,28 @@ class WebDavAdapter extends RemoteObjectStore {
   }
 
   async ensureParentCollections(filePath, signal) {
-    const baseSegments = (this.basePath || '').split('/').filter(Boolean);
-    const cleanRel = (filePath || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-    const relSegments = cleanRel.split('/').filter(Boolean);
-    const fileParentSegments = relSegments.slice(0, -1);
+    const fileUrl = this._buildUrl(filePath);
+    let urlObj;
+    try { urlObj = new URL(fileUrl); } catch { return; }
 
-    const dirSegments = mergeSegmentsWithoutOverlap(baseSegments, fileParentSegments);
-    if (dirSegments.length === 0) return;
+    const fileSegments = urlObj.pathname.split('/').filter(Boolean);
+    if (fileSegments.length <= 1) return;
+    fileSegments.pop();
 
-    for (let i = 1; i <= dirSegments.length; i++) {
-      const current = dirSegments.slice(0, i).join('/');
-      if (this._ensuredCollections.has(current)) continue;
+    let endpointSegments = [];
+    try { endpointSegments = new URL(this.endpoint).pathname.split('/').filter(Boolean); } catch {}
+
+    const startIndex = endpointSegments.length;
+    for (let i = startIndex + 1; i <= fileSegments.length; i++) {
+      const colUrl = `${urlObj.origin}/${fileSegments.slice(0, i).join('/')}`;
+      if (this._ensuredCollections.has(colUrl)) continue;
+
       try {
-        await this.mkcol(current, { signal });
-        this._ensuredCollections.add(current);
+        await this.mkcol(colUrl, { signal });
+        this._ensuredCollections.add(colUrl);
       } catch (err) {
-        if (err.statusCode === 405) {
-          this._ensuredCollections.add(current);
-        } else {
-          throw err;
-        }
+        if (err.statusCode === 405) this._ensuredCollections.add(colUrl);
+        else throw err;
       }
     }
   }
@@ -5001,7 +5003,7 @@ class DataSyncManager {
       endpoint: '',
       username: '',
       password: '',
-      basePath: 'knowledge-arena',
+      basePath: '',
       workspaceId: 'default'
     };
   }
@@ -5045,9 +5047,10 @@ class DataSyncManager {
       state
     });
 
-    const basePath = (this.config.basePath || 'knowledge-arena').replace(/^\/+|\/+$/g, '');
-    const ws = (this.config.workspaceId || 'default').replace(/^\/+|\/+$/g, '');
-    const path = `${basePath}/${ws}/backups/${this.deviceId}/${snapshot.snapshotId}.json`;
+    const basePath = (this.config.basePath || '').trim().replace(/^\/+|\/+$/g, '');
+    const ws = (this.config.workspaceId || 'default').trim().replace(/^\/+|\/+$/g, '');
+    const relParts = [basePath, ws, 'backups', this.deviceId, `${snapshot.snapshotId}.json`].filter(Boolean);
+    const path = relParts.join('/');
 
     const adapter = this.getAdapter();
     const putRes = await adapter.put(path, snapshot, {
@@ -5066,9 +5069,10 @@ class DataSyncManager {
 
   async listBackups(signal) {
     const adapter = this.getAdapter();
-    const basePath = (this.config.basePath || 'knowledge-arena').replace(/^\/+|\/+$/g, '');
-    const ws = (this.config.workspaceId || 'default').replace(/^\/+|\/+$/g, '');
-    const prefix = `${basePath}/${ws}/backups/`;
+    const basePath = (this.config.basePath || '').trim().replace(/^\/+|\/+$/g, '');
+    const ws = (this.config.workspaceId || 'default').trim().replace(/^\/+|\/+$/g, '');
+    const prefixParts = [basePath, ws, 'backups'].filter(Boolean);
+    const prefix = prefixParts.length > 0 ? `${prefixParts.join('/')}/` : '';
 
     const items = await adapter.list(prefix, signal);
     const backups = items
@@ -12643,7 +12647,7 @@ class KnowledgeMasterApp {
     if (epInput && cfg.endpoint) epInput.value = cfg.endpoint;
     if (userInput && cfg.username) userInput.value = cfg.username;
     if (passInput && cfg.password) passInput.value = cfg.password;
-    if (baseInput && cfg.basePath) baseInput.value = cfg.basePath;
+    if (baseInput) baseInput.value = cfg.basePath || '';
     if (wsInput && cfg.workspaceId) wsInput.value = cfg.workspaceId;
   }
 
@@ -12651,7 +12655,7 @@ class KnowledgeMasterApp {
     const ep = document.getElementById('webdav-input-endpoint')?.value?.trim() || '';
     const user = document.getElementById('webdav-input-username')?.value?.trim() || '';
     const pass = document.getElementById('webdav-input-password')?.value || '';
-    const base = document.getElementById('webdav-input-basepath')?.value?.trim() || 'knowledge-arena';
+    const base = document.getElementById('webdav-input-basepath')?.value?.trim() || '';
     const ws = document.getElementById('webdav-input-workspace')?.value?.trim() || 'default';
 
     this.dataSyncManager.saveConfig({
