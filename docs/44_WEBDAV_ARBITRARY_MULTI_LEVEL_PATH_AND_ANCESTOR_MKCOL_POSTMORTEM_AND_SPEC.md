@@ -154,7 +154,7 @@ async ensureParentCollections(filePath, signal) {
 #### 核心结论：**完全支持，且对非标准路径别名具备自动边界去重能力**。
 
 1. **场景现实**：
-   在纯浏览器（B/S）环境下访问第三方 WebDAV，由于目标服务器不开放 CORS 响应头，用户通常会使用反向代理（如 Cloudflare Workers、Nginx、Asairo Proxy 等），其端点通常形如：
+   在纯浏览器（B/S）环境下访问第三方 WebDAV，由于目标服务器不开放 CORS 响应头，用户通常会使用反向代理（如 Cloudflare Workers、Nginx、CORS Proxy 等），其端点通常形如：
    `https://proxy.example.com/proxy/dav.example.com/dav/root`
    其中 `/proxy/dav.example.com/dav/root` 全部都是服务挂载路径。
 2. **双重保障机制**：

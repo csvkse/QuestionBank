@@ -4,13 +4,13 @@
 
 ## 结论
 
-**通过：外部官方 MCP 客户端使用现有 `https://proxy.example.com`，发现并直接调用当前浏览器页面全部 19 个 Agent 工具。** 无逐次批准，无本地 AI 对话参与；不是 localhost 模拟网关。
+**通过：外部官方 MCP 客户端使用公网网关 `https://mcp.example.com`，发现并直接调用当前浏览器页面全部 19 个 Agent 工具。** 无逐次批准，无本地 AI 对话参与；不是 localhost 模拟网关。
 
 实际链路：
 
 ```text
 本机外部 MCP SDK 1.32.2
-    → 公网 HTTPS SSE / POST → proxy.example.com（现有 ProxyByCF）
+    → 公网 HTTPS SSE / POST → mcp.example.com（ProxyByCF 网关）
     → 公网 WSS / AES 信封 → 本机真实浏览器 index.html
     → McpToolAdapter → 共享 DeckToolExecutor → 页面状态 / localStorage
 ```
@@ -19,7 +19,7 @@ Host 页面与外部 SDK 客户端运行在同一台机器，以独立公网连�
 
 ## 环境与配置
 
-- 网关：[proxy.example.com](https://proxy.example.com)，未改代码、配置或部署。
+- 网关：公网 ProxyByCF 网关，未改代码、配置或部署。
 - 接入方式：旧 SSE `/mcp/sse?room=...`，Authorization Bearer；Host 使用 WSS `aes-256-gcm` 子协议与现有 Token。
 - 房间：`knowledge-arena-public-8a344b2a-f98d-44db-9e01-c170757c1b62`，专用于本次联调。
 - 凭据：用户提供临时 Token；未创建、修改或主动吊销该凭据，文档不记录密钥。

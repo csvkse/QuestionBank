@@ -206,13 +206,13 @@ stateDiagram-v2
 │                                                             │
 │  [ 快速模式 (完整 URL) ]    [ 专家模式 (结构化分段) ● ]       │
 │ ┌─────────────────────────────────────────────────────────┐ │
-│ │ 协议: [ HTTPS ▼ ]   服务器主机: [ dav.example.com   ] │ │
+│ │ 协议: [ HTTPS ▼ ]   服务器主机: [ dav.example.com     ] │ │
 │ │ 端口: [ 443   ]     服务挂载点: [ /dav                ] │ │
 │ │ 存储目录: [ knowledge-arena  ]  工作区: [ default     ] │ │
-│ │ CORS 代理 (可选): [ https://proxy.example.com/proxy/        ] │ │
+│ │ CORS 代理 (可选): [ https://proxy.example.com/proxy/  ] │ │
 │ └─────────────────────────────────────────────────────────┘ │
 │                                                             │
-│  账号: [ your_account             ]  密码: [ ••••••••••••••• ]    │
+│  账号: [ your_account       ]  密码: [ ••••••••••••••• ]    │
 │                                                             │
 │  👀 实际请求目标预览 (动态消除重叠):                         │
 │  https://proxy.example.com/proxy/dav.example.com/dav/knowledge-arena/

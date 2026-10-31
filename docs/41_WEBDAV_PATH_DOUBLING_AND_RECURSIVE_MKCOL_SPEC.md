@@ -8,7 +8,7 @@
 
 ## 1. 问题现象与根因全景定位
 
-在用户通过浏览器或 CORS 代理向实际 WebDAV 端点（TeraCLOUD / InfiniCLOUD 配合 CORS 代理 `proxy.example.com/proxy/`）发起备份快照提交时，抓包呈现如下真实命令与响应异常：
+在用户通过浏览器或 CORS 代理向实际 WebDAV 端点（配合 CORS 反向代理 `proxy.example.com/proxy/`）发起备份快照提交时，抓包呈现如下真实命令与响应异常：
 
 ```bash
 curl 'https://proxy.example.com/proxy/dav.example.com/dav/root/knowledge/root/knowledge/default/backups/dev_qes5fw45/snap_1793468525200_887bb893.json' \
