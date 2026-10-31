@@ -21,6 +21,7 @@ export class WebDavAdapter extends RemoteObjectStore {
     this.token = config.token || '';
     this.authType = config.authType || (this.token ? 'bearer' : (this.username ? 'basic' : 'none'));
     this.basePath = (config.basePath || '').trim().replace(/^\/+|\/+$/g, '');
+    this._ensuredCollections = new Set();
   }
 
   _encodeBasicAuth() {
@@ -40,11 +41,26 @@ export class WebDavAdapter extends RemoteObjectStore {
 
   _buildUrl(relPath) {
     if (!this.endpoint) throw new RemoteStorageError('WebDAV endpoint not configured');
-    const cleanRel = (relPath || '').replace(/\\/g, '/');
+    let cleanRel = (relPath || '').replace(/\\/g, '/').replace(/^\/+/, '');
     if (cleanRel.includes('..')) throw new RemoteStorageError('Relative path traversal (..) forbidden');
 
+    let endpointPath = '';
+    try {
+      endpointPath = new URL(this.endpoint).pathname.replace(/^\/+|\/+$/g, '');
+    } catch {
+      endpointPath = '';
+    }
+
+    const base = this.basePath;
+    const endpointEndsWithBase = Boolean(base && (endpointPath === base || endpointPath.endsWith('/' + base)));
+
+    if (base && (cleanRel === base || cleanRel.startsWith(base + '/'))) {
+      cleanRel = cleanRel.slice(base.length).replace(/^\/+/, '');
+    }
+
     const segments = [];
-    if (this.basePath) segments.push(this.basePath);
+    if (base && !endpointEndsWithBase) segments.push(base);
+
     if (cleanRel) {
       cleanRel.split('/').forEach(s => {
         const t = s.trim();
@@ -88,13 +104,76 @@ export class WebDavAdapter extends RemoteObjectStore {
     return response;
   }
 
+  async mkcol(colPath, options = {}) {
+    const url = this._buildUrl(colPath);
+    const headers = new Headers(options.headers || {});
+    const auth = this._getAuthHeader();
+    if (auth && !headers.has('Authorization')) headers.set('Authorization', auth);
+
+    let response;
+    try {
+      response = await fetch(url, { method: 'MKCOL', headers, signal: options.signal });
+    } catch (err) {
+      if (err.name === 'AbortError') throw err;
+      throw new NetworkError(`Network / CORS request failed on MKCOL: ${err.message}`, { cause: err });
+    }
+
+    if (response.status === 201 || response.status === 405 || response.status === 200 || response.status === 204) {
+      return { created: response.status === 201, exists: true };
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw new AuthenticationError(`WebDAV authentication rejected on MKCOL (${response.status})`, { statusCode: response.status });
+    }
+    const text = await response.text().catch(() => '');
+    throw new RemoteStorageError(`WebDAV MKCOL HTTP ${response.status}: ${text || response.statusText}`, { statusCode: response.status });
+  }
+
+  async ensureParentCollections(filePath, signal) {
+    let clean = (filePath || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    if (this.basePath && (clean === this.basePath || clean.startsWith(this.basePath + '/'))) {
+      clean = clean.slice(this.basePath.length).replace(/^\/+/, '');
+    }
+    const parts = clean.split('/').filter(Boolean);
+    if (parts.length <= 1) return;
+    parts.pop();
+
+    let current = '';
+    for (const part of parts) {
+      current = current ? `${current}/${part}` : part;
+      if (this._ensuredCollections.has(current)) continue;
+      try {
+        await this.mkcol(current, { signal });
+        this._ensuredCollections.add(current);
+      } catch (err) {
+        if (err.statusCode === 405) {
+          this._ensuredCollections.add(current);
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
   async put(path, bytes, options = {}) {
+    await this.ensureParentCollections(path, options.signal);
+
     const headers = { 'Content-Type': options.contentType || 'application/json; charset=utf-8' };
     if (options.ifMatch) headers['If-Match'] = options.ifMatch;
     if (options.ifNoneMatch) headers['If-None-Match'] = options.ifNoneMatch;
 
     const body = typeof bytes === 'string' ? bytes : JSON.stringify(bytes);
-    const res = await this._request('PUT', path, { body, headers, signal: options.signal });
+    let res;
+    try {
+      res = await this._request('PUT', path, { body, headers, signal: options.signal });
+    } catch (err) {
+      if (err.statusCode === 409) {
+        this._ensuredCollections.clear();
+        await this.ensureParentCollections(path, options.signal);
+        res = await this._request('PUT', path, { body, headers, signal: options.signal });
+      } else {
+        throw err;
+      }
+    }
     return { etag: res.headers.get('etag') || res.headers.get('ETag') || null };
   }
 
@@ -116,8 +195,7 @@ export class WebDavAdapter extends RemoteObjectStore {
   }
 
   async list(prefix = '', signal) {
-    const propfindXml = `<?xml version="1.0" encoding="utf-8" ?>
-<d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/><d:getetag/><d:getlastmodified/></d:prop></d:propfind>`;
+    const propfindXml = `<?xml version="1.0" encoding="utf-8" ?>\n<d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/><d:getetag/><d:getlastmodified/></d:prop></d:propfind>`;
     const res = await this._request('PROPFIND', prefix, {
       headers: { Depth: '1' },
       body: propfindXml,
@@ -158,8 +236,15 @@ export class WebDavAdapter extends RemoteObjectStore {
     try {
       const u = new URL(href, this.endpoint);
       let p = u.pathname;
-      if (this.basePath && p.startsWith('/' + this.basePath)) p = p.slice(this.basePath.length + 1);
-      return p.replace(/^\/+/, '');
+      let endpointPath = '';
+      try { endpointPath = new URL(this.endpoint).pathname.replace(/\/+$/, ''); } catch {}
+
+      if (endpointPath && p.startsWith(endpointPath)) p = p.slice(endpointPath.length);
+      p = p.replace(/^\/+/, '');
+      if (this.basePath && (p === this.basePath || p.startsWith(this.basePath + '/'))) {
+        p = p.slice(this.basePath.length).replace(/^\/+/, '');
+      }
+      return p;
     } catch {
       return href.replace(/^\/+/, '');
     }

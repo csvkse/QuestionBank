@@ -117,7 +117,14 @@ export class DataSyncManager {
     const prefix = `${basePath}/${ws}/backups/`;
 
     const items = await adapter.list(prefix, signal);
-    const backups = items.filter(it => it.path.endsWith('.json') && !it.isDirectory);
+    const backups = items
+      .filter(it => it.path.endsWith('.json') && !it.isDirectory)
+      .map(it => {
+        const fullPath = (basePath && !it.path.startsWith(basePath + '/'))
+          ? `${basePath}/${it.path}`
+          : it.path;
+        return { ...it, path: fullPath };
+      });
 
     backups.sort((a, b) => {
       const timeA = a.modifiedAt ? new Date(a.modifiedAt).getTime() : 0;

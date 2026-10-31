@@ -104,6 +104,17 @@ function assert(condition, message) {
   const cleanUrl = dav._buildUrl('/backups/user 1/snap.json');
   assert(cleanUrl === 'https://dav.example.com/webdav/arena-root/backups/user%201/snap.json', '路径段应正确编码且无重复斜杠');
 
+  // 2.2b 路径防重复嵌套与端点重叠消除
+  const dupUrl = dav._buildUrl('arena-root/backups/user/snap.json');
+  assert(dupUrl === 'https://dav.example.com/webdav/arena-root/backups/user/snap.json', '当 relPath 携带 basePath 时不应双重拼接');
+
+  const nestedDav = new WebDavAdapter({
+    endpoint: 'https://dav.example.com/webdav/arena-root',
+    basePath: 'arena-root'
+  });
+  const endpointDupUrl = nestedDav._buildUrl('arena-root/backups/user/snap.json');
+  assert(endpointDupUrl === 'https://dav.example.com/webdav/arena-root/backups/user/snap.json', '当 endpoint 已包含 basePath 时不应重复追加');
+
   // 2.3 Basic 授权头
   const authHeader = dav._getAuthHeader();
   assert(authHeader.startsWith('Basic '), 'Basic 授权头格式应正确');
@@ -206,6 +217,57 @@ function assert(condition, message) {
       if (e instanceof NetworkError) networkBlocked = true;
     }
     assert(networkBlocked, 'TypeError 网络/CORS 阻断必须映射为 NetworkError');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+// 4. WebDavAdapter 递归 MKCOL 父集合创建与缓存契约验证
+{
+  const dav = new WebDavAdapter({
+    endpoint: 'https://dav.example.com/webdav',
+    basePath: 'arena-root'
+  });
+
+  const mkcolCalls = [];
+  const putCalls = [];
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (url, options = {}) => {
+      const method = options.method || 'GET';
+      if (method === 'MKCOL') {
+        mkcolCalls.push(url);
+        if (url.endsWith('/default')) {
+          return new Response('Created', { status: 201 });
+        }
+        if (url.endsWith('/default/backups')) {
+          return new Response('Method Not Allowed', { status: 405 });
+        }
+        return new Response('Created', { status: 201 });
+      }
+      if (method === 'PUT') {
+        putCalls.push(url);
+        return new Response('', { status: 201, headers: { 'ETag': '"put-etag-1"' } });
+      }
+      return new Response('OK', { status: 200 });
+    };
+
+    // 4.1 首次写入多层深路径：自动逐级执行 MKCOL
+    const res1 = await dav.put('default/backups/dev_001/snap.json', { ok: true });
+    assert(res1.etag === '"put-etag-1"', '首次写入应成功');
+    assert(mkcolCalls.length === 3, '应按序创建 default, default/backups, default/backups/dev_001 共 3 级父目录');
+    assert(mkcolCalls[0].endsWith('/arena-root/default'), '第 1 级 MKCOL 路径正确');
+    assert(mkcolCalls[1].endsWith('/arena-root/default/backups'), '第 2 级 MKCOL 路径正确');
+    assert(mkcolCalls[2].endsWith('/arena-root/default/backups/dev_001'), '第 3 级 MKCOL 路径正确');
+    assert(putCalls.length === 1 && putCalls[0].endsWith('/snap.json'), '最终 PUT 请求路径正确');
+
+    // 4.2 再次写入同级目录文件：应命中 _ensuredCollections 缓存，不再发出任何 MKCOL
+    mkcolCalls.length = 0;
+    putCalls.length = 0;
+    const res2 = await dav.put('default/backups/dev_001/snap_2.json', { ok: true });
+    assert(res2.etag === '"put-etag-1"', '二次写入应成功');
+    assert(mkcolCalls.length === 0, '目录已缓存时严禁发出多余 MKCOL 请求');
+    assert(putCalls.length === 1, '仅发出 1 次 PUT 请求');
   } finally {
     globalThis.fetch = originalFetch;
   }
