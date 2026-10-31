@@ -132,6 +132,19 @@ function assert(condition, message) {
   assert(mergeSegmentsWithoutOverlap(['a', 'b', 'c'], ['b', 'c', 'd']).join('/') === 'a/b/c/d', '多段重叠应按最大公共子列消除');
   assert(mergeSegmentsWithoutOverlap(['a'], ['b']).join('/') === 'a/b', '无重叠应正常拼接');
 
+  // 2.2e 多级目录支持校验 (如 /root/abc)
+  const multiLevelDav = new WebDavAdapter({
+    endpoint: 'https://dav.example.com/webdav',
+    basePath: '/root/abc/'
+  });
+  const multiUrl = multiLevelDav._buildUrl('default/backups/snap.json');
+  assert(
+    multiUrl === 'https://dav.example.com/webdav/root/abc/default/backups/snap.json',
+    '多级 basePath (/root/abc/) 应正确规范化并无缝拼接'
+  );
+  const normalizedMulti = multiLevelDav._normalizeListedPath('/webdav/root/abc/default/backups/snap.json');
+  assert(normalizedMulti === 'default/backups/snap.json', '从多级 basePath 下拉取的路径应正确剥离 /root/abc');
+
   // 2.3 Basic 授权头
   const authHeader = dav._getAuthHeader();
   assert(authHeader.startsWith('Basic '), 'Basic 授权头格式应正确');
