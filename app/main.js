@@ -28,6 +28,7 @@ import { TimelineBoardController, RadarChartController } from '../features/revie
 import { AiAgentUIController, REFERENCE_PRESET_PROVIDERS, DEFAULT_PROVIDERS } from '../features/ai-agent/index.js';
 import { JevClient, JevUi } from '../features/jev/index.js';
 import { AppRouter } from './router.js';
+import { McpBridgeController } from '../features/mcp-bridge/index.js';
 
 export class KnowledgeMasterApp {
   constructor() {
@@ -84,6 +85,7 @@ export class KnowledgeMasterApp {
     this.jevUi = new JevUi(this);
     this.favoritesManager = new FavoritesManagerController(this);
     this.deckVersioning = new DeckVersionController(this);
+    this.mcpBridge = new McpBridgeController(this.aiAgent.executor);
     this._lastJevRecommendation = null;
     this._lastAutoExpandedJevTarget = null;
   }
@@ -94,6 +96,7 @@ export class KnowledgeMasterApp {
     this.renderDeckSelector();
     this.updateFavoritesBadge();
     this.aiAgent.init();
+    this.mcpBridge.init();
     this.updateSpeechUiState(this.speechSynth.isAutoSpeechEnabled());
     this.router.navigate('dashboard');
 

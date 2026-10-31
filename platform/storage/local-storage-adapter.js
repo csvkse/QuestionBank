@@ -13,6 +13,34 @@ const STORAGE_KEYS = {
 };
 
 export class StorageAdapter {
+  _write(key, value) {
+    if (this._staged) this._staged.set(key, value);
+    else localStorage.setItem(key, value);
+  }
+
+  runTransaction(operation) {
+    if (this._staged) throw new Error('存储事务已在执行');
+    this._staged = new Map();
+    const previous = new Map();
+    try {
+      const result = operation();
+      if (typeof localStorage !== 'undefined') {
+        for (const key of this._staged.keys()) previous.set(key, localStorage.getItem(key));
+        for (const [key, value] of this._staged) localStorage.setItem(key, value);
+      }
+      return result;
+    } catch (error) {
+      // Best effort rollback across legacy localStorage keys. A crash between
+      // writes is not a transaction; never claim crash-safe exactly-once.
+      let restored = true;
+      for (const [key, value] of previous) {
+        try { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value); }
+        catch { restored = false; }
+      }
+      throw new Error(restored ? '保存失败，未完成操作：' + error.message : '保存失败，部分存储恢复失败，请重新载入并检查数据');
+    } finally { this._staged = null; }
+  }
+
   loadProfile() {
     try {
       if (typeof localStorage === 'undefined') return null;
@@ -27,8 +55,9 @@ export class StorageAdapter {
   saveProfile(profile) {
     try {
       if (typeof localStorage === 'undefined') return;
-      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
+      this._write(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
     } catch (e) {
+      if (this._staged) throw e;
       console.warn('[Storage] Failed to save profile:', e);
     }
   }
@@ -47,8 +76,9 @@ export class StorageAdapter {
   saveCustomDecks(decks) {
     try {
       if (typeof localStorage === 'undefined') return;
-      localStorage.setItem(STORAGE_KEYS.CUSTOM_DECKS, JSON.stringify(decks));
+      this._write(STORAGE_KEYS.CUSTOM_DECKS, JSON.stringify(decks));
     } catch (e) {
+      if (this._staged) throw e;
       console.warn('[Storage] Failed to save custom decks:', e);
     }
   }
@@ -65,8 +95,9 @@ export class StorageAdapter {
   saveActiveDeckId(deckId) {
     try {
       if (typeof localStorage === 'undefined') return;
-      localStorage.setItem(STORAGE_KEYS.ACTIVE_DECK_ID, deckId);
+      this._write(STORAGE_KEYS.ACTIVE_DECK_ID, deckId);
     } catch (e) {
+      if (this._staged) throw e;
       console.warn('[Storage] Failed to save active deck id:', e);
     }
   }
@@ -84,8 +115,9 @@ export class StorageAdapter {
   saveMaskState(isMasked) {
     try {
       if (typeof localStorage === 'undefined') return;
-      localStorage.setItem(STORAGE_KEYS.MASK_STATE, JSON.stringify(isMasked));
+      this._write(STORAGE_KEYS.MASK_STATE, JSON.stringify(isMasked));
     } catch (e) {
+      if (this._staged) throw e;
       console.warn('[Storage] Failed to save mask state:', e);
     }
   }
@@ -104,8 +136,9 @@ export class StorageAdapter {
   saveDeckVersions(versionsMap) {
     try {
       if (typeof localStorage === 'undefined') return;
-      localStorage.setItem(STORAGE_KEYS.DECK_VERSIONS, JSON.stringify(versionsMap));
+      this._write(STORAGE_KEYS.DECK_VERSIONS, JSON.stringify(versionsMap));
     } catch (e) {
+      if (this._staged) throw e;
       console.warn('[Storage] Failed to save deck versions:', e);
     }
   }
@@ -124,8 +157,9 @@ export class StorageAdapter {
   saveRecycleBin(items) {
     try {
       if (typeof localStorage === 'undefined') return;
-      localStorage.setItem(STORAGE_KEYS.RECYCLE_BIN, JSON.stringify(items));
+      this._write(STORAGE_KEYS.RECYCLE_BIN, JSON.stringify(items));
     } catch (e) {
+      if (this._staged) throw e;
       console.warn('[Storage] Failed to save recycle bin:', e);
     }
   }

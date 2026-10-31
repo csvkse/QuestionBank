@@ -17,19 +17,11 @@ const STORAGE_KEY = 'knowledge_master_ai_sessions_v2';
 const CONFIG_KEY = 'knowledge_master_ai_config_v3';
 
 export const DEFAULT_AI_CONFIG = {
-  activeProviderId: 'deepseek',
-  activeModelId: 'deepseek-reasoner',
-  providers: DEFAULT_PROVIDERS,
-  provider: 'deepseek',
-  apiType: 'openai',
-  baseUrl: 'https://api.deepseek.com/v1',
-  apiKey: '',
-  model: 'deepseek-reasoner',
-  contextWindow: 128000,
-  maxOutputTokens: 8192,
-  reasoningEffort: 'medium', // none | low | medium | high
-  autoApprove: false,
-  systemPrompt: '你是 Knowledge Master 通用知识记忆图谱系统的 AI 智囊专家。你可以调用系统题库工具为用户查询、创建、编辑题库，严格遵循同胞干扰项 >= 4 条的黄金认知门禁。'
+  activeProviderId: 'deepseek', activeModelId: 'deepseek-reasoner',
+  providers: DEFAULT_PROVIDERS, provider: 'deepseek', apiType: 'openai',
+  baseUrl: 'https://api.deepseek.com/v1', apiKey: '', model: 'deepseek-reasoner',
+  contextWindow: 128000, maxOutputTokens: 8192, reasoningEffort: 'medium', autoApprove: false,
+  systemPrompt: '你是 Knowledge Master 通用知识记忆图谱系统的 AI 智囊专家。你可以调用系统题库工具为用户查询、创建、编辑题库，严格遵循同胞干扰项 >= 4 条的黄金认知门禁。当工具返回包含错误（如 DECK_NOT_FOUND、PERMISSION_ERROR、FORMAT_ERROR）时，你必须认真分析返回的 suggestion 建议自主修正入参，严禁机械重复发起相同的错误调用。'
 };
 
 export class SessionStore {

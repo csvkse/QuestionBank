@@ -93,8 +93,8 @@ export class AgentLoopEngine {
               id,
               name,
               arguments: args,
-              status: this.store.config.autoApprove ? 'executing' : 'pending',
-              previewText: `[第 ${this.currentStep} 步] 正在调用接口: ${name}`
+              status: this.store.config.autoApprove ? 'executing' : 'streaming',
+              previewText: `[第 ${this.currentStep} 步] 正在生成参数: ${name}`
             };
           }, { persist: false });
           this.ui.scheduleMessageRender?.(assistantMsgId);
@@ -231,28 +231,23 @@ export class AgentLoopEngine {
   }
 
   async resumeWithApproval(msgId, toolCallId) {
-    if (!this.pendingToolCall || this.pendingToolCall.id !== toolCallId) {
-      const msg = this.store.getActiveSession()?.messages.find(m => m.id === msgId);
-      if (msg?.toolCall) {
-        try {
-          const res = await this.executor.execute(msg.toolCall.name, msg.toolCall.arguments);
-          msg.toolCall.status = 'success';
-          msg.toolCall.result = res;
-        } catch (err) {
-          const payload = toToolErrorPayload(err, msg.toolCall);
-          msg.toolCall.status = 'error';
-          msg.toolCall.error = payload.error;
-        }
-        this.store.saveSessions();
-        this.ui.renderCurrentSession();
+    this.store.updateMessage(msgId, m => {
+      if (m.toolCall) {
+        m.toolCall.status = 'executing';
+        m.toolCall.previewText = `[第 ${this.currentStep} 步] 正在执行: ${m.toolCall.name}...`;
       }
-      return;
-    }
+    });
+    this.ui.renderCurrentSession();
 
-    const tc = this.pendingToolCall;
+    let tc = this.pendingToolCall;
+    if (!tc || tc.id !== toolCallId) {
+      const msg = this.store.getActiveSession()?.messages.find(m => m.id === msgId);
+      if (msg?.toolCall) tc = { id: toolCallId, name: msg.toolCall.name, arguments: msg.toolCall.arguments };
+    }
     this.pendingToolCall = null;
     this.isPausedForApproval = false;
-    await this.executeAndFeedBack(msgId, tc);
+    this.isRunning = true;
+    if (tc) await this.executeAndFeedBack(msgId, tc);
   }
 
   rejectApproval(msgId) {

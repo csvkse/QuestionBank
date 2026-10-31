@@ -2036,6 +2036,23 @@
     </div>
   </div>
 
+  <details class="max-w-4xl mx-auto my-6 p-4 surface-card rounded-xl text-sm" id="mcp-bridge-panel">
+    <summary class="cursor-pointer text-slate-200 font-semibold">MCP 桥接 · 对外提供全部 19 个题库工具</summary>
+    <p class="text-slate-400 text-xs my-3">连接后，持有 Token 的外部客户端可直接查询、创建、修改、删除和回滚当前页面题库，无需逐次批准。请仅与可信客户端共享独立房间和 Token，并保持页面运行。</p>
+    <form id="mcp-bridge-form" class="grid gap-3 sm:grid-cols-3">
+      <label>桥接地址<input id="mcp-server" type="url" required placeholder="https://你的网关域名" class="block w-full surface-inset rounded p-2 mt-1"></label>
+      <label>房间名称<input id="mcp-room" required maxlength="128" autocomplete="off" placeholder="独立房间名称" class="block w-full surface-inset rounded p-2 mt-1"></label>
+      <label>Token<input id="mcp-token" type="password" required autocomplete="off" class="block w-full surface-inset rounded p-2 mt-1"></label>
+      <div class="flex gap-3 sm:col-span-3">
+        <button id="mcp-connect" type="submit" class="px-3 py-2 bg-indigo-600 rounded disabled:opacity-50">连接并启用全部工具</button>
+        <button id="mcp-disconnect" type="button" class="px-3 py-2 surface-inset rounded disabled:opacity-50">断开</button>
+      </div>
+    </form>
+    <p id="mcp-status" role="status" aria-live="polite" class="text-xs text-slate-300 mt-3">未连接</p>
+    <p id="mcp-last-call" class="text-xs text-slate-400 mt-2"></p>
+    <pre id="mcp-client-config" class="text-xs text-slate-400 mt-3 whitespace-pre-wrap break-all"></pre>
+  </details>
+
   <!-- 网页底部版权 -->
   <footer class="border-t border-slate-900 py-4 text-center text-xs text-slate-500">
     <p>Universal Knowledge Master · 通用知识图谱游戏化记忆引擎 · 领域无关架构</p>
@@ -3423,6 +3440,34 @@ const STORAGE_KEYS = {
   RECYCLE_BIN: 'verbmaster_deck_recycle_bin_v2'
 };
 class StorageAdapter {
+  _write(key, value) {
+    if (this._staged) this._staged.set(key, value);
+    else localStorage.setItem(key, value);
+  }
+
+  runTransaction(operation) {
+    if (this._staged) throw new Error('存储事务已在执行');
+    this._staged = new Map();
+    const previous = new Map();
+    try {
+      const result = operation();
+      if (typeof localStorage !== 'undefined') {
+        for (const key of this._staged.keys()) previous.set(key, localStorage.getItem(key));
+        for (const [key, value] of this._staged) localStorage.setItem(key, value);
+      }
+      return result;
+    } catch (error) {
+      // Best effort rollback across legacy localStorage keys. A crash between
+      // writes is not a transaction; never claim crash-safe exactly-once.
+      let restored = true;
+      for (const [key, value] of previous) {
+        try { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value); }
+        catch { restored = false; }
+      }
+      throw new Error(restored ? '保存失败，未完成操作：' + error.message : '保存失败，部分存储恢复失败，请重新载入并检查数据');
+    } finally { this._staged = null; }
+  }
+
   loadProfile() {
     try {
       if (typeof localStorage === 'undefined') return null;
@@ -3437,8 +3482,9 @@ class StorageAdapter {
   saveProfile(profile) {
     try {
       if (typeof localStorage === 'undefined') return;
-      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
+      this._write(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
     } catch (e) {
+      if (this._staged) throw e;
       console.warn('[Storage] Failed to save profile:', e);
     }
   }
@@ -3457,8 +3503,9 @@ class StorageAdapter {
   saveCustomDecks(decks) {
     try {
       if (typeof localStorage === 'undefined') return;
-      localStorage.setItem(STORAGE_KEYS.CUSTOM_DECKS, JSON.stringify(decks));
+      this._write(STORAGE_KEYS.CUSTOM_DECKS, JSON.stringify(decks));
     } catch (e) {
+      if (this._staged) throw e;
       console.warn('[Storage] Failed to save custom decks:', e);
     }
   }
@@ -3475,8 +3522,9 @@ class StorageAdapter {
   saveActiveDeckId(deckId) {
     try {
       if (typeof localStorage === 'undefined') return;
-      localStorage.setItem(STORAGE_KEYS.ACTIVE_DECK_ID, deckId);
+      this._write(STORAGE_KEYS.ACTIVE_DECK_ID, deckId);
     } catch (e) {
+      if (this._staged) throw e;
       console.warn('[Storage] Failed to save active deck id:', e);
     }
   }
@@ -3494,8 +3542,9 @@ class StorageAdapter {
   saveMaskState(isMasked) {
     try {
       if (typeof localStorage === 'undefined') return;
-      localStorage.setItem(STORAGE_KEYS.MASK_STATE, JSON.stringify(isMasked));
+      this._write(STORAGE_KEYS.MASK_STATE, JSON.stringify(isMasked));
     } catch (e) {
+      if (this._staged) throw e;
       console.warn('[Storage] Failed to save mask state:', e);
     }
   }
@@ -3514,8 +3563,9 @@ class StorageAdapter {
   saveDeckVersions(versionsMap) {
     try {
       if (typeof localStorage === 'undefined') return;
-      localStorage.setItem(STORAGE_KEYS.DECK_VERSIONS, JSON.stringify(versionsMap));
+      this._write(STORAGE_KEYS.DECK_VERSIONS, JSON.stringify(versionsMap));
     } catch (e) {
+      if (this._staged) throw e;
       console.warn('[Storage] Failed to save deck versions:', e);
     }
   }
@@ -3534,8 +3584,9 @@ class StorageAdapter {
   saveRecycleBin(items) {
     try {
       if (typeof localStorage === 'undefined') return;
-      localStorage.setItem(STORAGE_KEYS.RECYCLE_BIN, JSON.stringify(items));
+      this._write(STORAGE_KEYS.RECYCLE_BIN, JSON.stringify(items));
     } catch (e) {
+      if (this._staged) throw e;
       console.warn('[Storage] Failed to save recycle bin:', e);
     }
   }
@@ -6957,6 +7008,40 @@ class DeckToolExecutor {
   }
 
   async execute(toolName, args = {}) {
+    const reads = ['tool_list_decks', 'tool_get_deck', 'tool_search_entities', 'tool_get_deck_guide', 'tool_list_deck_versions'];
+    if (reads.includes(toolName)) return this._execute(toolName, args);
+    const before = structuredClone(this.app.state);
+    const versions = this.app.deckVersioning;
+    const oldVersions = versions ? structuredClone(versions.versionsMap) : null;
+    const oldTrash = versions ? structuredClone(versions.recycleBin) : null;
+    const perform = () => {
+      const result = this._execute(toolName, args);
+      if (['tool_create_deck', 'tool_add_entities', 'tool_update_entity', 'tool_delete_entity', 'tool_import_markdown_deck', 'tool_batch_update_entities', 'tool_batch_delete_entities'].includes(toolName)) {
+        const targetId = result.deckId || args.deckId;
+        const deck = (this.app.state.customDecks || []).find(d => d.id === targetId);
+        const health = validateDeckHealth(deck);
+        if (!health.valid) throw new ToolFormatError(health.errors.join('; '), 'HEALTH_GATE_FAILED');
+        const ids = new Set();
+        for (const entity of deck.entities) {
+          if (!entity.id || ids.has(entity.id) || !deck.categories.some(c => c.id === entity.categoryId)) throw new ToolFormatError('考点 ID 重复或分类引用无效', 'INVALID_ENTITY');
+          ids.add(entity.id);
+        }
+      }
+      return result;
+    };
+    try {
+      // Business methods are synchronous: no UI/local Agent mutation can interleave
+      // between validation, storage commit and rollback on this JS event loop.
+      return this.app.storage?.runTransaction ? this.app.storage.runTransaction(perform) : perform();
+    } catch (error) {
+      this.app.state = before;
+      if (versions) { versions.versionsMap = oldVersions; versions.recycleBin = oldTrash; }
+      this.app.renderAllViews();
+      throw error;
+    }
+  }
+
+  _execute(toolName, args = {}) {
     switch (toolName) {
       case 'tool_list_decks': {
         return this.app.getAllDecks().map(d => {
@@ -6987,7 +7072,7 @@ class DeckToolExecutor {
         if (orphan) throw new ToolReferenceError(`考点 "${orphan.title || orphan.id}" 引用的分类 "${orphan.categoryId}" 未声明`, 'ORPHAN_CATEGORY_REFERENCE', '请确保所有考点的 categoryId 均已在 categories 中声明');
 
         const newDeck = {
-          id: 'deck_' + Date.now(),
+          id: 'deck_' + crypto.randomUUID(),
           title: args.title.trim(),
           icon: args.icon || '📚',
           description: args.description || '',
@@ -7056,7 +7141,10 @@ class DeckToolExecutor {
         }
         const entity = (deck.entities || []).find(e => e.id === args.entityId);
         if (!entity) throw new ToolReferenceError(`考点词条 "${args.entityId}" 在题库 "${args.deckId}" 中不存在`, 'ENTITY_NOT_FOUND', '请核对考点 ID', { deckId: args.deckId, entityId: args.entityId });
-        Object.assign(entity, args.updates || args.patch || {});
+        const patch = args.updates || args.patch || {};
+        const fields = ['title', 'prompt', 'answer', 'explanation', 'pitfalls', 'categoryId', 'layer', 'subtitle'];
+        if (Object.keys(patch).some(key => !fields.includes(key))) throw new ToolFormatError('包含不可修改的考点字段', 'INVALID_FIELD');
+        Object.assign(entity, patch);
         this._saveAndRender();
         return { success: true, updatedEntity: entity };
       }
@@ -7091,7 +7179,7 @@ class DeckToolExecutor {
         if (!args?.markdownText || !args.markdownText.trim()) throw new ToolFormatError('缺少 markdownText 参数', 'MISSING_FIELD', '请传入符合 AST 语法的 Markdown 文本');
         try {
           const deck = parseMarkdownToDeck(args.markdownText);
-          deck.id = 'deck_' + Date.now();
+          deck.id = 'deck_' + crypto.randomUUID();
           this.app.state.customDecks = this.app.state.customDecks || [];
           this.app.state.customDecks.push(deck);
           this._saveAndRender();
@@ -7335,19 +7423,11 @@ const DEFAULT_PROVIDERS = REFERENCE_PRESET_PROVIDERS.map(normalizeProvider);
 const STORAGE_KEY = 'knowledge_master_ai_sessions_v2';
 const CONFIG_KEY = 'knowledge_master_ai_config_v3';
 const DEFAULT_AI_CONFIG = {
-  activeProviderId: 'deepseek',
-  activeModelId: 'deepseek-reasoner',
-  providers: DEFAULT_PROVIDERS,
-  provider: 'deepseek',
-  apiType: 'openai',
-  baseUrl: 'https://api.deepseek.com/v1',
-  apiKey: '',
-  model: 'deepseek-reasoner',
-  contextWindow: 128000,
-  maxOutputTokens: 8192,
-  reasoningEffort: 'medium', // none | low | medium | high
-  autoApprove: false,
-  systemPrompt: '你是 Knowledge Master 通用知识记忆图谱系统的 AI 智囊专家。你可以调用系统题库工具为用户查询、创建、编辑题库，严格遵循同胞干扰项 >= 4 条的黄金认知门禁。'
+  activeProviderId: 'deepseek', activeModelId: 'deepseek-reasoner',
+  providers: DEFAULT_PROVIDERS, provider: 'deepseek', apiType: 'openai',
+  baseUrl: 'https://api.deepseek.com/v1', apiKey: '', model: 'deepseek-reasoner',
+  contextWindow: 128000, maxOutputTokens: 8192, reasoningEffort: 'medium', autoApprove: false,
+  systemPrompt: '你是 Knowledge Master 通用知识记忆图谱系统的 AI 智囊专家。你可以调用系统题库工具为用户查询、创建、编辑题库，严格遵循同胞干扰项 >= 4 条的黄金认知门禁。当工具返回包含错误（如 DECK_NOT_FOUND、PERMISSION_ERROR、FORMAT_ERROR）时，你必须认真分析返回的 suggestion 建议自主修正入参，严禁机械重复发起相同的错误调用。'
 };
 class SessionStore {
   constructor() {
@@ -8053,21 +8133,16 @@ function renderMarkdown(rawText) {
     const olMatch = trimmed.match(/^\d+\.\s+(.*)/);
     if (olMatch) {
       flushPara(); flushQuote(); flushTable();
-      if (!currentList || currentList.type !== 'ol') {
-        flushList();
-        currentList = { type: 'ol', items: [] };
-      }
+      if (!currentList || currentList.type !== 'ol') { flushList(); currentList = { type: 'ol', items: [] }; }
       currentList.items.push(olMatch[1]);
       continue;
     }
-
     const quoteMatch = trimmed.match(/^>\s*(.*)/);
     if (quoteMatch) {
       flushPara(); flushList(); flushTable();
       currentQuote.push(quoteMatch[1]);
       continue;
     }
-
     flushList(); flushQuote(); flushTable();
     currentPara.push(rawLine);
   }
@@ -8135,12 +8210,15 @@ function renderToolCard(msgId, tc) {
   const isDone = tc.status === 'success';
   const isPending = tc.status === 'pending';
   const isExecuting = tc.status === 'executing';
+  const isStreaming = tc.status === 'streaming';
   const isRejected = tc.status === 'rejected';
   const isError = tc.status === 'error';
 
   let statusBadge = '';
   if (isDone) {
     statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">已执行并回传</span>';
+  } else if (isStreaming) {
+    statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-indigo-950/80 text-indigo-300 border border-indigo-800 animate-pulse">参数生成中...</span>';
   } else if (isExecuting) {
     statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-indigo-950 text-indigo-400 border border-indigo-800 animate-pulse">执行中...</span>';
   } else if (isRejected) {
@@ -8158,6 +8236,10 @@ function renderToolCard(msgId, tc) {
         <button onclick="app.aiAgent.approveToolCall('${msgId}', '${tc.id}')" class="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-[11px] transition">批准执行</button>
         <button onclick="app.aiAgent.rejectToolCall('${msgId}')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 text-[11px] transition">拒绝</button>
       </div>`;
+  } else if (isStreaming) {
+    actionsOrResult = `<div class="pt-2 flex items-center justify-end text-[11px] text-slate-500 font-mono"><span>AI 正在组织入参，生成完毕后即可确认...</span></div>`;
+  } else if (isExecuting) {
+    actionsOrResult = `<div class="pt-2 flex items-center justify-end text-[11px] text-indigo-400 font-mono animate-pulse"><span>正在调用系统接口并落库...</span></div>`;
   } else if (isDone) {
     actionsOrResult = `
       <div class="pt-1.5 flex items-center justify-between text-[11px] text-emerald-400">
@@ -8292,8 +8374,8 @@ class AgentLoopEngine {
               id,
               name,
               arguments: args,
-              status: this.store.config.autoApprove ? 'executing' : 'pending',
-              previewText: `[第 ${this.currentStep} 步] 正在调用接口: ${name}`
+              status: this.store.config.autoApprove ? 'executing' : 'streaming',
+              previewText: `[第 ${this.currentStep} 步] 正在生成参数: ${name}`
             };
           }, { persist: false });
           this.ui.scheduleMessageRender?.(assistantMsgId);
@@ -8430,28 +8512,23 @@ class AgentLoopEngine {
   }
 
   async resumeWithApproval(msgId, toolCallId) {
-    if (!this.pendingToolCall || this.pendingToolCall.id !== toolCallId) {
-      const msg = this.store.getActiveSession()?.messages.find(m => m.id === msgId);
-      if (msg?.toolCall) {
-        try {
-          const res = await this.executor.execute(msg.toolCall.name, msg.toolCall.arguments);
-          msg.toolCall.status = 'success';
-          msg.toolCall.result = res;
-        } catch (err) {
-          const payload = toToolErrorPayload(err, msg.toolCall);
-          msg.toolCall.status = 'error';
-          msg.toolCall.error = payload.error;
-        }
-        this.store.saveSessions();
-        this.ui.renderCurrentSession();
+    this.store.updateMessage(msgId, m => {
+      if (m.toolCall) {
+        m.toolCall.status = 'executing';
+        m.toolCall.previewText = `[第 ${this.currentStep} 步] 正在执行: ${m.toolCall.name}...`;
       }
-      return;
-    }
+    });
+    this.ui.renderCurrentSession();
 
-    const tc = this.pendingToolCall;
+    let tc = this.pendingToolCall;
+    if (!tc || tc.id !== toolCallId) {
+      const msg = this.store.getActiveSession()?.messages.find(m => m.id === msgId);
+      if (msg?.toolCall) tc = { id: toolCallId, name: msg.toolCall.name, arguments: msg.toolCall.arguments };
+    }
     this.pendingToolCall = null;
     this.isPausedForApproval = false;
-    await this.executeAndFeedBack(msgId, tc);
+    this.isRunning = true;
+    if (tc) await this.executeAndFeedBack(msgId, tc);
   }
 
   rejectApproval(msgId) {
@@ -8782,6 +8859,259 @@ class AiAgentUIController {
     btn.innerHTML = generating
       ? `<span class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span><span>${escapeHtml(customText || '思考中...')}</span>`
       : `<span>发送</span><svg class="w-3 h-3 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>`;
+  }
+}
+
+  // --- Module: platform/network/browser-bridge-transport.js ---
+function bridgeConnectionUrl(server, room) {
+  const url = new URL(server);
+  if (url.username || url.password || url.search || url.hash || !['/', '/bridge'].includes(url.pathname)) throw new Error('请填写网关根地址，不带凭据或查询参数');
+  if (!room || room.length > 128) throw new Error('房间名称必须为 1–128 字符');
+  if (url.protocol === 'https:') url.protocol = 'wss:';
+  if (url.protocol === 'http:') url.protocol = 'ws:';
+  if (url.protocol !== 'wss:' && !(url.protocol === 'ws:' && ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname))) throw new Error('远程桥接必须使用 HTTPS/WSS');
+  url.pathname = '/bridge'; url.searchParams.set('room', room); url.searchParams.set('role', 'host');
+  return url;
+}
+
+// Wire-compatible with ProxyByCF crypto-adapter.ts (SHA-256 token -> AES-GCM).
+class BridgeCipher {
+  static async create(token) {
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+    return new BridgeCipher(await crypto.subtle.importKey('raw', digest, 'AES-GCM', false, ['encrypt', 'decrypt']));
+  }
+  constructor(key) { this.key = key; }
+  base64(bytes) {
+    let value = '';
+    for (let offset = 0; offset < bytes.length; offset += 8192) value += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
+    return btoa(value);
+  }
+  async encrypt(value) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const data = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, this.key, new TextEncoder().encode(JSON.stringify(value))));
+    return { enc: 'aes-256-gcm', v: 1, iv: this.base64(iv), data: this.base64(data.subarray(0, -16)), tag: this.base64(data.subarray(-16)), t: Date.now() };
+  }
+  async decrypt(value) {
+    if (value?.enc !== 'aes-256-gcm' || value.v !== 1) throw new Error('无效的加密消息');
+    const decode = text => Uint8Array.from(atob(text), c => c.charCodeAt(0));
+    const data = decode(value.data), tag = decode(value.tag), combined = new Uint8Array(data.length + tag.length);
+    combined.set(data); combined.set(tag, data.length);
+    return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: decode(value.iv) }, this.key, combined)));
+  }
+}
+class BrowserBridgeTransport {
+  constructor({ adapter, WebSocketClass = globalThis.WebSocket, onState = () => {}, onCall = () => {}, requestTimeoutMs = 25000 }) {
+    Object.assign(this, { adapter, WebSocketClass, onState, onCall, requestTimeoutMs });
+    this.state = 'DISABLED'; this.generation = 0;
+  }
+  setState(state) { this.state = state; this.onState(state); }
+  async start({ server, room, token }) {
+    this.stop();
+    const generation = this.generation;
+    const url = bridgeConnectionUrl(server, room);
+    // RFC 6455 subprotocol token syntax, matching existing ProxyByCF auth.
+    if (!token || token === 'aes-256-gcm' || !/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/.test(token)) throw new Error('Token 格式无效');
+    this.setState('CONNECTING');
+    const cipher = await BridgeCipher.create(token);
+    if (generation !== this.generation) return;
+    this.config = { url: url.href, token, cipher }; this.attempt = 0;
+    this.connect();
+  }
+  connect() {
+    const generation = ++this.generation;
+    const { url, token, cipher } = this.config;
+    this.setState('CONNECTING');
+    let socket;
+    try { socket = this.socket = new this.WebSocketClass(url, ['aes-256-gcm', token]); }
+    catch { this.setState('FAILED'); this.config = null; return; }
+    let queued = 0, chain = Promise.resolve(), lastPong = Date.now();
+    const current = () => generation === this.generation && this.socket === socket;
+    const send = async message => {
+      const encoded = JSON.stringify(await cipher.encrypt(message));
+      if (!current()) return;
+      if (encoded.length > 1024 * 1024 || socket.bufferedAmount > 2 * 1024 * 1024 || socket.readyState !== 1) throw new Error('桥接连接不可写');
+      socket.send(encoded);
+    };
+    const greeting = setTimeout(() => { if (current()) socket.close(); }, 10000);
+    const heartbeat = setInterval(() => {
+      if (!current()) return;
+      if (Date.now() - lastPong > 45000) socket.close();
+      else void send({ type: 'ping' }).catch(() => socket.close());
+    }, 15000);
+    this.clearConnectionTimers = () => { clearTimeout(greeting); clearInterval(heartbeat); };
+    socket.addEventListener('message', event => {
+      if (!current()) return;
+      if (typeof event.data !== 'string' || event.data.length > 1024 * 1024 || queued >= 8) { socket.close(); return; }
+      const receivedAt = Date.now();
+      queued++;
+      chain = chain.then(async () => {
+        if (!current()) return;
+        const message = await cipher.decrypt(JSON.parse(event.data));
+        if (!current()) return;
+        if (message.type === 'BRIDGE_CONNECTED') {
+          if (message.role !== 'host') throw new Error('Host 角色不匹配');
+          clearTimeout(greeting);
+          this.setState('REGISTERING');
+          await send({ type: 'tools/register', tools: this.adapter.listTools() });
+          if (current()) this.setState('REGISTERED'); // Existing gateway has no registration ACK.
+          return;
+        }
+        if (message.type === 'pong') { lastPong = Date.now(); return; }
+        if (message.jsonrpc !== '2.0' || !['string', 'number'].includes(typeof message.id)) return;
+        if (!['REGISTERED', 'READY'].includes(this.state)) return;
+        if (message.method === 'tools/list') await send({ jsonrpc: '2.0', id: message.id, result: { tools: this.adapter.listTools() } });
+        else if (message.method === 'tools/call') {
+          if (Date.now() - receivedAt >= this.requestTimeoutMs) { await send({ jsonrpc: '2.0', id: message.id, error: { code: -32000, message: 'Request expired before execution' } }); return; }
+          if (typeof message.params?.name !== 'string') { await send({ jsonrpc: '2.0', id: message.id, error: { code: -32602, message: 'Invalid tool parameters' } }); return; }
+          this.setState('READY');
+          const result = await this.adapter.callTool(message.params.name, message.params.arguments ?? {}, { operationId: message.params._meta?.operationId });
+          if (current()) this.onCall(message.params.name, result.isError ? '失败' : '完成');
+          await send({ jsonrpc: '2.0', id: message.id, result });
+        } else await send({ jsonrpc: '2.0', id: message.id, error: { code: -32601, message: 'Only tools/list and tools/call are supported' } });
+      }).catch(() => { if (current()) socket.close(); }).finally(() => queued--);
+    });
+    socket.addEventListener('error', () => {});
+    socket.addEventListener('close', event => {
+      clearTimeout(greeting); clearInterval(heartbeat);
+      if (!current()) return;
+      if (event.code === 4002) { this.setState('DISPLACED'); this.config = null; return; }
+      if (this.attempt >= 5) { this.setState('FAILED'); this.config = null; return; }
+      this.setState('BACKOFF');
+      this.retryTimer = setTimeout(() => { if (current() && this.config) this.connect(); }, Math.random() * Math.min(30000, 500 * 2 ** this.attempt++));
+    });
+  }
+  stop() {
+    ++this.generation;
+    clearTimeout(this.retryTimer); this.clearConnectionTimers?.();
+    const socket = this.socket; this.socket = null; this.config = null;
+    socket?.close(); this.setState('DISABLED');
+  }
+}
+
+  // --- Module: features/mcp-bridge/tool-adapter.js ---
+// Implements the schema keywords used by the shared Agent catalog, without coercion.
+function validateToolValue(value, schema, path = 'arguments', depth = 0) {
+  if (depth > 32) throw new Error('参数嵌套过深');
+  if (schema.type) {
+    const valid = schema.type === 'array' ? Array.isArray(value)
+      : schema.type === 'object' ? value !== null && typeof value === 'object' && !Array.isArray(value)
+        : schema.type === 'integer' ? Number.isInteger(value) : typeof value === schema.type;
+    if (!valid) throw new Error(`${path} 必须是 ${schema.type}`);
+  }
+  if (schema.enum && !schema.enum.includes(value)) throw new Error(`${path} 不在允许范围内`);
+  if (value && typeof value === 'object') {
+    for (const key of Object.keys(value)) {
+      if (['__proto__', 'prototype', 'constructor'].includes(key)) throw new Error('包含不允许的参数字段');
+      validateToolValue(value[key], schema.properties?.[key] || (Array.isArray(value) ? schema.items : null) || {}, `${path}.${key}`, depth + 1);
+    }
+    for (const key of schema.required || []) if (!Object.hasOwn(value, key)) throw new Error(`${path}.${key} 缺少必填参数`);
+  }
+}
+class McpToolAdapter {
+  constructor(executor) {
+    this.executor = executor;
+    this.catalog = new Map(DECK_TOOL_DEFINITIONS.map(({ function: f }) => [f.name, f]));
+    this.ledger = new Map();
+  }
+  listTools() {
+    return [...this.catalog.values()].map(f => ({ name: f.name, description: f.description, inputSchema: structuredClone(f.parameters) }));
+  }
+  async callTool(name, args = {}, { operationId } = {}) {
+    try {
+      const tool = this.catalog.get(name);
+      if (!tool) throw new Error('未知工具');
+      validateToolValue(args, tool.parameters);
+      const canonical = value => value && typeof value === 'object'
+        ? Array.isArray(value) ? value.map(canonical) : Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
+      const signature = JSON.stringify([name, canonical(args)]);
+      if (operationId !== undefined && (typeof operationId !== 'string' || !operationId || operationId.length > 128)) throw new Error('operationId 无效');
+      if (operationId && this.ledger.has(operationId)) {
+        const entry = this.ledger.get(operationId);
+        if (entry.signature !== signature) throw new Error('operationId 已用于不同调用');
+        return structuredClone(await entry.result);
+      }
+      const result = (async () => {
+        try {
+          const value = await this.executor.execute(name, structuredClone(args));
+          const text = JSON.stringify(value ?? null);
+          if (new TextEncoder().encode(text).length > 256 * 1024) {
+            if (['tool_list_decks', 'tool_get_deck', 'tool_search_entities', 'tool_get_deck_guide', 'tool_list_deck_versions'].includes(name)) throw new Error('RESULT_TOO_LARGE：结果超过 256KiB，请缩小查询范围');
+            return { content: [{ type: 'text', text: JSON.stringify({ success: true, deckId: value?.deckId || args.deckId, versionId: value?.versionId, message: '操作已完成并保存；结果过大，仅返回成功回执' }) }] };
+          }
+          return { content: [{ type: 'text', text }] };
+        } catch (err) {
+          return { isError: true, content: [{ type: 'text', text: JSON.stringify(toToolErrorPayload(err, { name })) }] };
+        }
+      })();
+      if (operationId) {
+        this.ledger.set(operationId, { signature, result });
+        if (this.ledger.size > 256) this.ledger.delete(this.ledger.keys().next().value);
+      }
+      return structuredClone(await result);
+    } catch (err) {
+      return { isError: true, content: [{ type: 'text', text: JSON.stringify(toToolErrorPayload(err, { name })) }] };
+    }
+  }
+}
+
+  // --- Module: features/mcp-bridge/controller.js ---
+const MCP_BRIDGE_LABELS = { DISABLED: '未连接', CONNECTING: '连接中', REGISTERING: '正在注册工具', REGISTERED: '已连接，19 个工具已发送注册（待外部调用验证）', READY: '已验证，可调用', BACKOFF: '连接中断，正在重连', DISPLACED: '同房间已有新 Host，已停止连接', FAILED: '连接失败，请检查地址、房间、Token 和网关开关' };
+class McpBridgeController {
+  constructor(executor) {
+    this.adapter = new McpToolAdapter(executor);
+    this.transport = new BrowserBridgeTransport({ adapter: this.adapter,
+      onState: state => this.renderState(state),
+      onCall: (name, status) => { const target = document.getElementById('mcp-last-call'); if (target) target.textContent = `${name} · ${status}`; }
+    });
+  }
+  init() {
+    document.getElementById('mcp-bridge-form')?.addEventListener('submit', event => { event.preventDefault(); void this.connect(); });
+    document.getElementById('mcp-disconnect')?.addEventListener('click', () => this.disconnect());
+    window.addEventListener('pagehide', () => this.disconnect());
+    this.renderState('DISABLED');
+  }
+  renderState(state) {
+    const target = document.getElementById('mcp-status');
+    if (target) target.textContent = MCP_BRIDGE_LABELS[state] || state;
+    const busy = !['DISABLED', 'FAILED', 'DISPLACED'].includes(state);
+    const button = document.getElementById('mcp-connect'); if (button) button.disabled = busy;
+    const disconnect = document.getElementById('mcp-disconnect'); if (disconnect) disconnect.disabled = !busy;
+    if (['FAILED', 'DISPLACED'].includes(state)) { this.releaseLock?.(); this.releaseLock = null; }
+  }
+  async connect() {
+    if (this.connecting) return;
+    this.connecting = true;
+    let acquired = false;
+    try {
+      if (!['https:', 'http:'].includes(location.protocol) || !globalThis.isSecureContext) throw new Error('请从 HTTPS 或本机 localhost 页面连接桥接');
+      if (navigator.locks) {
+        acquired = await new Promise((resolve, reject) => {
+          void navigator.locks.request('knowledge-master-mcp-host', { ifAvailable: true }, lock => {
+            if (!lock) { resolve(false); return; }
+            return new Promise(release => { this.releaseLock = release; resolve(true); });
+          }).catch(reject);
+        });
+        if (!acquired) throw new Error('另一个标签页正在提供 MCP，请先断开它');
+      }
+      const server = document.getElementById('mcp-server').value.trim();
+      const room = document.getElementById('mcp-room').value.trim();
+      const input = document.getElementById('mcp-token');
+      const token = input.value.trim(); input.value = '';
+      // Explicit reconnect establishes a new authorization scope; automatic
+      // transport reconnection retains its existing intent ledger.
+      this.adapter.ledger.clear();
+      await this.transport.start({ server, room, token });
+      const url = new URL('/mcp/sse', server.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:'));
+      url.searchParams.set('room', room);
+      document.getElementById('mcp-client-config').textContent = `外部客户端选择 SSE\n地址：${url.href}\n请求头：Authorization: Bearer <同一 Token>\n当前页面关闭后停止服务。`;
+    } catch (error) {
+      this.transport.stop(); this.releaseLock?.(); this.releaseLock = null;
+      document.getElementById('mcp-status').textContent = error.message;
+    } finally { this.connecting = false; }
+  }
+  disconnect() {
+    this.transport.stop(); this.releaseLock?.(); this.releaseLock = null;
+    const token = document.getElementById('mcp-token'); if (token) token.value = '';
   }
 }
 
@@ -9421,6 +9751,7 @@ class KnowledgeMasterApp {
     this.jevUi = new JevUi(this);
     this.favoritesManager = new FavoritesManagerController(this);
     this.deckVersioning = new DeckVersionController(this);
+    this.mcpBridge = new McpBridgeController(this.aiAgent.executor);
     this._lastJevRecommendation = null;
     this._lastAutoExpandedJevTarget = null;
   }
@@ -9431,6 +9762,7 @@ class KnowledgeMasterApp {
     this.renderDeckSelector();
     this.updateFavoritesBadge();
     this.aiAgent.init();
+    this.mcpBridge.init();
     this.updateSpeechUiState(this.speechSynth.isAutoSpeechEnabled());
     this.router.navigate('dashboard');
 

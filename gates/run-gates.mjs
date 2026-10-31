@@ -25,7 +25,7 @@ console.log('='.repeat(74) + '\n');
 try {
   const allowedRoots = new Set([
     'app', 'features', 'shared', 'design-system', 'platform', 'vendor',
-    'gates', 'tests', 'scripts', 'docs', 'archive',
+    'gates', 'tests', 'scripts', 'docs', 'archive', 'dist',
     'index.html', 'favicon.svg', 'binding.yaml', 'package.json', 'package-lock.json', 'node_modules', 'README.md', '.git', '.gitignore',
     'start-dev.bat', 'run.bat'
   ]);

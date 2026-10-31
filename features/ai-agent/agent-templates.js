@@ -143,21 +143,16 @@ export function renderMarkdown(rawText) {
     const olMatch = trimmed.match(/^\d+\.\s+(.*)/);
     if (olMatch) {
       flushPara(); flushQuote(); flushTable();
-      if (!currentList || currentList.type !== 'ol') {
-        flushList();
-        currentList = { type: 'ol', items: [] };
-      }
+      if (!currentList || currentList.type !== 'ol') { flushList(); currentList = { type: 'ol', items: [] }; }
       currentList.items.push(olMatch[1]);
       continue;
     }
-
     const quoteMatch = trimmed.match(/^>\s*(.*)/);
     if (quoteMatch) {
       flushPara(); flushList(); flushTable();
       currentQuote.push(quoteMatch[1]);
       continue;
     }
-
     flushList(); flushQuote(); flushTable();
     currentPara.push(rawLine);
   }
@@ -225,12 +220,15 @@ export function renderToolCard(msgId, tc) {
   const isDone = tc.status === 'success';
   const isPending = tc.status === 'pending';
   const isExecuting = tc.status === 'executing';
+  const isStreaming = tc.status === 'streaming';
   const isRejected = tc.status === 'rejected';
   const isError = tc.status === 'error';
 
   let statusBadge = '';
   if (isDone) {
     statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">已执行并回传</span>';
+  } else if (isStreaming) {
+    statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-indigo-950/80 text-indigo-300 border border-indigo-800 animate-pulse">参数生成中...</span>';
   } else if (isExecuting) {
     statusBadge = '<span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-indigo-950 text-indigo-400 border border-indigo-800 animate-pulse">执行中...</span>';
   } else if (isRejected) {
@@ -248,6 +246,10 @@ export function renderToolCard(msgId, tc) {
         <button onclick="app.aiAgent.approveToolCall('${msgId}', '${tc.id}')" class="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-[11px] transition">批准执行</button>
         <button onclick="app.aiAgent.rejectToolCall('${msgId}')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 text-[11px] transition">拒绝</button>
       </div>`;
+  } else if (isStreaming) {
+    actionsOrResult = `<div class="pt-2 flex items-center justify-end text-[11px] text-slate-500 font-mono"><span>AI 正在组织入参，生成完毕后即可确认...</span></div>`;
+  } else if (isExecuting) {
+    actionsOrResult = `<div class="pt-2 flex items-center justify-end text-[11px] text-indigo-400 font-mono animate-pulse"><span>正在调用系统接口并落库...</span></div>`;
   } else if (isDone) {
     actionsOrResult = `
       <div class="pt-1.5 flex items-center justify-between text-[11px] text-emerald-400">

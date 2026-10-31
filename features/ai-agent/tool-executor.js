@@ -33,6 +33,40 @@ export class DeckToolExecutor {
   }
 
   async execute(toolName, args = {}) {
+    const reads = ['tool_list_decks', 'tool_get_deck', 'tool_search_entities', 'tool_get_deck_guide', 'tool_list_deck_versions'];
+    if (reads.includes(toolName)) return this._execute(toolName, args);
+    const before = structuredClone(this.app.state);
+    const versions = this.app.deckVersioning;
+    const oldVersions = versions ? structuredClone(versions.versionsMap) : null;
+    const oldTrash = versions ? structuredClone(versions.recycleBin) : null;
+    const perform = () => {
+      const result = this._execute(toolName, args);
+      if (['tool_create_deck', 'tool_add_entities', 'tool_update_entity', 'tool_delete_entity', 'tool_import_markdown_deck', 'tool_batch_update_entities', 'tool_batch_delete_entities'].includes(toolName)) {
+        const targetId = result.deckId || args.deckId;
+        const deck = (this.app.state.customDecks || []).find(d => d.id === targetId);
+        const health = validateDeckHealth(deck);
+        if (!health.valid) throw new ToolFormatError(health.errors.join('; '), 'HEALTH_GATE_FAILED');
+        const ids = new Set();
+        for (const entity of deck.entities) {
+          if (!entity.id || ids.has(entity.id) || !deck.categories.some(c => c.id === entity.categoryId)) throw new ToolFormatError('考点 ID 重复或分类引用无效', 'INVALID_ENTITY');
+          ids.add(entity.id);
+        }
+      }
+      return result;
+    };
+    try {
+      // Business methods are synchronous: no UI/local Agent mutation can interleave
+      // between validation, storage commit and rollback on this JS event loop.
+      return this.app.storage?.runTransaction ? this.app.storage.runTransaction(perform) : perform();
+    } catch (error) {
+      this.app.state = before;
+      if (versions) { versions.versionsMap = oldVersions; versions.recycleBin = oldTrash; }
+      this.app.renderAllViews();
+      throw error;
+    }
+  }
+
+  _execute(toolName, args = {}) {
     switch (toolName) {
       case 'tool_list_decks': {
         return this.app.getAllDecks().map(d => {
@@ -63,7 +97,7 @@ export class DeckToolExecutor {
         if (orphan) throw new ToolReferenceError(`考点 "${orphan.title || orphan.id}" 引用的分类 "${orphan.categoryId}" 未声明`, 'ORPHAN_CATEGORY_REFERENCE', '请确保所有考点的 categoryId 均已在 categories 中声明');
 
         const newDeck = {
-          id: 'deck_' + Date.now(),
+          id: 'deck_' + crypto.randomUUID(),
           title: args.title.trim(),
           icon: args.icon || '📚',
           description: args.description || '',
@@ -132,7 +166,10 @@ export class DeckToolExecutor {
         }
         const entity = (deck.entities || []).find(e => e.id === args.entityId);
         if (!entity) throw new ToolReferenceError(`考点词条 "${args.entityId}" 在题库 "${args.deckId}" 中不存在`, 'ENTITY_NOT_FOUND', '请核对考点 ID', { deckId: args.deckId, entityId: args.entityId });
-        Object.assign(entity, args.updates || args.patch || {});
+        const patch = args.updates || args.patch || {};
+        const fields = ['title', 'prompt', 'answer', 'explanation', 'pitfalls', 'categoryId', 'layer', 'subtitle'];
+        if (Object.keys(patch).some(key => !fields.includes(key))) throw new ToolFormatError('包含不可修改的考点字段', 'INVALID_FIELD');
+        Object.assign(entity, patch);
         this._saveAndRender();
         return { success: true, updatedEntity: entity };
       }
@@ -167,7 +204,7 @@ export class DeckToolExecutor {
         if (!args?.markdownText || !args.markdownText.trim()) throw new ToolFormatError('缺少 markdownText 参数', 'MISSING_FIELD', '请传入符合 AST 语法的 Markdown 文本');
         try {
           const deck = parseMarkdownToDeck(args.markdownText);
-          deck.id = 'deck_' + Date.now();
+          deck.id = 'deck_' + crypto.randomUUID();
           this.app.state.customDecks = this.app.state.customDecks || [];
           this.app.state.customDecks.push(deck);
           this._saveAndRender();

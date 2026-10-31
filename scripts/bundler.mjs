@@ -85,6 +85,9 @@ try {
     'features/ai-agent/agent-templates.js',
     'features/ai-agent/agent-loop.js',
     'features/ai-agent/agent-ui.js',
+    'platform/network/browser-bridge-transport.js',
+    'features/mcp-bridge/tool-adapter.js',
+    'features/mcp-bridge/controller.js',
     'features/jev/jev-client.js',
     'features/jev/jev-ui.js',
     'app/router.js',
@@ -150,7 +153,8 @@ try {
   const scriptTag = `  <!-- 核心逻辑脚本 (由工程化打包器自动化编译) -->\n  <script>\n${bundleJs}  </script>\n`;
   const finalHtml = shellHtml.replace('<!-- INJECT_SCRIPTS -->', scriptTag);
 
-  const outputPath = path.join(ROOT_DIR, 'index.html');
+  const outputPath = process.env.BUNDLE_OUTPUT ? path.resolve(ROOT_DIR, process.env.BUNDLE_OUTPUT) : path.join(ROOT_DIR, 'index.html');
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, finalHtml, 'utf8');
 
   // 5. 同步至预览镜像 (可选)

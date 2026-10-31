@@ -21,6 +21,8 @@ desktop.ini
 # Build output / logs (if any)
 dist/
 build/
+.wrangler/
+.playwright-mcp/
 *.log
 
 # Environment variables & local credentials

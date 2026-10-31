@@ -1793,6 +1793,23 @@
     </div>
   </div>
 
+  <details class="max-w-4xl mx-auto my-6 p-4 surface-card rounded-xl text-sm" id="mcp-bridge-panel">
+    <summary class="cursor-pointer text-slate-200 font-semibold">MCP 桥接 · 对外提供全部 19 个题库工具</summary>
+    <p class="text-slate-400 text-xs my-3">连接后，持有 Token 的外部客户端可直接查询、创建、修改、删除和回滚当前页面题库，无需逐次批准。请仅与可信客户端共享独立房间和 Token，并保持页面运行。</p>
+    <form id="mcp-bridge-form" class="grid gap-3 sm:grid-cols-3">
+      <label>桥接地址<input id="mcp-server" type="url" required placeholder="https://你的网关域名" class="block w-full surface-inset rounded p-2 mt-1"></label>
+      <label>房间名称<input id="mcp-room" required maxlength="128" autocomplete="off" placeholder="独立房间名称" class="block w-full surface-inset rounded p-2 mt-1"></label>
+      <label>Token<input id="mcp-token" type="password" required autocomplete="off" class="block w-full surface-inset rounded p-2 mt-1"></label>
+      <div class="flex gap-3 sm:col-span-3">
+        <button id="mcp-connect" type="submit" class="px-3 py-2 bg-indigo-600 rounded disabled:opacity-50">连接并启用全部工具</button>
+        <button id="mcp-disconnect" type="button" class="px-3 py-2 surface-inset rounded disabled:opacity-50">断开</button>
+      </div>
+    </form>
+    <p id="mcp-status" role="status" aria-live="polite" class="text-xs text-slate-300 mt-3">未连接</p>
+    <p id="mcp-last-call" class="text-xs text-slate-400 mt-2"></p>
+    <pre id="mcp-client-config" class="text-xs text-slate-400 mt-3 whitespace-pre-wrap break-all"></pre>
+  </details>
+
   <!-- 网页底部版权 -->
   <footer class="border-t border-slate-900 py-4 text-center text-xs text-slate-500">
     <p>Universal Knowledge Master · 通用知识图谱游戏化记忆引擎 · 领域无关架构</p>
