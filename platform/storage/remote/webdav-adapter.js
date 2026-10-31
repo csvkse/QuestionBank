@@ -70,7 +70,11 @@ export class WebDavAdapter extends RemoteObjectStore {
 
     const encodedPath = allSegments.map(s => encodeURIComponent(s)).join('/');
     const origin = endpointObj ? endpointObj.origin : this.endpoint.replace(/\/+$/, '');
-    return `${origin}/${encodedPath}`;
+    let finalUrl = `${origin}/${encodedPath}`;
+    if ((relPath || '').endsWith('/') && !finalUrl.endsWith('/')) {
+      finalUrl += '/';
+    }
+    return finalUrl;
   }
 
   async _request(method, relPath, options = {}) {
@@ -108,7 +112,8 @@ export class WebDavAdapter extends RemoteObjectStore {
   }
 
   async mkcol(colPath, options = {}) {
-    const url = (colPath.startsWith('http://') || colPath.startsWith('https://')) ? colPath : this._buildUrl(colPath);
+    let url = (colPath.startsWith('http://') || colPath.startsWith('https://')) ? colPath : this._buildUrl(colPath);
+    if (!url.endsWith('/')) url += '/';
     const headers = new Headers(options.headers || {});
     const auth = this._getAuthHeader();
     if (auth && !headers.has('Authorization')) headers.set('Authorization', auth);
@@ -145,7 +150,7 @@ export class WebDavAdapter extends RemoteObjectStore {
 
     const startIndex = endpointSegments.length;
     for (let i = startIndex + 1; i <= fileSegments.length; i++) {
-      const colUrl = `${urlObj.origin}/${fileSegments.slice(0, i).join('/')}`;
+      const colUrl = `${urlObj.origin}/${fileSegments.slice(0, i).join('/')}/`;
       if (this._ensuredCollections.has(colUrl)) continue;
 
       try {
@@ -198,8 +203,9 @@ export class WebDavAdapter extends RemoteObjectStore {
   }
 
   async list(prefix = '', signal) {
+    const cleanPrefix = (prefix && !prefix.endsWith('/')) ? `${prefix}/` : prefix;
     const propfindXml = `<?xml version="1.0" encoding="utf-8" ?>\n<d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/><d:getetag/><d:getlastmodified/></d:prop></d:propfind>`;
-    const res = await this._request('PROPFIND', prefix, { headers: { Depth: '1' }, body: propfindXml, signal });
+    const res = await this._request('PROPFIND', cleanPrefix, { headers: { Depth: '1' }, body: propfindXml, signal });
     return this._parseMultistatusXml(await res.text());
   }
 

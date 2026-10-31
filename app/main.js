@@ -1547,7 +1547,7 @@ export class KnowledgeMasterApp {
     if (wsInput && cfg.workspaceId) wsInput.value = cfg.workspaceId;
   }
 
-  saveWebDavConfig() {
+  saveWebDavConfig(silent = false) {
     const ep = document.getElementById('webdav-input-endpoint')?.value?.trim() || '';
     const user = document.getElementById('webdav-input-username')?.value?.trim() || '';
     const pass = document.getElementById('webdav-input-password')?.value || '';
@@ -1562,28 +1562,64 @@ export class KnowledgeMasterApp {
       workspaceId: ws
     });
 
-    this._setWebDavStatus('配置已保存到本地', 'success');
+    if (!silent) {
+      this._setWebDavStatus('配置已保存到本地', 'success');
+    }
+  }
+
+  _formatWebDavError(err, actionName = '操作') {
+    const msg = (err && err.message) || String(err || '未知错误');
+    const statusCode = (err && err.statusCode) || 0;
+
+    // 1. CORS / 网络受阻 (纯浏览器环境最常见问题)
+    if (msg.includes('CORS') || msg.includes('Failed to fetch') || msg.includes('Network') || (err && err.name === 'NetworkError')) {
+      return `${actionName}受阻：网络或跨域限制 (CORS)。纯浏览器端要求 WebDAV 必须支持跨域；如使用坚果云/TeraCLOUD/自建网盘，请配合支持 CORS 的反向代理地址。`;
+    }
+
+    // 2. 鉴权失败
+    if (statusCode === 401 || statusCode === 403 || msg.includes('authentication rejected') || msg.includes('401') || msg.includes('403')) {
+      return `${actionName}失败：认证失败 (HTTP ${statusCode || 401})。请确认填入的是网盘后台生成的「WebDAV 应用专有密码/Token」，而非网页主账号登录密码。`;
+    }
+
+    // 3. 资源不存在
+    if (statusCode === 404 || msg.includes('404') || msg.includes('not found')) {
+      return `${actionName}失败：路径不存在 (HTTP 404)。请检查 WebDAV 端点 URL 及存储根目录拼写是否正确。`;
+    }
+
+    // 4. 并发冲突
+    if (statusCode === 412 || msg.includes('412') || msg.includes('precondition')) {
+      return `${actionName}失败：版本并发冲突 (HTTP 412)。远端快照已被其他设备更新，请先拉取最新备份。`;
+    }
+
+    // 5. 目录冲突
+    if (statusCode === 409 || msg.includes('409') || msg.includes('Conflict')) {
+      return `${actionName}失败：目录冲突 (HTTP 409)。存储根目录层级异常，请检查配置。`;
+    }
+
+    return `${actionName}失败: ${msg}`;
   }
 
   async testWebDavConnection() {
-    this.saveWebDavConfig();
-    this._setWebDavStatus('正在探测 WebDAV 节点与条件写 (CAS) 能力...', 'info');
+    this.saveWebDavConfig(true);
+    this._setWebDavStatus('正在探测 WebDAV 节点与读写能力...', 'info');
 
     try {
       const res = await this.dataSyncManager.testConnection();
       if (res.ok) {
-        const casInfo = res.conditionalReplace ? '支持强条件覆盖 (CAS If-Match)' : '未检测到条件覆盖支持';
-        this._setWebDavStatus(`连通正常！${casInfo}`, 'success');
+        const casInfo = res.conditionalReplace ? '支持条件覆盖 (CAS If-Match)' : '标准读写正常 (未检测到 ETag CAS)';
+        this._setWebDavStatus(`连通正常！节点握手与读写测试通过，可以安全上传或拉取快照。(${casInfo})`, 'success');
       } else {
-        this._setWebDavStatus(`连通失败: ${res.error || '未知错误'} (HTTP ${res.statusCode || 'N/A'})`, 'error');
+        const hint = this._formatWebDavError({ message: res.error, statusCode: res.statusCode }, '探测连通性');
+        this._setWebDavStatus(hint, 'error');
       }
     } catch (err) {
-      this._setWebDavStatus(`探测异常: ${err.message}`, 'error');
+      const hint = this._formatWebDavError(err, '探测连通性');
+      this._setWebDavStatus(hint, 'error');
     }
   }
 
   async createWebDavBackup() {
-    this.saveWebDavConfig();
+    this.saveWebDavConfig(true);
     this._setWebDavStatus('正在生成 v3 一致性快照并上传...', 'info');
 
     try {
@@ -1595,15 +1631,16 @@ export class KnowledgeMasterApp {
         }
       );
 
-      this._setWebDavStatus(`备份成功！快照 ID: ${res.snapshotId} (哈希: ${res.contentHash.slice(0, 8)})`, 'success');
-      this.loadWebDavBackups();
+      this._setWebDavStatus(`备份成功！快照 ID: ${res.snapshotId} (哈希: ${res.contentHash.slice(0, 8)})，已刷新历史列表`, 'success');
+      this.loadWebDavBackups(true);
     } catch (err) {
-      this._setWebDavStatus(`上传备份失败: ${err.message}`, 'error');
+      const hint = this._formatWebDavError(err, '上传备份');
+      this._setWebDavStatus(hint, 'error');
     }
   }
 
-  async loadWebDavBackups() {
-    this.saveWebDavConfig();
+  async loadWebDavBackups(preserveStatus = false) {
+    this.saveWebDavConfig(true);
     const listEl = document.getElementById('webdav-backup-list');
     if (listEl) {
       listEl.innerHTML = '<div class="text-center py-4 text-slate-400">正在拉取云端快照列表...</div>';
@@ -1614,7 +1651,7 @@ export class KnowledgeMasterApp {
       if (!listEl) return;
 
       if (backups.length === 0) {
-        listEl.innerHTML = '<div class="text-center py-4 text-slate-500">云端暂无历史备份快照</div>';
+        listEl.innerHTML = '<div class="text-center py-4 text-slate-500">云端暂无历史快照，点击上方「上传云端快照 (v3)」进行首次同步</div>';
         return;
       }
 
@@ -1636,7 +1673,8 @@ export class KnowledgeMasterApp {
       }).join('');
     } catch (err) {
       if (listEl) {
-        listEl.innerHTML = `<div class="text-center py-4 text-rose-400">拉取列表失败: ${err.message}</div>`;
+        const hint = this._formatWebDavError(err, '拉取列表');
+        listEl.innerHTML = `<div class="text-center py-4 text-rose-400 text-xs">${hint}</div>`;
       }
     }
   }
@@ -1658,8 +1696,9 @@ export class KnowledgeMasterApp {
         alert(`已成功从云端快照恢复数据！\n题库数: ${res.summary.customDeckCount}，卡片进度: ${res.summary.totalCards || 0}`);
       }
     } catch (err) {
-      this._setWebDavStatus(`恢复失败: ${err.message}`, 'error');
-      if (typeof alert !== 'undefined') alert(`恢复失败: ${err.message}`);
+      const hint = this._formatWebDavError(err, '恢复快照');
+      this._setWebDavStatus(hint, 'error');
+      if (typeof alert !== 'undefined') alert(hint);
     }
   }
 

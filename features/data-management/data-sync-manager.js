@@ -119,14 +119,28 @@ export class DataSyncManager {
     const prefix = prefixParts.length > 0 ? `${prefixParts.join('/')}/` : '';
 
     const items = await adapter.list(prefix, signal);
-    const backups = items
-      .filter(it => it.path.endsWith('.json') && !it.isDirectory)
-      .map(it => {
-        const fullPath = (basePath && !it.path.startsWith(basePath + '/'))
-          ? `${basePath}/${it.path}`
-          : it.path;
-        return { ...it, path: fullPath };
-      });
+    let allFileItems = items.filter(it => it.path.endsWith('.json') && !it.isDirectory);
+
+    // 针对分层存储结构：检查是否包含设备子文件夹 (如 dev_xxx/) 并拉取
+    const cleanPrefix = prefix.replace(/^\/+|\/+$/g, '');
+    const subDirs = items.filter(it => it.isDirectory && it.path && it.path !== cleanPrefix);
+    for (const dir of subDirs) {
+      try {
+        const dirPrefix = dir.path.endsWith('/') ? dir.path : `${dir.path}/`;
+        const subItems = await adapter.list(dirPrefix, signal);
+        const subFiles = subItems.filter(it => it.path.endsWith('.json') && !it.isDirectory);
+        allFileItems.push(...subFiles);
+      } catch (e) {
+        console.warn('读取设备备份子目录失败:', dir.path, e);
+      }
+    }
+
+    const backups = allFileItems.map(it => {
+      const fullPath = (basePath && !it.path.startsWith(basePath + '/'))
+        ? `${basePath}/${it.path}`
+        : it.path;
+      return { ...it, path: fullPath };
+    });
 
     backups.sort((a, b) => {
       const timeA = a.modifiedAt ? new Date(a.modifiedAt).getTime() : 0;

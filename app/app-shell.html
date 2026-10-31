@@ -973,10 +973,10 @@
               <form id="mcp-bridge-form" class="space-y-3">
                 <label class="block text-xs text-slate-300">桥接地址<input id="mcp-server" type="url" required placeholder="https://你的网关域名" class="block w-full surface-inset rounded-lg p-2.5 mt-1"></label>
                 <label class="block text-xs text-slate-300">房间名称<input id="mcp-room" required maxlength="128" autocomplete="off" placeholder="为当前页面使用独立房间" class="block w-full surface-inset rounded-lg p-2.5 mt-1"></label>
-                <label class="block text-xs text-slate-300">临时 Token<input id="mcp-token" type="password" required autocomplete="off" aria-describedby="mcp-token-help" class="block w-full surface-inset rounded-lg p-2.5 mt-1"></label>
-                <p id="mcp-token-help" class="text-xs text-slate-500">仅用于本次连接，不记住、不包含在复制的地址中。</p>
+                <label class="block text-xs text-slate-300">Token<input id="mcp-token" type="password" required autocomplete="off" aria-describedby="mcp-token-help" placeholder="输入网关鉴权 Token" class="block w-full surface-inset rounded-lg p-2.5 mt-1"></label>
+                <p id="mcp-token-help" class="text-xs text-slate-500">用于 WebSocket 握手与客户端鉴权，勾选下方选项可持久化记住。</p>
                 <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <label class="flex items-center gap-2 text-slate-400"><input id="mcp-remember" type="checkbox" checked>记住地址与房间</label>
+                  <label class="flex items-center gap-2 text-slate-400 cursor-pointer"><input id="mcp-remember" type="checkbox" checked>记住地址、房间与 Token</label>
                   <button id="mcp-forget" type="button" class="text-slate-400 hover:text-white underline underline-offset-4">清除记住的配置</button>
                 </div>
                 <div class="flex gap-3 pt-1">
@@ -987,15 +987,34 @@
               <p class="text-xs text-slate-400 leading-relaxed">连接后可直接创建、修改、删除和回滚题库，无需逐次批准。修改连接设置前请先断开；切换标签不会断开连接。</p>
             </section>
             <section aria-labelledby="mcp-access-title" class="space-y-3 min-w-0">
-              <h3 id="mcp-access-title" class="text-sm font-semibold text-slate-200">客户端接入</h3>
+              <div class="flex items-center justify-between">
+                <h3 id="mcp-access-title" class="text-sm font-semibold text-slate-200">客户端接入</h3>
+                <label class="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer">
+                  <input id="mcp-include-token" type="checkbox" checked class="rounded border-slate-700 text-indigo-600">
+                  <span>包含真实 Token</span>
+                </label>
+              </div>
               <label class="block text-xs text-slate-300">SSE 地址<input id="mcp-endpoint" readonly placeholder="填写地址和房间后生成" class="block w-full surface-inset rounded-lg p-2.5 mt-1 text-xs"></label>
-              <button id="mcp-copy-endpoint" type="button" disabled class="text-xs text-indigo-300 hover:text-indigo-200 disabled:opacity-40">复制 SSE 地址</button>
-              <pre id="mcp-client-config" class="text-xs text-slate-400 whitespace-pre-wrap break-all leading-relaxed"></pre>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs text-slate-400">导入配置示例</span>
+                <button id="mcp-copy-endpoint" type="button" disabled class="text-xs text-indigo-300 hover:text-indigo-200 disabled:opacity-40">复制 SSE 地址</button>
+              </div>
+              <div id="mcp-client-tabs" class="flex flex-wrap gap-1 p-1 bg-slate-950/60 rounded-lg border border-slate-800 text-xs">
+                <button type="button" data-client="cursor" class="px-2.5 py-1 rounded bg-indigo-600 text-white font-medium transition">Cursor</button>
+                <button type="button" data-client="claude-desktop" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">Claude Desktop</button>
+                <button type="button" data-client="cline" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">Cline</button>
+                <button type="button" data-client="windsurf" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">Windsurf</button>
+                <button type="button" data-client="claude-code" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">Claude CLI</button>
+              </div>
+              <div class="relative group">
+                <pre id="mcp-client-config" class="p-3 bg-slate-950/80 rounded-lg border border-slate-800 text-[11px] font-mono text-indigo-200 overflow-x-auto max-h-48 leading-relaxed whitespace-pre-wrap break-all"></pre>
+                <button id="mcp-copy-config" type="button" class="absolute top-2 right-2 px-2 py-1 bg-indigo-600/80 hover:bg-indigo-600 text-white text-[10px] rounded shadow transition disabled:opacity-40">复制配置</button>
+              </div>
               <div class="border-t border-slate-800 pt-3 space-y-2">
                 <p class="text-xs text-slate-400">当前状态</p>
                 <p id="mcp-status" role="status" aria-live="polite" class="text-sm text-slate-200">未连接</p>
                 <p id="mcp-last-call" class="text-xs text-slate-400 break-all">尚无工具调用</p>
-                <p class="text-xs text-slate-500">保持页面运行。刷新或关闭页面后停止服务，重新连接需再次输入 Token。</p>
+                <p class="text-xs text-slate-500">保持页面运行。支持记住 Token，刷新后可快速重连。</p>
               </div>
             </section>
           </div>
@@ -1177,35 +1196,45 @@
 
         <!-- 面板 B: WebDAV 外部持久化 (RFC 4918 + 条件 CAS) -->
         <div id="backup-panel-remote" class="space-y-3 hidden">
-          <p class="text-xs text-slate-400 leading-relaxed">
-            支持基于标准 WebDAV 的远端对象备份与快照恢复。具备条件并发控制 (ETag / If-Match) 与本地安全回滚保护。
-          </p>
+          <!-- 纯浏览器环境跨域重要提示 -->
+          <div class="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+            <div class="font-semibold text-slate-300 flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <span>纯浏览器环境 WebDAV 同步说明</span>
+            </div>
+            <p class="leading-normal">
+              受浏览器同源策略（CORS）限制，WebDAV 端点必须支持跨域访问。直连未配置 CORS 的服务（如坚果云、TeraCLOUD）会被浏览器拦截，需配合反向代理使用。
+            </p>
+          </div>
 
           <!-- 状态提示徽标 -->
-          <div id="webdav-status-badge" class="hidden p-2.5 rounded-xl text-xs border"></div>
+          <div id="webdav-status-badge" class="hidden p-2.5 rounded-xl text-xs border leading-relaxed"></div>
 
           <!-- WebDAV 配置表单 -->
           <div class="space-y-2.5 bg-slate-900/50 p-3 rounded-xl border border-slate-800/80">
             <div>
-              <label class="block text-[11px] font-semibold text-slate-400 mb-1">WebDAV 端点 URL</label>
-              <input id="webdav-input-endpoint" type="url" placeholder="https://dav.example.com/remote.php/webdav" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-[11px] font-semibold text-slate-400">WebDAV 端点 URL</label>
+                <span class="text-[10px] text-amber-400 font-mono">需支持跨域 CORS</span>
+              </div>
+              <input id="webdav-input-endpoint" type="url" placeholder="https://proxy.example.com/dav/ 或支持 CORS 的 WebDAV 端点" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
             </div>
 
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="block text-[11px] font-semibold text-slate-400 mb-1">用户名 / 账号</label>
-                <input id="webdav-input-username" type="text" placeholder="user" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                <input id="webdav-input-username" type="text" placeholder="WebDAV 用户名或注册邮箱" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
               </div>
               <div>
                 <label class="block text-[11px] font-semibold text-slate-400 mb-1">应用密码 / Token</label>
-                <input id="webdav-input-password" type="password" placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                <input id="webdav-input-password" type="password" placeholder="应用授权密码，避免使用主密码" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
               </div>
             </div>
 
             <div class="grid grid-cols-2 gap-2">
               <div>
-                <label class="block text-[11px] font-semibold text-slate-400 mb-1">存储根目录 (选填，支持多级)</label>
-                <input id="webdav-input-basepath" type="text" value="" placeholder="选填，如: root/abc，留空直接保存在端点根目录" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">存储根目录 (支持多级自动创建)</label>
+                <input id="webdav-input-basepath" type="text" value="" placeholder="选填，如: root/knowledge（留空则保存在端点根目录）" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
               </div>
               <div>
                 <label class="block text-[11px] font-semibold text-slate-400 mb-1">工作区标识 (Workspace)</label>
@@ -1223,6 +1252,35 @@
               </button>
             </div>
           </div>
+
+          <!-- 常见网盘与反代配置参考折叠卡片 -->
+          <details class="text-[11px] bg-slate-900/40 border border-slate-800/80 rounded-xl p-2.5 text-slate-400 group">
+            <summary class="font-semibold text-slate-300 cursor-pointer select-none flex items-center justify-between hover:text-emerald-400 transition">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>常见网盘与反代配置参考（点击展开）</span>
+              </span>
+              <span class="text-slate-500 group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <div class="mt-2.5 space-y-2 border-t border-slate-800/60 pt-2 leading-relaxed">
+              <div>
+                <div class="font-semibold text-slate-300">1. InfiniCLOUD / TeraCLOUD</div>
+                <div class="text-slate-400">端点需配合 CORS 反代（如 Cloudflare Worker 反代）；根目录填写 <code class="text-emerald-400 font-mono">root/目录名</code>；密码在后台「Connection Information」生成「Apps Password」。</div>
+              </div>
+              <div>
+                <div class="font-semibold text-slate-300">2. 坚果云 (Jianguoyun)</div>
+                <div class="text-slate-400">官方端点未开放浏览器跨域，需配合反代；账号填注册邮箱；密码在「账户信息 → 安全选项 → 第三方应用管理」中生成专用应用密码。</div>
+              </div>
+              <div>
+                <div class="font-semibold text-slate-300">3. Nextcloud / ownCloud</div>
+                <div class="text-slate-400">端点形如 <code class="text-emerald-400 font-mono">https://域名/remote.php/dav/files/用户名/</code>；服务端需在 <code class="font-mono">config.php</code> 配置允许跨域或使用反代。</div>
+              </div>
+              <div>
+                <div class="font-semibold text-slate-300">4. Alist / 自建 WebDAV</div>
+                <div class="text-slate-400">请在 Alist 管理后台开启「允许跨域访问」，并确保放行 OPTIONS/PROPFIND/MKCOL/PUT/GET 等 WebDAV 请求方法。</div>
+              </div>
+            </div>
+          </details>
 
           <!-- 操作与快照管理 -->
           <div class="space-y-2 pt-1">
@@ -1247,7 +1305,7 @@
 
             <!-- 远端快照列表 -->
             <div id="webdav-backup-list" class="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-slate-950 rounded-xl border border-slate-800 text-xs">
-              <div class="text-center py-4 text-slate-500">点击「拉取备份列表」查看云端已有存档</div>
+              <div class="text-center py-4 text-slate-500">云端暂无历史快照，点击上方「上传云端快照 (v3)」进行首次同步</div>
             </div>
           </div>
         </div>

@@ -95,6 +95,7 @@ try {
     'features/ai-agent/agent-ui.js',
     'features/ai-agent/workspace-navigation.js',
     'platform/network/browser-bridge-transport.js',
+    'features/mcp-bridge/client-adapters.js',
     'features/mcp-bridge/tool-adapter.js',
     'features/mcp-bridge/settings-model.js',
     'features/mcp-bridge/controller.js',

@@ -14,6 +14,21 @@ test('remembered connection fields exclude tokens and tolerate unavailable stora
   assert.equal(blocked.load(), null); assert.equal(blocked.save({}), false);
 });
 
+test('persisting token when rememberToken is true obfuscates token and loads correctly', () => {
+  const data = new Map(); const storage = { getItem: k => data.get(k), setItem: (k,v) => data.set(k,v), removeItem: k => data.delete(k) };
+  const prefs = new McpPreferences(() => storage);
+  prefs.save({server:'https://gateway.example.com.com',room:'my room',token:'sk-proj-test-secret-key-1234567890',rememberToken:true});
+  const loaded = prefs.load();
+  assert.equal(loaded.server, 'https://gateway.example.com.com');
+  assert.equal(loaded.room, 'my room');
+  assert.equal(loaded.token, 'sk-proj-test-secret-key-1234567890');
+  assert.equal(loaded.rememberToken, true);
+  // Ensure the raw secret token is never stored as plaintext in localStorage
+  assert.ok(![...data.values()].join('').includes('sk-proj-test-secret-key-1234567890'));
+  prefs.clear();
+  assert.equal(prefs.load(), null);
+});
+
 test('connection state derives field locking and endpoint generation never carries credentials', () => {
   for (const state of ['CONNECTING','REGISTERING','REGISTERED','READY','BACKOFF']) assert.equal(mcpPresentation(state).locked, true);
   for (const state of ['DISABLED','FAILED','DISPLACED']) assert.equal(mcpPresentation(state).locked, false);

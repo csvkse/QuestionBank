@@ -279,10 +279,10 @@ function assert(condition, message) {
       const method = options.method || 'GET';
       if (method === 'MKCOL') {
         mkcolCalls.push(url);
-        if (url.endsWith('/arena-root')) {
+        if (url.replace(/\/+$/, '').endsWith('/arena-root')) {
           return new Response('Created', { status: 201 });
         }
-        if (url.endsWith('/default/backups')) {
+        if (url.replace(/\/+$/, '').endsWith('/default/backups')) {
           return new Response('Method Not Allowed', { status: 405 });
         }
         return new Response('Created', { status: 201 });
@@ -298,7 +298,7 @@ function assert(condition, message) {
     const probeRes = await dav.put('.probe_root.tmp', { probe: true });
     assert(probeRes.etag === '"put-etag-1"', '根级探针写入应成功');
     assert(mkcolCalls.length === 1, '应确保根集合 arena-root 存在 (1 次 MKCOL)');
-    assert(mkcolCalls[0].endsWith('/arena-root'), '根集合 MKCOL 路径正确');
+    assert(mkcolCalls[0].replace(/\/+$/, '').endsWith('/arena-root'), '根集合 MKCOL 路径正确');
 
     // 4.2 首次写入多层深路径：自动逐级执行未缓存的各层 MKCOL
     mkcolCalls.length = 0;
@@ -306,9 +306,9 @@ function assert(condition, message) {
     const res1 = await dav.put('default/backups/dev_001/snap.json', { ok: true });
     assert(res1.etag === '"put-etag-1"', '首次写入应成功');
     assert(mkcolCalls.length === 3, '应按序创建 default, default/backups, default/backups/dev_001 共 3 级子目录 (根级已缓存)');
-    assert(mkcolCalls[0].endsWith('/arena-root/default'), '第 1 级子目录 MKCOL 路径正确');
-    assert(mkcolCalls[1].endsWith('/arena-root/default/backups'), '第 2 级子目录 MKCOL 路径正确');
-    assert(mkcolCalls[2].endsWith('/arena-root/default/backups/dev_001'), '第 3 级子目录 MKCOL 路径正确');
+    assert(mkcolCalls[0].replace(/\/+$/, '').endsWith('/arena-root/default'), '第 1 级子目录 MKCOL 路径正确');
+    assert(mkcolCalls[1].replace(/\/+$/, '').endsWith('/arena-root/default/backups'), '第 2 级子目录 MKCOL 路径正确');
+    assert(mkcolCalls[2].replace(/\/+$/, '').endsWith('/arena-root/default/backups/dev_001'), '第 3 级子目录 MKCOL 路径正确');
     assert(putCalls.length === 1 && putCalls[0].endsWith('/snap.json'), '最终 PUT 请求路径正确');
 
     // 4.3 再次写入同级目录文件：应命中 _ensuredCollections 缓存，不再发出任何 MKCOL
@@ -328,8 +328,8 @@ function assert(condition, message) {
     putCalls.length = 0;
     await multiDav.put('.probe_nested.tmp', { probe: true });
     assert(mkcolCalls.length === 2, '多级 basePath 探针应依次创建 root 与 root/knowledge-arena');
-    assert(mkcolCalls[0] === 'https://proxy.example.com/proxy/dav.example.com/dav/root', '第 1 级 MKCOL 为 /dav/root');
-    assert(mkcolCalls[1] === 'https://proxy.example.com/proxy/dav.example.com/dav/root/knowledge-arena', '第 2 级 MKCOL 为 /dav/root/knowledge-arena');
+    assert(mkcolCalls[0].replace(/\/+$/, '') === 'https://proxy.example.com/proxy/dav.example.com/dav/root', '第 1 级 MKCOL 为 /dav/root');
+    assert(mkcolCalls[1].replace(/\/+$/, '') === 'https://proxy.example.com/proxy/dav.example.com/dav/root/knowledge-arena', '第 2 级 MKCOL 为 /dav/root/knowledge-arena');
     assert(!mkcolCalls.some(url => url.endsWith('/knowledge-arena/root')), '严禁在末尾出现多余的 /root');
 
     // 4.5 针对带路径端点 (如 /dav/root) 与重叠/空 basePath (如 /root/abc 或 空)：严禁多余 MKCOL 或路径重叠
@@ -340,7 +340,7 @@ function assert(condition, message) {
     mkcolCalls.length = 0;
     await aliasDav.put('.probe_alias.tmp', { probe: true });
     assert(mkcolCalls.length === 1, '端点已含 root 时仅创建子目录 abc');
-    assert(mkcolCalls[0] === 'https://proxy.example.com/proxy/dav.example.com/dav/root/abc', 'MKCOL 目标为 /dav/root/abc');
+    assert(mkcolCalls[0].replace(/\/+$/, '') === 'https://proxy.example.com/proxy/dav.example.com/dav/root/abc', 'MKCOL 目标为 /dav/root/abc');
 
     const emptyDav = new WebDavAdapter({
       endpoint: 'https://proxy.example.com/proxy/dav.example.com/dav/root',
@@ -349,9 +349,9 @@ function assert(condition, message) {
     mkcolCalls.length = 0;
     await emptyDav.put('default/backups/dev_1/snap.json', { probe: true });
     assert(mkcolCalls.length === 3, '留空 basePath 时根据嵌套文件逐级创建目录');
-    assert(mkcolCalls[0] === 'https://proxy.example.com/proxy/dav.example.com/dav/root/default');
-    assert(mkcolCalls[1] === 'https://proxy.example.com/proxy/dav.example.com/dav/root/default/backups');
-    assert(mkcolCalls[2] === 'https://proxy.example.com/proxy/dav.example.com/dav/root/default/backups/dev_1');
+    assert(mkcolCalls[0].replace(/\/+$/, '') === 'https://proxy.example.com/proxy/dav.example.com/dav/root/default');
+    assert(mkcolCalls[1].replace(/\/+$/, '') === 'https://proxy.example.com/proxy/dav.example.com/dav/root/default/backups');
+    assert(mkcolCalls[2].replace(/\/+$/, '') === 'https://proxy.example.com/proxy/dav.example.com/dav/root/default/backups/dev_1');
     assert(!mkcolCalls.some(url => url.includes('/root/root')), '严禁出现 /root/root 重复');
   } finally {
     globalThis.fetch = originalFetch;
