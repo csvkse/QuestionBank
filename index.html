@@ -4146,6 +4146,7 @@ class WebDavAdapter extends RemoteObjectStore {
   constructor(config = {}) {
     super(config);
     this.endpoint = (config.endpoint || '').trim().replace(/\/+$/, '');
+    if (this.endpoint && !/^https?:\/\//i.test(this.endpoint)) this.endpoint = `https://${this.endpoint}`;
     this.username = config.username || '';
     this.password = config.password || '';
     this.token = config.token || '';
