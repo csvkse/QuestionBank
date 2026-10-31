@@ -16,7 +16,7 @@ Host: proxy.example.com
 Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=
 Content-Type: application/json; charset=utf-8
 If-None-Match: *
-Origin: https://csvkse.github.io
+Origin: https://app.example.com
 
 HTTP/1.1 403 Forbidden
 Content-Type: text/html; charset=iso-8859-1

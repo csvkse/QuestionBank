@@ -21,7 +21,7 @@ Host 页面与外部 SDK 客户端运行在同一台机器，以独立公网连�
 
 - 网关：公网 ProxyByCF 网关，未改代码、配置或部署。
 - 接入方式：旧 SSE `/mcp/sse?room=...`，Authorization Bearer；Host 使用 WSS `aes-256-gcm` 子协议与现有 Token。
-- 房间：`knowledge-arena-public-8a344b2a-f98d-44db-9e01-c170757c1b62`，专用于本次联调。
+- 房间：`knowledge-arena-public-<UUID>`，专用于本次联调。
 - 凭据：用户提供临时 Token；未创建、修改或主动吊销该凭据，文档不记录密钥。
 - 客户端：参考项目已有官方 SDK 与 Undici；沿用此前已确认的 HTTP/1.1 独立连接池（8 连接、pipelining=1、allowH2=false），避免本环境默认 dispatcher 的 SSE/POST 连接问题。无新增依赖。
 - 自动化脚本：`tests/integration/mcp-proxybycf.mjs --public --browser-client`；浏览器先通过页面表单连接，脚本不在 Node 中替代页面 Host。

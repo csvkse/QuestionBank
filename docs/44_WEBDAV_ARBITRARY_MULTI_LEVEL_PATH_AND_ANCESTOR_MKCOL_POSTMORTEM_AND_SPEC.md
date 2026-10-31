@@ -15,8 +15,8 @@
 MKCOL /proxy/dav.example.com/dav/root/knowledge-arena/root HTTP/1.1
 Host: proxy.example.com
 Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=
-Origin: https://csvkse.github.io
-Referer: https://csvkse.github.io/
+Origin: https://app.example.com
+Referer: https://app.example.com/
 
 HTTP/1.1 409 Conflict
 ```
