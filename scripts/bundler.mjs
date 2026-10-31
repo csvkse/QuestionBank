@@ -56,10 +56,18 @@ try {
     'platform/audio/web-audio-synth.js',
     'platform/audio/speech-synth.js',
     'platform/storage/local-storage-adapter.js',
+    'platform/storage/write-scheduler.js',
+    'platform/storage/remote/remote-adapter.js',
+    'platform/storage/remote/webdav-adapter.js',
+    'platform/storage/remote/index.js',
     'platform/exporter/file-exporter.js',
     'design-system/components/modal.js',
     'design-system/components/pill.js',
     'design-system/icons/icons.js',
+    'features/data-management/backup-serializer.js',
+    'features/data-management/backup-validator.js',
+    'features/data-management/data-sync-manager.js',
+    'features/data-management/index.js',
     'features/arena/combo-effect.js',
     'features/arena/quiz-runner.js',
     'features/arena/sandbox-config.js',
@@ -85,8 +93,10 @@ try {
     'features/ai-agent/agent-templates.js',
     'features/ai-agent/agent-loop.js',
     'features/ai-agent/agent-ui.js',
+    'features/ai-agent/workspace-navigation.js',
     'platform/network/browser-bridge-transport.js',
     'features/mcp-bridge/tool-adapter.js',
+    'features/mcp-bridge/settings-model.js',
     'features/mcp-bridge/controller.js',
     'features/jev/jev-client.js',
     'features/jev/jev-ui.js',
@@ -123,9 +133,10 @@ try {
     // 转换普通 export 声明
     code = code.replace(/^\s*export\s+const\s+/gm, 'const ');
     code = code.replace(/^\s*export\s+let\s+/gm, 'let ');
+    code = code.replace(/^\s*export\s+async\s+function\s+/gm, 'async function ');
     code = code.replace(/^\s*export\s+function\s+/gm, 'function ');
     code = code.replace(/^\s*export\s+class\s+/gm, 'class ');
-    code = code.replace(/^\s*export\s*\{[\s\S]*?\};?\s*$/gm, '');
+    code = code.replace(/export\s*\{[\s\S]*?\};?/g, '');
     code = code.replace(/^\s*export\s+default\s+/gm, 'const defaultExport = ');
 
     bundleJs += `  // --- Module: ${modPath} ---\n`;

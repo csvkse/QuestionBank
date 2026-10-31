@@ -731,14 +731,17 @@ try {
     'tests/unit/panorama-collapsible.test.mjs',
     'tests/unit/favorites.test.mjs',
     'tests/unit/guide.test.mjs',
-    'tests/unit/deck-versioning.test.mjs'
+    'tests/unit/deck-versioning.test.mjs',
+    'tests/unit/write-scheduler.test.mjs',
+    'tests/unit/remote-storage-adapter.test.mjs',
+    'tests/unit/webdav-backup-restore.test.mjs'
   ];
   let allTestsPassed = true;
   for (const t of tests) {
     const testPath = path.join(ROOT_DIR, t);
     await import(pathToFileURL(testPath).href);
   }
-  recordResult('FE-TEST-001', 'Automated Unit Test Suite', 'PASS', `All ${tests.length} unit tests (SM-2, Distractor, AST, Validator, AgentLoop, ArenaModes, QuestionStrategies, JevRecommender, SpeechSynth, DevProxy, PanoramaCollapsible, Favorites, DeckGuide, DeckVersioning) passed`);
+  recordResult('FE-TEST-001', 'Automated Unit Test Suite', 'PASS', `All ${tests.length} unit tests (SM-2, Distractor, AST, Validator, AgentLoop, ArenaModes, QuestionStrategies, JevRecommender, SpeechSynth, DevProxy, PanoramaCollapsible, Favorites, DeckGuide, DeckVersioning, WriteScheduler, RemoteAdapter, WebDavBackup) passed`);
 } catch (err) {
   recordResult('FE-TEST-001', 'Automated Unit Test Suite', 'FAIL', err.message);
 }

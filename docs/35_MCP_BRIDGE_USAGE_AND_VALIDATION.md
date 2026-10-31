@@ -2,7 +2,7 @@
 
 ## 使用
 
-运行 `npm run dev` 后打开本机页面，或使用 HTTPS 托管的 `index.html`。页面底部展开「MCP 桥接」，输入现有 ProxyByCF 的网关根地址、独立房间名称和 Token，点击「连接并启用全部工具」。网关需已开启 Bridge/MCP，Token 具有 mcp 或兼容 ws_bridge scope；同房间的新 Host 会替换旧 Host。
+运行 `npm run dev` 后打开本机页面，或使用 HTTPS 托管的 `index.html`。进入「AI 智囊 → MCP 桥接」（也可使用 `#agent/mcp` 书签直达），输入现有 ProxyByCF 的网关根地址、独立房间名称和 Token，点击「连接并启用全部工具」。地址与房间可选择记住，Token 不保存；客户端接入区域可复制不含 Token 的 SSE 地址。连接期间配置锁定，修改前先断开；切换子标签或离开工作台不会断开。网关需已开启 Bridge/MCP，Token 具有 mcp 或兼容 ws_bridge scope；同房间的新 Host 会替换旧 Host。配置优化的调研与实现见 [37_MCP_CONFIGURATION_WORKSPACE_DESIGN.md](./37_MCP_CONFIGURATION_WORKSPACE_DESIGN.md)。
 
 外部 MCP 客户端配置：
 

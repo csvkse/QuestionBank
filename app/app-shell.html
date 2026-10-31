@@ -32,6 +32,10 @@
   </script>
 <!-- INJECT_TOKENS -->
   <style>
+    #agent-subnav [role="tab"] { border-bottom: 2px solid transparent; color: var(--text-secondary, #94a3b8); }
+    #agent-subnav [role="tab"][aria-selected="true"] { border-bottom-color: var(--color-brand-500, #6366f1); color: var(--text-primary, #f1f5f9); }
+    #agent-subnav [role="tab"]:focus-visible { outline: 2px solid #818cf8; outline-offset: -4px; }
+    #mcp-bridge-form input:disabled { opacity: 0.6; cursor: not-allowed; }
     @keyframes pulse-subtle {
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.85; transform: scale(1.02); }
@@ -830,7 +834,15 @@
     </div>
 
     <!-- 6. AI 智囊智能体工作台视图 (AI AGENT WORKBENCH) -->
-    <div id="view-agent" class="hidden h-[calc(100vh-8.5rem)] flex flex-col md:flex-row rounded-2xl surface-card border border-slate-800 overflow-hidden shadow-2xl" hidden>
+    <div id="view-agent" class="hidden h-[calc(100vh-8.5rem)] flex flex-col rounded-2xl surface-card border border-slate-800 overflow-hidden shadow-2xl" hidden>
+      <div class="shrink-0 border-b border-slate-800 flex items-center justify-between gap-2 px-3">
+        <div id="agent-subnav" role="tablist" aria-label="AI 工作台" class="flex min-w-0">
+          <button id="agent-tab-chat" type="button" role="tab" aria-selected="true" aria-controls="agent-panel-chat" tabindex="0" class="px-3 sm:px-4 py-3 text-sm font-medium whitespace-nowrap">智能对话</button>
+          <button id="agent-tab-mcp" type="button" role="tab" aria-selected="false" aria-controls="agent-panel-mcp" tabindex="-1" class="px-3 sm:px-4 py-3 text-sm font-medium whitespace-nowrap">MCP 桥接</button>
+        </div>
+        <span id="mcp-tab-status" class="text-[11px] text-slate-400 truncate max-w-[40%]">未连接</span>
+      </div>
+      <div id="agent-panel-chat" role="tabpanel" aria-labelledby="agent-tab-chat" class="min-h-0 flex-1 flex flex-col md:flex-row">
       
       <!-- 左栏：多会话列表管理侧边栏 (260px) -->
       <aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-slate-800 bg-slate-950/60 flex flex-col shrink-0">
@@ -948,7 +960,52 @@
         </footer>
 
       </main>
-
+      </div>
+      <section id="agent-panel-mcp" role="tabpanel" aria-labelledby="agent-tab-mcp" class="hidden min-h-0 flex-1 overflow-y-auto p-4 sm:p-6" hidden inert>
+        <div id="mcp-bridge-panel" class="max-w-5xl mx-auto space-y-5">
+          <header>
+            <h2 class="text-xl font-semibold text-slate-100">MCP 桥接</h2>
+            <p class="text-sm text-slate-400 mt-1">让可信的外部客户端操作当前页面题库，共 <span data-mcp-tool-count>19</span> 个工具。</p>
+          </header>
+          <div class="grid gap-6 lg:grid-cols-2">
+            <section aria-labelledby="mcp-settings-title" class="space-y-3">
+              <h3 id="mcp-settings-title" class="text-sm font-semibold text-slate-200">连接设置</h3>
+              <form id="mcp-bridge-form" class="space-y-3">
+                <label class="block text-xs text-slate-300">桥接地址<input id="mcp-server" type="url" required placeholder="https://你的网关域名" class="block w-full surface-inset rounded-lg p-2.5 mt-1"></label>
+                <label class="block text-xs text-slate-300">房间名称<input id="mcp-room" required maxlength="128" autocomplete="off" placeholder="为当前页面使用独立房间" class="block w-full surface-inset rounded-lg p-2.5 mt-1"></label>
+                <label class="block text-xs text-slate-300">临时 Token<input id="mcp-token" type="password" required autocomplete="off" aria-describedby="mcp-token-help" class="block w-full surface-inset rounded-lg p-2.5 mt-1"></label>
+                <p id="mcp-token-help" class="text-xs text-slate-500">仅用于本次连接，不记住、不包含在复制的地址中。</p>
+                <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <label class="flex items-center gap-2 text-slate-400"><input id="mcp-remember" type="checkbox" checked>记住地址与房间</label>
+                  <button id="mcp-forget" type="button" class="text-slate-400 hover:text-white underline underline-offset-4">清除记住的配置</button>
+                </div>
+                <div class="flex gap-3 pt-1">
+                  <button id="mcp-connect" type="submit" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg disabled:opacity-50">连接并启用全部工具</button>
+                  <button id="mcp-disconnect" type="button" class="px-3 py-2 surface-inset text-slate-300 text-xs rounded-lg disabled:opacity-50">断开</button>
+                </div>
+              </form>
+              <p class="text-xs text-slate-400 leading-relaxed">连接后可直接创建、修改、删除和回滚题库，无需逐次批准。修改连接设置前请先断开；切换标签不会断开连接。</p>
+            </section>
+            <section aria-labelledby="mcp-access-title" class="space-y-3 min-w-0">
+              <h3 id="mcp-access-title" class="text-sm font-semibold text-slate-200">客户端接入</h3>
+              <label class="block text-xs text-slate-300">SSE 地址<input id="mcp-endpoint" readonly placeholder="填写地址和房间后生成" class="block w-full surface-inset rounded-lg p-2.5 mt-1 text-xs"></label>
+              <button id="mcp-copy-endpoint" type="button" disabled class="text-xs text-indigo-300 hover:text-indigo-200 disabled:opacity-40">复制 SSE 地址</button>
+              <pre id="mcp-client-config" class="text-xs text-slate-400 whitespace-pre-wrap break-all leading-relaxed"></pre>
+              <div class="border-t border-slate-800 pt-3 space-y-2">
+                <p class="text-xs text-slate-400">当前状态</p>
+                <p id="mcp-status" role="status" aria-live="polite" class="text-sm text-slate-200">未连接</p>
+                <p id="mcp-last-call" class="text-xs text-slate-400 break-all">尚无工具调用</p>
+                <p class="text-xs text-slate-500">保持页面运行。刷新或关闭页面后停止服务，重新连接需再次输入 Token。</p>
+              </div>
+            </section>
+          </div>
+          <p id="mcp-settings-feedback" role="status" aria-live="polite" class="text-xs text-indigo-300 min-h-[1rem]"></p>
+          <details class="border-t border-slate-800 pt-3">
+            <summary class="cursor-pointer text-sm text-slate-300">可用工具 <span data-mcp-tool-count>19</span> 项 · 查看能力清单</summary>
+            <ul id="mcp-tools-list" class="mt-2 grid gap-x-5 sm:grid-cols-2"></ul>
+          </details>
+        </div>
+      </section>
     </div>
   </main>
 
@@ -1074,34 +1131,130 @@
 
   <!-- 6. 存档与备份管理弹窗 (MODAL) (Surface 4) -->
   <div id="modal-backup" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-    <div class="surface-overlay rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-800">
-      <div class="flex justify-between items-center">
+    <div class="surface-overlay rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-slate-800 max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center shrink-0">
         <h3 class="text-base font-bold text-white flex items-center gap-2">
-          <span>学习数据与存档管理</span>
+          <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 11l5 5 5-5M12 4v12"/></svg>
+          <span>学习数据与持久化管理</span>
         </h3>
         <button onclick="app.closeBackupModal()" class="text-slate-400 hover:text-white">&times;</button>
       </div>
-      <p class="text-xs text-slate-400 leading-relaxed">
-        所有题库、自定义笔记、做题记录与艾宾浩斯复习倒计时均保存在浏览器本地。可随时导出 JSON 备份。
-      </p>
 
-      <div class="space-y-2 pt-2">
-        <button onclick="app.exportBackupJSON()" class="btn-primary-cta w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-md">
-          <span>导出完整多题库存档 (JSON)</span>
+      <!-- 子标签导航 (FE-NAV) -->
+      <div class="flex items-center gap-2 border-b border-slate-800 pb-2 text-xs font-semibold shrink-0">
+        <button id="tab-btn-backup-local" onclick="app.switchBackupTab('local')" class="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 transition">
+          本地离线备份
         </button>
-
-        <label class="btn-secondary w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer">
-          <span>导入备份恢复文件</span>
-          <input type="file" id="backup-file-input" accept=".json" class="hidden" onchange="app.importBackupJSON(event)">
-        </label>
-
-        <button onclick="app.resetAllProgress()" class="w-full py-2.5 px-4 rounded-xl bg-rose-950/25 hover:bg-rose-900/35 text-rose-300 border border-rose-900/40 text-xs font-bold transition">
-          重置当前题库的所有进度
+        <button id="tab-btn-backup-remote" onclick="app.switchBackupTab('remote')" class="px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200 transition">
+          WebDAV 外部持久化
         </button>
       </div>
 
-      <div class="pt-2 border-t border-slate-800 flex justify-between items-center text-[11px] text-slate-500">
-        <span>通用引擎 v2.2 · Local-First</span>
+      <div class="overflow-y-auto space-y-4 pr-1">
+        <!-- 面板 A: 本地离线备份 -->
+        <div id="backup-panel-local" class="space-y-3">
+          <p class="text-xs text-slate-400 leading-relaxed">
+            所有题库、自定义笔记、做题记录与艾宾浩斯复习倒计时均保存在浏览器本地。可随时导出 JSON 备份。
+          </p>
+
+          <div class="space-y-2 pt-1">
+            <button onclick="app.exportBackupJSON()" class="btn-primary-cta w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-md">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+              <span>导出完整多题库存档 (JSON)</span>
+            </button>
+
+            <label class="btn-secondary w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              <span>导入备份恢复文件</span>
+              <input type="file" id="backup-file-input" accept=".json" class="hidden" onchange="app.importBackupJSON(event)">
+            </label>
+
+            <button onclick="app.resetAllProgress()" class="w-full py-2.5 px-4 rounded-xl bg-rose-950/25 hover:bg-rose-900/35 text-rose-300 border border-rose-900/40 text-xs font-bold transition">
+              重置当前题库的所有进度
+            </button>
+          </div>
+        </div>
+
+        <!-- 面板 B: WebDAV 外部持久化 (RFC 4918 + 条件 CAS) -->
+        <div id="backup-panel-remote" class="space-y-3 hidden">
+          <p class="text-xs text-slate-400 leading-relaxed">
+            支持基于标准 WebDAV 的远端对象备份与快照恢复。具备条件并发控制 (ETag / If-Match) 与本地安全回滚保护。
+          </p>
+
+          <!-- 状态提示徽标 -->
+          <div id="webdav-status-badge" class="hidden p-2.5 rounded-xl text-xs border"></div>
+
+          <!-- WebDAV 配置表单 -->
+          <div class="space-y-2.5 bg-slate-900/50 p-3 rounded-xl border border-slate-800/80">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-400 mb-1">WebDAV 端点 URL</label>
+              <input id="webdav-input-endpoint" type="url" placeholder="https://dav.example.com/remote.php/webdav" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">用户名 / 账号</label>
+                <input id="webdav-input-username" type="text" placeholder="user" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">应用密码 / Token</label>
+                <input id="webdav-input-password" type="password" placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">存储根目录</label>
+                <input id="webdav-input-basepath" type="text" value="knowledge-arena" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">工作区标识 (Workspace)</label>
+                <input id="webdav-input-workspace" type="text" value="default" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+              </div>
+            </div>
+
+            <div class="flex gap-2 pt-1">
+              <button onclick="app.testWebDavConnection()" class="flex-1 py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-1.5">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                <span>探测连通性</span>
+              </button>
+              <button onclick="app.saveWebDavConfig()" class="py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold border border-slate-700 transition">
+                保存配置
+              </button>
+            </div>
+          </div>
+
+          <!-- 操作与快照管理 -->
+          <div class="space-y-2 pt-1">
+            <div class="flex gap-2">
+              <button onclick="app.createWebDavBackup()" class="flex-1 btn-primary-cta py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                <span>上传云端快照 (v3)</span>
+              </button>
+              <button onclick="app.loadWebDavBackups()" class="py-2 px-3 rounded-xl btn-secondary text-xs font-bold transition flex items-center justify-center gap-1.5">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.03 8.03 0 01-15.357-2m15.357 2H15"/></svg>
+                <span>拉取备份列表</span>
+              </button>
+            </div>
+
+            <!-- 本地回滚横幅 -->
+            <div id="webdav-rollback-banner" class="hidden p-2.5 bg-amber-950/30 border border-amber-900/50 rounded-xl text-xs flex justify-between items-center text-amber-300">
+              <span>已记录最近一次恢复前本地快照</span>
+              <button onclick="app.restoreRollbackPoint()" class="px-2 py-1 bg-amber-900/40 hover:bg-amber-900/60 rounded text-[11px] font-semibold transition">
+                撤销并回滚
+              </button>
+            </div>
+
+            <!-- 远端快照列表 -->
+            <div id="webdav-backup-list" class="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-slate-950 rounded-xl border border-slate-800 text-xs">
+              <div class="text-center py-4 text-slate-500">点击「拉取备份列表」查看云端已有存档</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-slate-800 flex justify-between items-center text-[11px] text-slate-500 shrink-0">
+        <span>通用引擎 v2.2 · Local-First + WebDAV</span>
         <button onclick="app.closeBackupModal()" class="text-slate-400 hover:underline">关闭</button>
       </div>
     </div>
@@ -1792,23 +1945,6 @@
       </div>
     </div>
   </div>
-
-  <details class="max-w-4xl mx-auto my-6 p-4 surface-card rounded-xl text-sm" id="mcp-bridge-panel">
-    <summary class="cursor-pointer text-slate-200 font-semibold">MCP 桥接 · 对外提供全部 19 个题库工具</summary>
-    <p class="text-slate-400 text-xs my-3">连接后，持有 Token 的外部客户端可直接查询、创建、修改、删除和回滚当前页面题库，无需逐次批准。请仅与可信客户端共享独立房间和 Token，并保持页面运行。</p>
-    <form id="mcp-bridge-form" class="grid gap-3 sm:grid-cols-3">
-      <label>桥接地址<input id="mcp-server" type="url" required placeholder="https://你的网关域名" class="block w-full surface-inset rounded p-2 mt-1"></label>
-      <label>房间名称<input id="mcp-room" required maxlength="128" autocomplete="off" placeholder="独立房间名称" class="block w-full surface-inset rounded p-2 mt-1"></label>
-      <label>Token<input id="mcp-token" type="password" required autocomplete="off" class="block w-full surface-inset rounded p-2 mt-1"></label>
-      <div class="flex gap-3 sm:col-span-3">
-        <button id="mcp-connect" type="submit" class="px-3 py-2 bg-indigo-600 rounded disabled:opacity-50">连接并启用全部工具</button>
-        <button id="mcp-disconnect" type="button" class="px-3 py-2 surface-inset rounded disabled:opacity-50">断开</button>
-      </div>
-    </form>
-    <p id="mcp-status" role="status" aria-live="polite" class="text-xs text-slate-300 mt-3">未连接</p>
-    <p id="mcp-last-call" class="text-xs text-slate-400 mt-2"></p>
-    <pre id="mcp-client-config" class="text-xs text-slate-400 mt-3 whitespace-pre-wrap break-all"></pre>
-  </details>
 
   <!-- 网页底部版权 -->
   <footer class="border-t border-slate-900 py-4 text-center text-xs text-slate-500">

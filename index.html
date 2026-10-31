@@ -275,6 +275,10 @@
   </style>
 
   <style>
+    #agent-subnav [role="tab"] { border-bottom: 2px solid transparent; color: var(--text-secondary, #94a3b8); }
+    #agent-subnav [role="tab"][aria-selected="true"] { border-bottom-color: var(--color-brand-500, #6366f1); color: var(--text-primary, #f1f5f9); }
+    #agent-subnav [role="tab"]:focus-visible { outline: 2px solid #818cf8; outline-offset: -4px; }
+    #mcp-bridge-form input:disabled { opacity: 0.6; cursor: not-allowed; }
     @keyframes pulse-subtle {
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.85; transform: scale(1.02); }
@@ -1073,7 +1077,15 @@
     </div>
 
     <!-- 6. AI 智囊智能体工作台视图 (AI AGENT WORKBENCH) -->
-    <div id="view-agent" class="hidden h-[calc(100vh-8.5rem)] flex flex-col md:flex-row rounded-2xl surface-card border border-slate-800 overflow-hidden shadow-2xl" hidden>
+    <div id="view-agent" class="hidden h-[calc(100vh-8.5rem)] flex flex-col rounded-2xl surface-card border border-slate-800 overflow-hidden shadow-2xl" hidden>
+      <div class="shrink-0 border-b border-slate-800 flex items-center justify-between gap-2 px-3">
+        <div id="agent-subnav" role="tablist" aria-label="AI 工作台" class="flex min-w-0">
+          <button id="agent-tab-chat" type="button" role="tab" aria-selected="true" aria-controls="agent-panel-chat" tabindex="0" class="px-3 sm:px-4 py-3 text-sm font-medium whitespace-nowrap">智能对话</button>
+          <button id="agent-tab-mcp" type="button" role="tab" aria-selected="false" aria-controls="agent-panel-mcp" tabindex="-1" class="px-3 sm:px-4 py-3 text-sm font-medium whitespace-nowrap">MCP 桥接</button>
+        </div>
+        <span id="mcp-tab-status" class="text-[11px] text-slate-400 truncate max-w-[40%]">未连接</span>
+      </div>
+      <div id="agent-panel-chat" role="tabpanel" aria-labelledby="agent-tab-chat" class="min-h-0 flex-1 flex flex-col md:flex-row">
       
       <!-- 左栏：多会话列表管理侧边栏 (260px) -->
       <aside class="w-full md:w-64 border-b md:border-b-0 md:border-r border-slate-800 bg-slate-950/60 flex flex-col shrink-0">
@@ -1191,7 +1203,52 @@
         </footer>
 
       </main>
-
+      </div>
+      <section id="agent-panel-mcp" role="tabpanel" aria-labelledby="agent-tab-mcp" class="hidden min-h-0 flex-1 overflow-y-auto p-4 sm:p-6" hidden inert>
+        <div id="mcp-bridge-panel" class="max-w-5xl mx-auto space-y-5">
+          <header>
+            <h2 class="text-xl font-semibold text-slate-100">MCP 桥接</h2>
+            <p class="text-sm text-slate-400 mt-1">让可信的外部客户端操作当前页面题库，共 <span data-mcp-tool-count>19</span> 个工具。</p>
+          </header>
+          <div class="grid gap-6 lg:grid-cols-2">
+            <section aria-labelledby="mcp-settings-title" class="space-y-3">
+              <h3 id="mcp-settings-title" class="text-sm font-semibold text-slate-200">连接设置</h3>
+              <form id="mcp-bridge-form" class="space-y-3">
+                <label class="block text-xs text-slate-300">桥接地址<input id="mcp-server" type="url" required placeholder="https://你的网关域名" class="block w-full surface-inset rounded-lg p-2.5 mt-1"></label>
+                <label class="block text-xs text-slate-300">房间名称<input id="mcp-room" required maxlength="128" autocomplete="off" placeholder="为当前页面使用独立房间" class="block w-full surface-inset rounded-lg p-2.5 mt-1"></label>
+                <label class="block text-xs text-slate-300">临时 Token<input id="mcp-token" type="password" required autocomplete="off" aria-describedby="mcp-token-help" class="block w-full surface-inset rounded-lg p-2.5 mt-1"></label>
+                <p id="mcp-token-help" class="text-xs text-slate-500">仅用于本次连接，不记住、不包含在复制的地址中。</p>
+                <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <label class="flex items-center gap-2 text-slate-400"><input id="mcp-remember" type="checkbox" checked>记住地址与房间</label>
+                  <button id="mcp-forget" type="button" class="text-slate-400 hover:text-white underline underline-offset-4">清除记住的配置</button>
+                </div>
+                <div class="flex gap-3 pt-1">
+                  <button id="mcp-connect" type="submit" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg disabled:opacity-50">连接并启用全部工具</button>
+                  <button id="mcp-disconnect" type="button" class="px-3 py-2 surface-inset text-slate-300 text-xs rounded-lg disabled:opacity-50">断开</button>
+                </div>
+              </form>
+              <p class="text-xs text-slate-400 leading-relaxed">连接后可直接创建、修改、删除和回滚题库，无需逐次批准。修改连接设置前请先断开；切换标签不会断开连接。</p>
+            </section>
+            <section aria-labelledby="mcp-access-title" class="space-y-3 min-w-0">
+              <h3 id="mcp-access-title" class="text-sm font-semibold text-slate-200">客户端接入</h3>
+              <label class="block text-xs text-slate-300">SSE 地址<input id="mcp-endpoint" readonly placeholder="填写地址和房间后生成" class="block w-full surface-inset rounded-lg p-2.5 mt-1 text-xs"></label>
+              <button id="mcp-copy-endpoint" type="button" disabled class="text-xs text-indigo-300 hover:text-indigo-200 disabled:opacity-40">复制 SSE 地址</button>
+              <pre id="mcp-client-config" class="text-xs text-slate-400 whitespace-pre-wrap break-all leading-relaxed"></pre>
+              <div class="border-t border-slate-800 pt-3 space-y-2">
+                <p class="text-xs text-slate-400">当前状态</p>
+                <p id="mcp-status" role="status" aria-live="polite" class="text-sm text-slate-200">未连接</p>
+                <p id="mcp-last-call" class="text-xs text-slate-400 break-all">尚无工具调用</p>
+                <p class="text-xs text-slate-500">保持页面运行。刷新或关闭页面后停止服务，重新连接需再次输入 Token。</p>
+              </div>
+            </section>
+          </div>
+          <p id="mcp-settings-feedback" role="status" aria-live="polite" class="text-xs text-indigo-300 min-h-[1rem]"></p>
+          <details class="border-t border-slate-800 pt-3">
+            <summary class="cursor-pointer text-sm text-slate-300">可用工具 <span data-mcp-tool-count>19</span> 项 · 查看能力清单</summary>
+            <ul id="mcp-tools-list" class="mt-2 grid gap-x-5 sm:grid-cols-2"></ul>
+          </details>
+        </div>
+      </section>
     </div>
   </main>
 
@@ -1317,34 +1374,130 @@
 
   <!-- 6. 存档与备份管理弹窗 (MODAL) (Surface 4) -->
   <div id="modal-backup" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-    <div class="surface-overlay rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-800">
-      <div class="flex justify-between items-center">
+    <div class="surface-overlay rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-slate-800 max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center shrink-0">
         <h3 class="text-base font-bold text-white flex items-center gap-2">
-          <span>学习数据与存档管理</span>
+          <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 11l5 5 5-5M12 4v12"/></svg>
+          <span>学习数据与持久化管理</span>
         </h3>
         <button onclick="app.closeBackupModal()" class="text-slate-400 hover:text-white">&times;</button>
       </div>
-      <p class="text-xs text-slate-400 leading-relaxed">
-        所有题库、自定义笔记、做题记录与艾宾浩斯复习倒计时均保存在浏览器本地。可随时导出 JSON 备份。
-      </p>
 
-      <div class="space-y-2 pt-2">
-        <button onclick="app.exportBackupJSON()" class="btn-primary-cta w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-md">
-          <span>导出完整多题库存档 (JSON)</span>
+      <!-- 子标签导航 (FE-NAV) -->
+      <div class="flex items-center gap-2 border-b border-slate-800 pb-2 text-xs font-semibold shrink-0">
+        <button id="tab-btn-backup-local" onclick="app.switchBackupTab('local')" class="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 transition">
+          本地离线备份
         </button>
-
-        <label class="btn-secondary w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer">
-          <span>导入备份恢复文件</span>
-          <input type="file" id="backup-file-input" accept=".json" class="hidden" onchange="app.importBackupJSON(event)">
-        </label>
-
-        <button onclick="app.resetAllProgress()" class="w-full py-2.5 px-4 rounded-xl bg-rose-950/25 hover:bg-rose-900/35 text-rose-300 border border-rose-900/40 text-xs font-bold transition">
-          重置当前题库的所有进度
+        <button id="tab-btn-backup-remote" onclick="app.switchBackupTab('remote')" class="px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200 transition">
+          WebDAV 外部持久化
         </button>
       </div>
 
-      <div class="pt-2 border-t border-slate-800 flex justify-between items-center text-[11px] text-slate-500">
-        <span>通用引擎 v2.2 · Local-First</span>
+      <div class="overflow-y-auto space-y-4 pr-1">
+        <!-- 面板 A: 本地离线备份 -->
+        <div id="backup-panel-local" class="space-y-3">
+          <p class="text-xs text-slate-400 leading-relaxed">
+            所有题库、自定义笔记、做题记录与艾宾浩斯复习倒计时均保存在浏览器本地。可随时导出 JSON 备份。
+          </p>
+
+          <div class="space-y-2 pt-1">
+            <button onclick="app.exportBackupJSON()" class="btn-primary-cta w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-md">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+              <span>导出完整多题库存档 (JSON)</span>
+            </button>
+
+            <label class="btn-secondary w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              <span>导入备份恢复文件</span>
+              <input type="file" id="backup-file-input" accept=".json" class="hidden" onchange="app.importBackupJSON(event)">
+            </label>
+
+            <button onclick="app.resetAllProgress()" class="w-full py-2.5 px-4 rounded-xl bg-rose-950/25 hover:bg-rose-900/35 text-rose-300 border border-rose-900/40 text-xs font-bold transition">
+              重置当前题库的所有进度
+            </button>
+          </div>
+        </div>
+
+        <!-- 面板 B: WebDAV 外部持久化 (RFC 4918 + 条件 CAS) -->
+        <div id="backup-panel-remote" class="space-y-3 hidden">
+          <p class="text-xs text-slate-400 leading-relaxed">
+            支持基于标准 WebDAV 的远端对象备份与快照恢复。具备条件并发控制 (ETag / If-Match) 与本地安全回滚保护。
+          </p>
+
+          <!-- 状态提示徽标 -->
+          <div id="webdav-status-badge" class="hidden p-2.5 rounded-xl text-xs border"></div>
+
+          <!-- WebDAV 配置表单 -->
+          <div class="space-y-2.5 bg-slate-900/50 p-3 rounded-xl border border-slate-800/80">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-400 mb-1">WebDAV 端点 URL</label>
+              <input id="webdav-input-endpoint" type="url" placeholder="https://dav.example.com/remote.php/webdav" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">用户名 / 账号</label>
+                <input id="webdav-input-username" type="text" placeholder="user" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">应用密码 / Token</label>
+                <input id="webdav-input-password" type="password" placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">存储根目录</label>
+                <input id="webdav-input-basepath" type="text" value="knowledge-arena" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">工作区标识 (Workspace)</label>
+                <input id="webdav-input-workspace" type="text" value="default" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+              </div>
+            </div>
+
+            <div class="flex gap-2 pt-1">
+              <button onclick="app.testWebDavConnection()" class="flex-1 py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold border border-slate-700 transition flex items-center justify-center gap-1.5">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                <span>探测连通性</span>
+              </button>
+              <button onclick="app.saveWebDavConfig()" class="py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold border border-slate-700 transition">
+                保存配置
+              </button>
+            </div>
+          </div>
+
+          <!-- 操作与快照管理 -->
+          <div class="space-y-2 pt-1">
+            <div class="flex gap-2">
+              <button onclick="app.createWebDavBackup()" class="flex-1 btn-primary-cta py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                <span>上传云端快照 (v3)</span>
+              </button>
+              <button onclick="app.loadWebDavBackups()" class="py-2 px-3 rounded-xl btn-secondary text-xs font-bold transition flex items-center justify-center gap-1.5">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.03 8.03 0 01-15.357-2m15.357 2H15"/></svg>
+                <span>拉取备份列表</span>
+              </button>
+            </div>
+
+            <!-- 本地回滚横幅 -->
+            <div id="webdav-rollback-banner" class="hidden p-2.5 bg-amber-950/30 border border-amber-900/50 rounded-xl text-xs flex justify-between items-center text-amber-300">
+              <span>已记录最近一次恢复前本地快照</span>
+              <button onclick="app.restoreRollbackPoint()" class="px-2 py-1 bg-amber-900/40 hover:bg-amber-900/60 rounded text-[11px] font-semibold transition">
+                撤销并回滚
+              </button>
+            </div>
+
+            <!-- 远端快照列表 -->
+            <div id="webdav-backup-list" class="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-slate-950 rounded-xl border border-slate-800 text-xs">
+              <div class="text-center py-4 text-slate-500">点击「拉取备份列表」查看云端已有存档</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-slate-800 flex justify-between items-center text-[11px] text-slate-500 shrink-0">
+        <span>通用引擎 v2.2 · Local-First + WebDAV</span>
         <button onclick="app.closeBackupModal()" class="text-slate-400 hover:underline">关闭</button>
       </div>
     </div>
@@ -2035,23 +2188,6 @@
       </div>
     </div>
   </div>
-
-  <details class="max-w-4xl mx-auto my-6 p-4 surface-card rounded-xl text-sm" id="mcp-bridge-panel">
-    <summary class="cursor-pointer text-slate-200 font-semibold">MCP 桥接 · 对外提供全部 19 个题库工具</summary>
-    <p class="text-slate-400 text-xs my-3">连接后，持有 Token 的外部客户端可直接查询、创建、修改、删除和回滚当前页面题库，无需逐次批准。请仅与可信客户端共享独立房间和 Token，并保持页面运行。</p>
-    <form id="mcp-bridge-form" class="grid gap-3 sm:grid-cols-3">
-      <label>桥接地址<input id="mcp-server" type="url" required placeholder="https://你的网关域名" class="block w-full surface-inset rounded p-2 mt-1"></label>
-      <label>房间名称<input id="mcp-room" required maxlength="128" autocomplete="off" placeholder="独立房间名称" class="block w-full surface-inset rounded p-2 mt-1"></label>
-      <label>Token<input id="mcp-token" type="password" required autocomplete="off" class="block w-full surface-inset rounded p-2 mt-1"></label>
-      <div class="flex gap-3 sm:col-span-3">
-        <button id="mcp-connect" type="submit" class="px-3 py-2 bg-indigo-600 rounded disabled:opacity-50">连接并启用全部工具</button>
-        <button id="mcp-disconnect" type="button" class="px-3 py-2 surface-inset rounded disabled:opacity-50">断开</button>
-      </div>
-    </form>
-    <p id="mcp-status" role="status" aria-live="polite" class="text-xs text-slate-300 mt-3">未连接</p>
-    <p id="mcp-last-call" class="text-xs text-slate-400 mt-2"></p>
-    <pre id="mcp-client-config" class="text-xs text-slate-400 mt-3 whitespace-pre-wrap break-all"></pre>
-  </details>
 
   <!-- 网页底部版权 -->
   <footer class="border-t border-slate-900 py-4 text-center text-xs text-slate-500">
@@ -3593,6 +3729,628 @@ class StorageAdapter {
 }
 const storageAdapter = new StorageAdapter();
 
+  // --- Module: platform/storage/write-scheduler.js ---
+/**
+ * Write Scheduling & Coalescing Coordinator
+ * Core: platform/storage/write-scheduler.js
+ *
+ * Implements domain-based dirty tracking, write coalescing with debounce & maxWait,
+ * and eliminates duplicate serialization/writes for unchanged domains.
+ */
+const STORAGE_DOMAINS = {
+  PROFILE: 'profile',
+  CUSTOM_DECKS: 'customDecks',
+  ACTIVE_DECK_ID: 'activeDeckId',
+  MASK_STATE: 'maskState',
+  DECK_VERSIONS: 'deckVersions',
+  RECYCLE_BIN: 'recycleBin'
+};
+class WriteScheduler {
+  constructor(storageAdapter, options = {}) {
+    this.storage = storageAdapter;
+    this.debounceMs = options.debounceMs ?? 150;
+    this.maxWaitMs = options.maxWaitMs ?? 1500;
+
+    this.dirtyDomains = new Set();
+    this.domainRevisions = {
+      profile: 0,
+      customDecks: 0,
+      activeDeckId: 0,
+      maskState: 0,
+      deckVersions: 0,
+      recycleBin: 0
+    };
+    this.globalRevision = 0;
+
+    this._debounceTimer = null;
+    this._firstScheduledAt = null;
+    this._isWriting = false;
+    this._pendingResolve = null;
+
+    this.metrics = {
+      requestedSaves: 0,
+      committedWrites: 0,
+      coalescedCount: 0,
+      writesByDomain: {
+        profile: 0,
+        customDecks: 0,
+        activeDeckId: 0,
+        maskState: 0,
+        deckVersions: 0,
+        recycleBin: 0
+      }
+    };
+  }
+
+  markDirty(domain) {
+    if (!domain) return;
+    this.dirtyDomains.add(domain);
+    if (this.domainRevisions[domain] !== undefined) {
+      this.domainRevisions[domain]++;
+    }
+    this.globalRevision++;
+  }
+
+  isDirty(domain) {
+    return this.dirtyDomains.has(domain);
+  }
+
+  hasPendingWrites() {
+    return this.dirtyDomains.size > 0;
+  }
+
+  getRevision() {
+    return this.globalRevision;
+  }
+
+  getDomainRevision(domain) {
+    return this.domainRevisions[domain] || 0;
+  }
+
+  schedule(stateSnapshotGetter, options = {}) {
+    const { immediate = false, domains = null } = options;
+    this.metrics.requestedSaves++;
+
+    if (domains && Array.isArray(domains)) {
+      domains.forEach(d => this.markDirty(d));
+    }
+
+    if (immediate) {
+      return this.flush(stateSnapshotGetter);
+    }
+
+    if (this._debounceTimer) {
+      this.metrics.coalescedCount++;
+    }
+
+    const now = Date.now();
+    if (!this._firstScheduledAt) {
+      this._firstScheduledAt = now;
+    }
+
+    const elapsed = now - this._firstScheduledAt;
+    const remainingMaxWait = Math.max(0, this.maxWaitMs - elapsed);
+    const delay = Math.min(this.debounceMs, remainingMaxWait);
+
+    if (this._debounceTimer) {
+      clearTimeout(this._debounceTimer);
+      this._debounceTimer = null;
+    }
+
+    return new Promise((resolve) => {
+      this._pendingResolve = resolve;
+      this._debounceTimer = setTimeout(() => {
+        this._debounceTimer = null;
+        this._firstScheduledAt = null;
+        this._executeCommit(stateSnapshotGetter);
+        if (this._pendingResolve) {
+          const res = this._pendingResolve;
+          this._pendingResolve = null;
+          res({ revision: this.globalRevision });
+        }
+      }, delay);
+    });
+  }
+
+  flush(stateSnapshotGetter) {
+    if (this._debounceTimer) {
+      clearTimeout(this._debounceTimer);
+      this._debounceTimer = null;
+    }
+    this._firstScheduledAt = null;
+
+    const result = this._executeCommit(stateSnapshotGetter);
+
+    if (this._pendingResolve) {
+      const res = this._pendingResolve;
+      this._pendingResolve = null;
+      res(result);
+    }
+
+    return result;
+  }
+
+  _executeCommit(stateSnapshotGetter) {
+    if (this.dirtyDomains.size === 0 || this._isWriting) {
+      return { revision: this.globalRevision, committed: [] };
+    }
+
+    this._isWriting = true;
+    const committed = [];
+
+    try {
+      const state = typeof stateSnapshotGetter === 'function'
+        ? stateSnapshotGetter()
+        : stateSnapshotGetter;
+
+      if (!state) return { revision: this.globalRevision, committed };
+
+      const domainsToCommit = Array.from(this.dirtyDomains);
+
+      domainsToCommit.forEach(domain => {
+        switch (domain) {
+          case STORAGE_DOMAINS.PROFILE:
+            if (state.profile && this.storage.saveProfile) {
+              this.storage.saveProfile(state.profile);
+              committed.push(domain);
+              this.metrics.writesByDomain.profile++;
+            }
+            break;
+          case STORAGE_DOMAINS.CUSTOM_DECKS:
+            if (state.customDecks && this.storage.saveCustomDecks) {
+              this.storage.saveCustomDecks(state.customDecks);
+              committed.push(domain);
+              this.metrics.writesByDomain.customDecks++;
+            }
+            break;
+          case STORAGE_DOMAINS.ACTIVE_DECK_ID:
+            if (state.activeDeckId && this.storage.saveActiveDeckId) {
+              this.storage.saveActiveDeckId(state.activeDeckId);
+              committed.push(domain);
+              this.metrics.writesByDomain.activeDeckId++;
+            }
+            break;
+          case STORAGE_DOMAINS.MASK_STATE:
+            if (state.maskState !== undefined && this.storage.saveMaskState) {
+              this.storage.saveMaskState(state.maskState);
+              committed.push(domain);
+              this.metrics.writesByDomain.maskState++;
+            }
+            break;
+          case STORAGE_DOMAINS.DECK_VERSIONS:
+            if (state.deckVersions && this.storage.saveDeckVersions) {
+              this.storage.saveDeckVersions(state.deckVersions);
+              committed.push(domain);
+              this.metrics.writesByDomain.deckVersions++;
+            }
+            break;
+          case STORAGE_DOMAINS.RECYCLE_BIN:
+            if (state.recycleBin && this.storage.saveRecycleBin) {
+              this.storage.saveRecycleBin(state.recycleBin);
+              committed.push(domain);
+              this.metrics.writesByDomain.recycleBin++;
+            }
+            break;
+        }
+        this.dirtyDomains.delete(domain);
+      });
+
+      if (committed.length > 0) {
+        this.metrics.committedWrites++;
+      }
+
+      return { revision: this.globalRevision, committed };
+    } finally {
+      this._isWriting = false;
+    }
+  }
+
+  getMetrics() {
+    return { ...this.metrics };
+  }
+
+  resetMetrics() {
+    this.metrics.requestedSaves = 0;
+    this.metrics.committedWrites = 0;
+    this.metrics.coalescedCount = 0;
+    Object.keys(this.metrics.writesByDomain).forEach(k => {
+      this.metrics.writesByDomain[k] = 0;
+    });
+  }
+}
+
+  // --- Module: platform/storage/remote/remote-adapter.js ---
+/**
+ * Remote Storage Adapter Interface and Base Errors
+ * Core: platform/storage/remote/remote-adapter.js
+ */
+class RemoteStorageError extends Error {
+  constructor(message, options = {}) {
+    super(message);
+    this.name = 'RemoteStorageError';
+    this.statusCode = options.statusCode || 0;
+    this.cause = options.cause || null;
+    this.recoverable = options.recoverable ?? true;
+  }
+}
+class AuthenticationError extends RemoteStorageError {
+  constructor(message = '认证失败或凭据无效', options = {}) {
+    super(message, { ...options, recoverable: false });
+    this.name = 'AuthenticationError';
+    this.statusCode = options.statusCode || 401;
+  }
+}
+class NotFoundError extends RemoteStorageError {
+  constructor(message = '目标对象不存在', options = {}) {
+    super(message, options);
+    this.name = 'NotFoundError';
+    this.statusCode = options.statusCode || 404;
+  }
+}
+class PreconditionFailedError extends RemoteStorageError {
+  constructor(message = '条件冲突：远端资源已被修改 (412 Precondition Failed)', options = {}) {
+    super(message, { ...options, recoverable: true });
+    this.name = 'PreconditionFailedError';
+    this.statusCode = 412;
+    this.serverEtag = options.serverEtag || null;
+  }
+}
+class NetworkError extends RemoteStorageError {
+  constructor(message = '网络不可达或跨域 (CORS) 受限', options = {}) {
+    super(message, options);
+    this.name = 'NetworkError';
+  }
+}
+class RemoteObjectStore {
+  constructor(config = {}) {
+    this.config = config;
+  }
+
+  async probe(signal) {
+    throw new Error('probe() must be implemented by subclass');
+  }
+
+  async get(path, signal) {
+    throw new Error('get() must be implemented by subclass');
+  }
+
+  async put(path, bytes, options = {}) {
+    throw new Error('put() must be implemented by subclass');
+  }
+
+  async list(prefix, signal) {
+    throw new Error('list() must be implemented by subclass');
+  }
+
+  async remove(path, options = {}, signal) {
+    throw new Error('remove() must be implemented by subclass');
+  }
+}
+
+/**
+ * Memory Remote Adapter for testing & isolated environments
+ */
+class MemoryRemoteAdapter extends RemoteObjectStore {
+  constructor(config = {}) {
+    super(config);
+    this.objects = new Map(); // path -> { bytes, etag, modifiedAt, contentType }
+    this.versionCounter = 1;
+  }
+
+  _generateEtag() {
+    return `"mem-${this.versionCounter++}-${Date.now()}"`;
+  }
+
+  async probe(signal) {
+    return {
+      ok: true,
+      read: true,
+      write: true,
+      conditionalCreate: true,
+      conditionalReplace: true,
+      list: true,
+      provider: 'memory'
+    };
+  }
+
+  async get(path, signal) {
+    const item = this.objects.get(path);
+    if (!item) {
+      throw new NotFoundError(`Object not found: ${path}`);
+    }
+    return {
+      bytes: item.bytes,
+      etag: item.etag,
+      contentType: item.contentType,
+      modifiedAt: item.modifiedAt
+    };
+  }
+
+  async put(path, bytes, options = {}) {
+    const existing = this.objects.get(path);
+
+    if (options.ifNoneMatch === '*' && existing) {
+      throw new PreconditionFailedError(`Target already exists: ${path}`, { serverEtag: existing.etag });
+    }
+
+    if (options.ifMatch && (!existing || existing.etag !== options.ifMatch)) {
+      throw new PreconditionFailedError(`ETag mismatch: ${path}`, { serverEtag: existing?.etag });
+    }
+
+    let serialized;
+    if (typeof bytes === 'string') {
+      serialized = bytes;
+    } else if (bytes instanceof Uint8Array || (typeof ArrayBuffer !== 'undefined' && bytes instanceof ArrayBuffer)) {
+      serialized = new TextDecoder().decode(bytes);
+    } else {
+      serialized = JSON.stringify(bytes);
+    }
+
+    const etag = this._generateEtag();
+    const modifiedAt = new Date().toISOString();
+    this.objects.set(path, {
+      bytes: serialized,
+      etag,
+      contentType: options.contentType || 'application/json; charset=utf-8',
+      modifiedAt
+    });
+
+    return { etag };
+  }
+
+  async list(prefix = '', signal) {
+    const results = [];
+    for (const [path, item] of this.objects.entries()) {
+      if (!prefix || path.startsWith(prefix)) {
+        results.push({
+          path,
+          size: item.bytes.length,
+          etag: item.etag,
+          modifiedAt: item.modifiedAt,
+          isDirectory: false
+        });
+      }
+    }
+    return results;
+  }
+
+  async remove(path, options = {}, signal) {
+    const existing = this.objects.get(path);
+    if (!existing) return { success: true };
+
+    if (options.ifMatch && existing.etag !== options.ifMatch) {
+      throw new PreconditionFailedError(`ETag mismatch on delete: ${path}`);
+    }
+
+    this.objects.delete(path);
+    return { success: true };
+  }
+}
+
+  // --- Module: platform/storage/remote/webdav-adapter.js ---
+/**
+ * WebDAV Remote Storage Adapter
+ * Core: platform/storage/remote/webdav-adapter.js
+ */
+class WebDavAdapter extends RemoteObjectStore {
+  constructor(config = {}) {
+    super(config);
+    this.endpoint = (config.endpoint || '').trim().replace(/\/+$/, '');
+    this.username = config.username || '';
+    this.password = config.password || '';
+    this.token = config.token || '';
+    this.authType = config.authType || (this.token ? 'bearer' : (this.username ? 'basic' : 'none'));
+    this.basePath = (config.basePath || '').trim().replace(/^\/+|\/+$/g, '');
+  }
+
+  _encodeBasicAuth() {
+    const raw = `${this.username}:${this.password}`;
+    if (typeof btoa === 'function') return btoa(raw);
+    if (typeof Buffer !== 'undefined') return Buffer.from(raw).toString('base64');
+    throw new Error('No base64 encoding available');
+  }
+
+  _getAuthHeader() {
+    if (this.authType === 'bearer' && this.token) return `Bearer ${this.token}`;
+    if (this.authType === 'basic' && (this.username || this.password)) {
+      return `Basic ${this._encodeBasicAuth()}`;
+    }
+    return null;
+  }
+
+  _buildUrl(relPath) {
+    if (!this.endpoint) throw new RemoteStorageError('WebDAV endpoint not configured');
+    const cleanRel = (relPath || '').replace(/\\/g, '/');
+    if (cleanRel.includes('..')) throw new RemoteStorageError('Relative path traversal (..) forbidden');
+
+    const segments = [];
+    if (this.basePath) segments.push(this.basePath);
+    if (cleanRel) {
+      cleanRel.split('/').forEach(s => {
+        const t = s.trim();
+        if (t && t !== '.') segments.push(encodeURIComponent(t));
+      });
+    }
+    return `${this.endpoint}/${segments.join('/')}`;
+  }
+
+  async _request(method, relPath, options = {}) {
+    const url = this._buildUrl(relPath);
+    const headers = new Headers(options.headers || {});
+    const auth = this._getAuthHeader();
+    if (auth && !headers.has('Authorization')) headers.set('Authorization', auth);
+
+    const fetchOptions = { method, headers, signal: options.signal };
+    if (options.body !== undefined && options.body !== null) fetchOptions.body = options.body;
+
+    let response;
+    try {
+      response = await fetch(url, fetchOptions);
+    } catch (err) {
+      if (err.name === 'AbortError') throw err;
+      throw new NetworkError(`Network / CORS request failed: ${err.message}`, { cause: err });
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      throw new AuthenticationError(`WebDAV authentication rejected (${response.status})`, { statusCode: response.status });
+    }
+    if (response.status === 404) {
+      throw new NotFoundError(`WebDAV resource not found: ${relPath}`, { statusCode: 404 });
+    }
+    if (response.status === 412) {
+      const serverEtag = response.headers.get('etag') || response.headers.get('ETag');
+      throw new PreconditionFailedError(`WebDAV precondition failed for ${relPath}`, { serverEtag });
+    }
+    if (!response.ok && response.status !== 207) {
+      const text = await response.text().catch(() => '');
+      throw new RemoteStorageError(`WebDAV HTTP ${response.status}: ${text || response.statusText}`, { statusCode: response.status });
+    }
+    return response;
+  }
+
+  async put(path, bytes, options = {}) {
+    const headers = { 'Content-Type': options.contentType || 'application/json; charset=utf-8' };
+    if (options.ifMatch) headers['If-Match'] = options.ifMatch;
+    if (options.ifNoneMatch) headers['If-None-Match'] = options.ifNoneMatch;
+
+    const body = typeof bytes === 'string' ? bytes : JSON.stringify(bytes);
+    const res = await this._request('PUT', path, { body, headers, signal: options.signal });
+    return { etag: res.headers.get('etag') || res.headers.get('ETag') || null };
+  }
+
+  async get(path, signal) {
+    const res = await this._request('GET', path, { signal });
+    return {
+      bytes: await res.text(),
+      etag: res.headers.get('etag') || res.headers.get('ETag') || null,
+      contentType: res.headers.get('content-type') || 'application/json',
+      modifiedAt: res.headers.get('last-modified') || null
+    };
+  }
+
+  async remove(path, options = {}, signal) {
+    const headers = {};
+    if (options.ifMatch) headers['If-Match'] = options.ifMatch;
+    await this._request('DELETE', path, { headers, signal });
+    return { success: true };
+  }
+
+  async list(prefix = '', signal) {
+    const propfindXml = `<?xml version="1.0" encoding="utf-8" ?>
+<d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/><d:getetag/><d:getlastmodified/></d:prop></d:propfind>`;
+    const res = await this._request('PROPFIND', prefix, {
+      headers: { Depth: '1' },
+      body: propfindXml,
+      signal
+    });
+    return this._parseMultistatusXml(await res.text());
+  }
+
+  _parseMultistatusXml(xmlText) {
+    const items = [];
+    if (!xmlText) return items;
+    const responseRegex = /<([a-zA-Z0-9]+:)?response\b[^>]*>([\s\S]*?)<\/\1?response>/gi;
+    let match;
+
+    while ((match = responseRegex.exec(xmlText)) !== null) {
+      const block = match[2];
+      const hrefMatch = block.match(/<([a-zA-Z0-9]+:)?href\b[^>]*>([\s\S]*?)<\/\1?href>/i);
+      if (!hrefMatch) continue;
+
+      const rawHref = decodeURIComponent(hrefMatch[2].trim());
+      const isCollection = /<([a-zA-Z0-9]+:)?resourcetype\b[^>]*>[\s\S]*?<([a-zA-Z0-9]+:)?collection\b/i.test(block);
+      const lenMatch = block.match(/<([a-zA-Z0-9]+:)?getcontentlength\b[^>]*>(\d+)<\/\1?getcontentlength>/i);
+      const etagMatch = block.match(/<([a-zA-Z0-9]+:)?getetag\b[^>]*>([^<]+)<\/\1?getetag>/i);
+      const modMatch = block.match(/<([a-zA-Z0-9]+:)?getlastmodified\b[^>]*>([^<]+)<\/\1?getlastmodified>/i);
+
+      items.push({
+        path: this._normalizeListedPath(rawHref),
+        size: lenMatch ? parseInt(lenMatch[2], 10) : 0,
+        etag: etagMatch ? etagMatch[2].trim() : null,
+        modifiedAt: modMatch ? modMatch[2].trim() : null,
+        isDirectory: isCollection
+      });
+    }
+    return items;
+  }
+
+  _normalizeListedPath(href) {
+    try {
+      const u = new URL(href, this.endpoint);
+      let p = u.pathname;
+      if (this.basePath && p.startsWith('/' + this.basePath)) p = p.slice(this.basePath.length + 1);
+      return p.replace(/^\/+/, '');
+    } catch {
+      return href.replace(/^\/+/, '');
+    }
+  }
+
+  async probe(signal) {
+    const probeFilename = `.probe_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.tmp`;
+    const probeContent = JSON.stringify({ probe: true, time: Date.now() });
+
+    try {
+      let putRes;
+      let conditionalCreate = false;
+      try {
+        putRes = await this.put(probeFilename, probeContent, { ifNoneMatch: '*', signal });
+        conditionalCreate = true;
+      } catch (err) {
+        if (err instanceof PreconditionFailedError) throw err;
+        putRes = await this.put(probeFilename, probeContent, { signal });
+      }
+
+      const getRes = await this.get(probeFilename, signal);
+      const etag = getRes.etag || putRes?.etag;
+      let conditionalReplace = false;
+      if (etag) {
+        try {
+          await this.put(probeFilename, JSON.stringify({ probe: true, step: 2 }), { ifMatch: etag, signal });
+          conditionalReplace = true;
+        } catch { conditionalReplace = false; }
+      }
+
+      await this.remove(probeFilename, {}, signal).catch(() => {});
+      return { ok: true, read: true, write: true, conditionalCreate, conditionalReplace, list: true, provider: 'webdav' };
+    } catch (err) {
+      await this.remove(probeFilename, {}, signal).catch(() => {});
+      return {
+        ok: false, read: false, write: false, conditionalCreate: false, conditionalReplace: false, list: false,
+        error: err.message, statusCode: err.statusCode || 0, provider: 'webdav'
+      };
+    }
+  }
+}
+
+  // --- Module: platform/storage/remote/index.js ---
+/**
+ * Multi-Backend Remote Storage Adapter Factory
+ * Core: platform/storage/remote/index.js
+ */
+
+
+
+
+
+
+/**
+ * Adapter Factory
+ * Instantiates the appropriate storage adapter based on config.provider
+ */
+function createRemoteAdapter(config = {}) {
+  const provider = (config.provider || config.providerId || 'webdav').toLowerCase();
+
+  switch (provider) {
+    case 'webdav':
+      return new WebDavAdapter(config);
+    case 'memory':
+    case 'mock':
+      return new MemoryRemoteAdapter(config);
+    default:
+      throw new RemoteStorageError(`Unsupported remote storage provider: ${provider}`);
+  }
+}
+
   // --- Module: platform/exporter/file-exporter.js ---
 /**
  * Data Export & Import Adapter
@@ -3879,6 +4637,461 @@ function renderIcon(name, className = 'w-4 h-4 text-current') {
   const icon = ICONS[name] || ICONS.deck;
   return `<svg class="${className} inline-block shrink-0" viewBox="${icon.viewBox}" fill="none" stroke="currentColor">${icon.path}</svg>`;
 }
+
+  // --- Module: features/data-management/backup-serializer.js ---
+/**
+ * v3 Backup Snapshot Serializer & Deterministic Hasher
+ * Core: features/data-management/backup-serializer.js
+ *
+ * Constructs immutable v3 snapshots. Enforces strict boundary:
+ * excludes aiConfig, API keys, and local credentials.
+ */
+function sanitizePayload(state) {
+  const profile = state.profile ? JSON.parse(JSON.stringify(state.profile)) : null;
+  const customDecks = Array.isArray(state.customDecks) ? JSON.parse(JSON.stringify(state.customDecks)) : [];
+  const deckVersions = state.deckVersions ? JSON.parse(JSON.stringify(state.deckVersions)) : {};
+  const recycleBin = Array.isArray(state.recycleBin) ? JSON.parse(JSON.stringify(state.recycleBin)) : [];
+  const activeDeckId = state.activeDeckId || 'deck_verbs';
+  const maskState = state.maskState !== undefined ? Boolean(state.maskState) : true;
+
+  return {
+    profile,
+    customDecks,
+    deckVersions,
+    recycleBin,
+    activeDeckId,
+    maskState
+  };
+}
+
+/**
+ * Deterministic JSON stringifier (sorts keys recursively)
+ */
+function canonicalizeJson(obj) {
+  if (obj === null || typeof obj !== 'object') {
+    return JSON.stringify(obj);
+  }
+  if (Array.isArray(obj)) {
+    return '[' + obj.map(item => canonicalizeJson(item)).join(',') + ']';
+  }
+  const sortedKeys = Object.keys(obj).sort();
+  const pairs = sortedKeys.map(k => `${JSON.stringify(k)}:${canonicalizeJson(obj[k])}`);
+  return '{' + pairs.join(',') + '}';
+}
+
+/**
+ * Computes SHA-256 hash across browser and Node environments
+ */
+async function computeHash(contentStr) {
+  if (typeof crypto !== 'undefined' && crypto.subtle && typeof TextEncoder !== 'undefined') {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(contentStr);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // Fast DJB2 + FNV1a deterministic fallback if SubtleCrypto unavailable
+  let h1 = 0x811c9dc5;
+  for (let i = 0; i < contentStr.length; i++) {
+    h1 ^= contentStr.charCodeAt(i);
+    h1 = Math.imul(h1, 0x01000193);
+  }
+  return 'fast-' + (h1 >>> 0).toString(16).padStart(8, '0');
+}
+async function createV3Snapshot(options = {}) {
+  const {
+    workspaceId = 'default',
+    deviceId = 'dev_' + Math.random().toString(36).slice(2, 10),
+    localRevision = 1,
+    parentSnapshotHash = null,
+    appVersion = '2.1.0',
+    builtinDeckVersions = { deck_verbs: 1, deck_common_sense: 1, deck_computer_basics: 1 },
+    state = {}
+  } = options;
+
+  const payload = sanitizePayload(state);
+  const canonicalPayload = canonicalizeJson(payload);
+  const contentHash = await computeHash(canonicalPayload);
+  const now = new Date().toISOString();
+  const snapshotId = `snap_${Date.now()}_${contentHash.slice(0, 8)}`;
+
+  return {
+    schemaVersion: 3,
+    workspaceId,
+    snapshotId,
+    deviceId,
+    localRevision,
+    parentSnapshotHash,
+    contentHash,
+    exportedAt: now,
+    appVersion,
+    builtinDeckVersions,
+    payload
+  };
+}
+
+  // --- Module: features/data-management/backup-validator.js ---
+/**
+ * Backup Snapshot Validator & Security Sanitizer
+ * Core: features/data-management/backup-validator.js
+ *
+ * Validates v3 and v2 snapshots, verifies content hash integrity,
+ * checks cognitive capacity limits, and blocks prototype pollution.
+ */
+
+
+
+const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
+
+function checkNoPollution(obj, depth = 0) {
+  if (!obj || typeof obj !== 'object' || depth > 8) return true;
+  const proto = Object.getPrototypeOf(obj);
+  if (proto !== Object.prototype && proto !== Array.prototype && proto !== null) {
+    return false;
+  }
+  const keys = Object.getOwnPropertyNames(obj);
+  for (const key of keys) {
+    if (DANGEROUS_KEYS.includes(key)) return false;
+    if (typeof obj[key] === 'object' && obj[key] !== null && !checkNoPollution(obj[key], depth + 1)) {
+      return false;
+    }
+  }
+  return true;
+}
+async function validateBackup(data, options = {}) {
+  const { verifyHash = true, maxSizeBytes = 50 * 1024 * 1024 } = options;
+
+  if (!data || typeof data !== 'object') {
+    return { valid: false, error: '备份数据必须是非空 JSON 对象' };
+  }
+
+  // 1. 原型污染防御
+  if (!checkNoPollution(data)) {
+    return { valid: false, error: '检测到非法对象属性定义 (防原型污染触发)' };
+  }
+
+  // 2. 体积粗检
+  const roughSize = JSON.stringify(data).length;
+  if (roughSize > maxSizeBytes) {
+    return { valid: false, error: `备份数据超出最大安全体积限制 (${(maxSizeBytes / 1024 / 1024).toFixed(1)}MB)` };
+  }
+
+  const schemaVersion = data.schemaVersion || data.version || 2;
+
+  // 3. 校验 v3 格式
+  if (schemaVersion === 3) {
+    if (!data.snapshotId || typeof data.snapshotId !== 'string') {
+      return { valid: false, error: 'v3 备份缺少有效的 snapshotId' };
+    }
+    if (!data.exportedAt || typeof data.exportedAt !== 'string') {
+      return { valid: false, error: 'v3 备份缺少有效的 exportedAt 时间戳' };
+    }
+    if (!data.payload || typeof data.payload !== 'object') {
+      return { valid: false, error: 'v3 备份缺少有效的 payload 数据载荷' };
+    }
+
+    const payload = data.payload;
+    const customDecks = Array.isArray(payload.customDecks) ? payload.customDecks : [];
+    let totalEntities = 0;
+    let totalCards = 0;
+
+    for (const deck of customDecks) {
+      if (!deck.id || !deck.title) {
+        return { valid: false, error: `题库缺少必须的 id 或 title 属性` };
+      }
+      const entCount = Array.isArray(deck.entities) ? deck.entities.length : 0;
+      totalEntities += entCount;
+    }
+
+    if (payload.profile?.deckStates) {
+      for (const ds of Object.values(payload.profile.deckStates)) {
+        if (ds?.cards) {
+          totalCards += Object.keys(ds.cards).length;
+        }
+      }
+    }
+
+    // 4. 内容完整性校验
+    if (verifyHash && data.contentHash) {
+      const canonical = canonicalizeJson(payload);
+      const computed = await computeHash(canonical);
+      if (computed !== data.contentHash) {
+        return {
+          valid: false,
+          error: `备份内容完整性校验失败 (哈希不匹配，可能存在损坏或篡改)`,
+          expectedHash: data.contentHash,
+          computedHash: computed
+        };
+      }
+    }
+
+    return {
+      valid: true,
+      version: 3,
+      summary: {
+        snapshotId: data.snapshotId,
+        workspaceId: data.workspaceId || 'default',
+        deviceId: data.deviceId || 'unknown',
+        customDeckCount: customDecks.length,
+        totalEntities,
+        totalCards,
+        exportedAt: data.exportedAt
+      }
+    };
+  }
+
+  // 5. 校验兼容 v2 格式
+  if (schemaVersion === 2) {
+    const customDecks = Array.isArray(data.customDecks) ? data.customDecks : [];
+    let totalEntities = 0;
+    for (const deck of customDecks) {
+      if (!deck.id || !deck.title) {
+        return { valid: false, error: 'v2 题库结构无效：缺少 id 或 title' };
+      }
+      totalEntities += Array.isArray(deck.entities) ? deck.entities.length : 0;
+    }
+
+    return {
+      valid: true,
+      version: 2,
+      summary: {
+        customDeckCount: customDecks.length,
+        totalEntities,
+        exportedAt: data.exportedAt || null
+      }
+    };
+  }
+
+  return { valid: false, error: `不支持的备份协议版本: ${schemaVersion}` };
+}
+
+  // --- Module: features/data-management/data-sync-manager.js ---
+/**
+ * Data Sync & Remote Backup Coordinator
+ * Core: features/data-management/data-sync-manager.js
+ *
+ * Coordinates remote storage adapter creation, connection probing,
+ * v3 snapshot backups to WebDAV, remote snapshot listing, and safe restoration.
+ */
+
+
+
+
+
+const CONFIG_STORAGE_KEY = 'verbmaster_remote_storage_config_v1';
+const ROLLBACK_SNAPSHOT_KEY = 'verbmaster_rollback_snapshot_v3';
+class DataSyncManager {
+  constructor(options = {}) {
+    this.storage = options.storage || null;
+    this.deviceId = this._loadOrCreateDeviceId();
+    this.config = this.loadConfig();
+    this._adapter = null;
+  }
+
+  _loadOrCreateDeviceId() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        let id = localStorage.getItem('verbmaster_device_id_v1');
+        if (!id) {
+          id = 'dev_' + Math.random().toString(36).slice(2, 10);
+          localStorage.setItem('verbmaster_device_id_v1', id);
+        }
+        return id;
+      }
+    } catch {}
+    return 'dev_' + Math.random().toString(36).slice(2, 10);
+  }
+
+  loadConfig() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      }
+    } catch {}
+    return {
+      provider: 'webdav',
+      endpoint: '',
+      username: '',
+      password: '',
+      basePath: 'knowledge-arena',
+      workspaceId: 'default'
+    };
+  }
+
+  saveConfig(newConfig) {
+    this.config = { ...this.config, ...newConfig };
+    this._adapter = null; // 重置适配器实例
+    try {
+      if (typeof localStorage !== 'undefined') {
+        // 安全保存：可选项保存密码，如需脱敏可排除
+        localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(this.config));
+      }
+    } catch {}
+    return this.config;
+  }
+
+  getAdapter() {
+    if (!this._adapter) {
+      this._adapter = createRemoteAdapter(this.config);
+    }
+    return this._adapter;
+  }
+
+  async testConnection(signal) {
+    const adapter = this.getAdapter();
+    return await adapter.probe(signal);
+  }
+
+  async createBackup(stateSnapshot, options = {}) {
+    const { writeScheduler = null, localRevision = 1 } = options;
+
+    if (writeScheduler && typeof writeScheduler.flush === 'function') {
+      writeScheduler.flush(stateSnapshot);
+    }
+
+    const state = typeof stateSnapshot === 'function' ? stateSnapshot() : stateSnapshot;
+    const snapshot = await createV3Snapshot({
+      workspaceId: this.config.workspaceId || 'default',
+      deviceId: this.deviceId,
+      localRevision,
+      state
+    });
+
+    const basePath = (this.config.basePath || 'knowledge-arena').replace(/^\/+|\/+$/g, '');
+    const ws = (this.config.workspaceId || 'default').replace(/^\/+|\/+$/g, '');
+    const path = `${basePath}/${ws}/backups/${this.deviceId}/${snapshot.snapshotId}.json`;
+
+    const adapter = this.getAdapter();
+    const putRes = await adapter.put(path, snapshot, {
+      ifNoneMatch: '*'
+    });
+
+    return {
+      success: true,
+      snapshotId: snapshot.snapshotId,
+      contentHash: snapshot.contentHash,
+      path,
+      etag: putRes?.etag || null,
+      exportedAt: snapshot.exportedAt
+    };
+  }
+
+  async listBackups(signal) {
+    const adapter = this.getAdapter();
+    const basePath = (this.config.basePath || 'knowledge-arena').replace(/^\/+|\/+$/g, '');
+    const ws = (this.config.workspaceId || 'default').replace(/^\/+|\/+$/g, '');
+    const prefix = `${basePath}/${ws}/backups/`;
+
+    const items = await adapter.list(prefix, signal);
+    const backups = items.filter(it => it.path.endsWith('.json') && !it.isDirectory);
+
+    backups.sort((a, b) => {
+      const timeA = a.modifiedAt ? new Date(a.modifiedAt).getTime() : 0;
+      const timeB = b.modifiedAt ? new Date(b.modifiedAt).getTime() : 0;
+      return timeB - timeA;
+    });
+
+    return backups;
+  }
+
+  async restoreBackup(remotePath, targetStorage = null) {
+    const storage = targetStorage || this.storage;
+    if (!storage) {
+      throw new Error('未提供有效的存储目标以执行恢复');
+    }
+
+    const adapter = this.getAdapter();
+    const getRes = await adapter.get(remotePath);
+    let data;
+    try {
+      data = JSON.parse(getRes.bytes);
+    } catch {
+      throw new Error('远端备份文件损坏：无法解析为有效 JSON');
+    }
+
+    const validation = await validateBackup(data);
+    if (!validation.valid) {
+      throw new Error(`备份校验失败: ${validation.error}`);
+    }
+
+    // 1. 创建本地回滚恢复点
+    this._createRollbackSafetyPoint(storage);
+
+    // 2. 原子应用数据载荷
+    const payload = validation.version === 3 ? data.payload : {
+      profile: data.profile,
+      customDecks: data.customDecks,
+      activeDeckId: data.activeDeckId,
+      maskState: data.maskState
+    };
+
+    if (payload.profile && storage.saveProfile) {
+      storage.saveProfile(payload.profile);
+    }
+    if (payload.customDecks && storage.saveCustomDecks) {
+      storage.saveCustomDecks(payload.customDecks);
+    }
+    if (payload.activeDeckId && storage.saveActiveDeckId) {
+      storage.saveActiveDeckId(payload.activeDeckId);
+    }
+    if (payload.maskState !== undefined && storage.saveMaskState) {
+      storage.saveMaskState(payload.maskState);
+    }
+    if (payload.deckVersions && storage.saveDeckVersions) {
+      storage.saveDeckVersions(payload.deckVersions);
+    }
+    if (payload.recycleBin && storage.saveRecycleBin) {
+      storage.saveRecycleBin(payload.recycleBin);
+    }
+
+    return {
+      success: true,
+      version: validation.version,
+      summary: validation.summary,
+      payload
+    };
+  }
+
+  _createRollbackSafetyPoint(storage) {
+    try {
+      const rollbackPoint = {
+        createdAt: new Date().toISOString(),
+        profile: storage.loadProfile ? storage.loadProfile() : null,
+        customDecks: storage.loadCustomDecks ? storage.loadCustomDecks() : [],
+        activeDeckId: storage.loadActiveDeckId ? storage.loadActiveDeckId() : 'deck_verbs',
+        maskState: storage.loadMaskState ? storage.loadMaskState() : true,
+        deckVersions: storage.loadDeckVersions ? storage.loadDeckVersions() : {},
+        recycleBin: storage.loadRecycleBin ? storage.loadRecycleBin() : []
+      };
+      this._lastRollbackPoint = rollbackPoint;
+      try {
+        if (typeof localStorage !== 'undefined' && typeof localStorage.setItem === 'function') {
+          localStorage.setItem(ROLLBACK_SNAPSHOT_KEY, JSON.stringify(rollbackPoint));
+        }
+      } catch {}
+    } catch (e) {
+      console.warn('[SyncManager] Failed to create rollback safety point:', e);
+    }
+  }
+
+  getRollbackSafetyPoint() {
+    try {
+      if (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function') {
+        const raw = localStorage.getItem(ROLLBACK_SNAPSHOT_KEY);
+        if (raw) return JSON.parse(raw);
+      }
+    } catch {}
+    return this._lastRollbackPoint || null;
+  }
+}
+
+  // --- Module: features/data-management/index.js ---
+/**
+ * Data Management Feature Public Entry
+ * Core: features/data-management/index.js
+ */
 
   // --- Module: features/arena/combo-effect.js ---
 /**
@@ -8862,6 +10075,48 @@ class AiAgentUIController {
   }
 }
 
+  // --- Module: features/ai-agent/workspace-navigation.js ---
+class AgentWorkspaceNavigation {
+  constructor({ root = globalThis.document, browserWindow = globalThis.window, onActivate = () => {} } = {}) {
+    Object.assign(this, { root, browserWindow, onActivate });
+    this.tabs = ['chat', 'mcp']; this.activeTab = 'chat';
+  }
+  init() {
+    for (const tab of this.tabs) {
+      const button = this.root.getElementById(`agent-tab-${tab}`);
+      button?.addEventListener('click', () => this.select(tab));
+      button?.addEventListener('keydown', event => this.handleKey(event, tab));
+    }
+    const restore = () => {
+      const tab = this.browserWindow.location.hash.match(/^#agent\/(chat|mcp)$/)?.[1];
+      if (tab) this.select(tab, { updateHash: false });
+    };
+    this.select('chat', { updateHash: false, notify: false });
+    restore(); this.browserWindow.addEventListener('hashchange', restore);
+  }
+  select(tab, { updateHash = true, notify = true } = {}) {
+    if (!this.tabs.includes(tab)) return false;
+    this.activeTab = tab;
+    for (const name of this.tabs) {
+      const active = name === tab;
+      const button = this.root.getElementById(`agent-tab-${name}`);
+      button?.setAttribute('aria-selected', String(active));
+      if (button) button.tabIndex = active ? 0 : -1;
+      const panel = this.root.getElementById(`agent-panel-${name}`);
+      if (panel) { panel.hidden = !active; panel.inert = !active; panel.classList.toggle('hidden', !active); }
+    }
+    if (updateHash) this.browserWindow.history.replaceState(null, '', `#agent/${tab}`);
+    if (notify) this.onActivate(tab);
+    return true;
+  }
+  handleKey(event, tab) {
+    const index = this.tabs.indexOf(tab);
+    const target = { ArrowLeft: this.tabs[(index + this.tabs.length - 1) % this.tabs.length], ArrowRight: this.tabs[(index + 1) % this.tabs.length], Home: this.tabs[0], End: this.tabs.at(-1) }[event.key];
+    if (!target) return;
+    event.preventDefault(); this.select(target); this.root.getElementById(`agent-tab-${target}`)?.focus();
+  }
+}
+
   // --- Module: platform/network/browser-bridge-transport.js ---
 function bridgeConnectionUrl(server, room) {
   const url = new URL(server);
@@ -9054,11 +10309,45 @@ class McpToolAdapter {
   }
 }
 
+  // --- Module: features/mcp-bridge/settings-model.js ---
+const MCP_PREFERENCES_KEY = 'knowledge_master_mcp_preferences_v1';
+class McpPreferences {
+  constructor(getStorage = () => globalThis.localStorage) { this.getStorage = getStorage; }
+  load() {
+    try {
+      const value = JSON.parse(this.getStorage()?.getItem(MCP_PREFERENCES_KEY) || 'null');
+      if (!value || typeof value.server !== 'string' || typeof value.room !== 'string') return null;
+      bridgeConnectionUrl(value.server, value.room);
+      return { server: value.server, room: value.room };
+    } catch { return null; }
+  }
+  save({ server, room }) {
+    try {
+      bridgeConnectionUrl(server, room);
+      this.getStorage().setItem(MCP_PREFERENCES_KEY, JSON.stringify({ server, room })); return true;
+    } catch { return false; }
+  }
+  clear() {
+    try { this.getStorage().removeItem(MCP_PREFERENCES_KEY); return true; } catch { return false; }
+  }
+}
+function createClientEndpoint(server, room) {
+  const url = bridgeConnectionUrl(server, room);
+  url.protocol = url.protocol === 'wss:' ? 'https:' : 'http:';
+  url.pathname = '/mcp/sse'; url.searchParams.delete('role');
+  return url.href;
+}
+function mcpPresentation(state) {
+  const labels = { DISABLED: '未连接', CONNECTING: '连接中', REGISTERING: '正在注册工具', REGISTERED: '已连接，等待外部调用验证', READY: '已验证，可调用', BACKOFF: '连接中断，正在重连', DISPLACED: '同房间已有新连接，请使用独立房间', FAILED: '连接失败，请检查地址、Token 与网关开关' };
+  return { label: labels[state] || '未知状态', locked: !['DISABLED', 'FAILED', 'DISPLACED'].includes(state), connected: ['REGISTERED', 'READY'].includes(state) };
+}
+
   // --- Module: features/mcp-bridge/controller.js ---
-const MCP_BRIDGE_LABELS = { DISABLED: '未连接', CONNECTING: '连接中', REGISTERING: '正在注册工具', REGISTERED: '已连接，19 个工具已发送注册（待外部调用验证）', READY: '已验证，可调用', BACKOFF: '连接中断，正在重连', DISPLACED: '同房间已有新 Host，已停止连接', FAILED: '连接失败，请检查地址、房间、Token 和网关开关' };
 class McpBridgeController {
   constructor(executor) {
     this.adapter = new McpToolAdapter(executor);
+    this.preferences = new McpPreferences();
+    this.connectionAttempt = 0;
     this.transport = new BrowserBridgeTransport({ adapter: this.adapter,
       onState: state => this.renderState(state),
       onCall: (name, status) => { const target = document.getElementById('mcp-last-call'); if (target) target.textContent = `${name} · ${status}`; }
@@ -9067,51 +10356,105 @@ class McpBridgeController {
   init() {
     document.getElementById('mcp-bridge-form')?.addEventListener('submit', event => { event.preventDefault(); void this.connect(); });
     document.getElementById('mcp-disconnect')?.addEventListener('click', () => this.disconnect());
+    document.getElementById('mcp-copy-endpoint')?.addEventListener('click', () => { void this.copyEndpoint(); });
+    document.getElementById('mcp-forget')?.addEventListener('click', () => this.forgetPreferences());
+    document.getElementById('mcp-remember')?.addEventListener('change', event => { if (!event.target.checked) this.forgetPreferences(); });
+    for (const id of ['mcp-server', 'mcp-room']) document.getElementById(id)?.addEventListener('input', () => this.updatePreview());
+    const saved = this.preferences.load();
+    if (saved) { document.getElementById('mcp-server').value = saved.server; document.getElementById('mcp-room').value = saved.room; }
+    const tools = this.adapter.listTools();
+    for (const element of document.querySelectorAll('[data-mcp-tool-count]')) element.textContent = String(tools.length);
+    const list = document.getElementById('mcp-tools-list');
+    for (const tool of tools) {
+      const item = document.createElement('li'); item.className = 'py-2 border-b border-slate-800';
+      const name = document.createElement('code'); name.className = 'block text-xs text-indigo-300 break-all'; name.textContent = tool.name;
+      const description = document.createElement('span'); description.className = 'text-xs text-slate-400'; description.textContent = tool.description;
+      item.append(name, description); list?.append(item);
+    }
     window.addEventListener('pagehide', () => this.disconnect());
+    this.updatePreview();
     this.renderState('DISABLED');
   }
   renderState(state) {
     const target = document.getElementById('mcp-status');
-    if (target) target.textContent = MCP_BRIDGE_LABELS[state] || state;
-    const busy = !['DISABLED', 'FAILED', 'DISPLACED'].includes(state);
+    const presentation = mcpPresentation(this.connecting && state === 'DISABLED' ? 'CONNECTING' : state);
+    if (target) target.textContent = presentation.label;
+    const badge = document.getElementById('mcp-tab-status'); if (badge) badge.textContent = presentation.label;
+    const busy = presentation.locked;
+    for (const id of ['mcp-server', 'mcp-room', 'mcp-token']) { const input = document.getElementById(id); if (input) input.disabled = busy; }
     const button = document.getElementById('mcp-connect'); if (button) button.disabled = busy;
     const disconnect = document.getElementById('mcp-disconnect'); if (disconnect) disconnect.disabled = !busy;
     if (['FAILED', 'DISPLACED'].includes(state)) { this.releaseLock?.(); this.releaseLock = null; }
   }
   async connect() {
-    if (this.connecting) return;
+    if (this.connecting || mcpPresentation(this.transport.state).locked) return;
     this.connecting = true;
+    const attempt = ++this.connectionAttempt;
     let acquired = false;
     try {
       if (!['https:', 'http:'].includes(location.protocol) || !globalThis.isSecureContext) throw new Error('请从 HTTPS 或本机 localhost 页面连接桥接');
+      const server = document.getElementById('mcp-server').value.trim();
+      const room = document.getElementById('mcp-room').value.trim();
+      createClientEndpoint(server, room);
+      const input = document.getElementById('mcp-token');
+      const token = input.value.trim(); input.value = '';
+      this.renderState('CONNECTING');
       if (navigator.locks) {
         acquired = await new Promise((resolve, reject) => {
           void navigator.locks.request('knowledge-master-mcp-host', { ifAvailable: true }, lock => {
-            if (!lock) { resolve(false); return; }
+            if (!lock || attempt !== this.connectionAttempt) { resolve(false); return; }
             return new Promise(release => { this.releaseLock = release; resolve(true); });
           }).catch(reject);
         });
+        if (attempt !== this.connectionAttempt) return;
         if (!acquired) throw new Error('另一个标签页正在提供 MCP，请先断开它');
       }
-      const server = document.getElementById('mcp-server').value.trim();
-      const room = document.getElementById('mcp-room').value.trim();
-      const input = document.getElementById('mcp-token');
-      const token = input.value.trim(); input.value = '';
       // Explicit reconnect establishes a new authorization scope; automatic
       // transport reconnection retains its existing intent ledger.
       this.adapter.ledger.clear();
       await this.transport.start({ server, room, token });
-      const url = new URL('/mcp/sse', server.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:'));
-      url.searchParams.set('room', room);
-      document.getElementById('mcp-client-config').textContent = `外部客户端选择 SSE\n地址：${url.href}\n请求头：Authorization: Bearer <同一 Token>\n当前页面关闭后停止服务。`;
+      if (attempt !== this.connectionAttempt) return;
+      const remember = document.getElementById('mcp-remember')?.checked;
+      if (remember && !this.preferences.save({ server, room })) this.feedback('连接不受影响，但浏览器无法保存地址与房间');
+      else if (remember) this.feedback('已记住地址与房间；Token 仅用于本次连接');
+      this.updatePreview();
     } catch (error) {
+      if (attempt !== this.connectionAttempt) return;
+      this.connecting = false;
       this.transport.stop(); this.releaseLock?.(); this.releaseLock = null;
       document.getElementById('mcp-status').textContent = error.message;
-    } finally { this.connecting = false; }
+    } finally { if (attempt === this.connectionAttempt) { this.connecting = false; } }
   }
   disconnect() {
+    ++this.connectionAttempt; this.connecting = false;
     this.transport.stop(); this.releaseLock?.(); this.releaseLock = null;
     const token = document.getElementById('mcp-token'); if (token) token.value = '';
+  }
+  feedback(text) { const target = document.getElementById('mcp-settings-feedback'); if (target) target.textContent = text; }
+  forgetPreferences() {
+    const cleared = this.preferences.clear();
+    const checkbox = document.getElementById('mcp-remember'); if (checkbox) checkbox.checked = false;
+    this.feedback(cleared ? '已清除记住的地址与房间，当前连接不变' : '浏览器无法清除保存的配置');
+  }
+  updatePreview() {
+    const endpoint = document.getElementById('mcp-endpoint');
+    const copy = document.getElementById('mcp-copy-endpoint');
+    try {
+      const url = createClientEndpoint(document.getElementById('mcp-server').value.trim(), document.getElementById('mcp-room').value.trim());
+      if (endpoint) endpoint.value = url;
+      if (copy) copy.disabled = false;
+      document.getElementById('mcp-client-config').textContent = '传输方式：SSE（旧 HTTP+SSE）\n请求头：Authorization: Bearer <你的 Token>\n在外部客户端填入上方地址和同一 Token。';
+    } catch {
+      if (endpoint) endpoint.value = '';
+      if (copy) copy.disabled = true;
+      document.getElementById('mcp-client-config').textContent = '填写有效的桥接地址与房间后，这里会生成客户端接入信息。';
+    }
+  }
+  async copyEndpoint() {
+    const endpoint = document.getElementById('mcp-endpoint');
+    if (!endpoint?.value) return;
+    try { await navigator.clipboard.writeText(endpoint.value); this.feedback('已复制 SSE 地址，不含 Token'); }
+    catch { endpoint.focus(); endpoint.select(); this.feedback('无法自动复制，已选中地址，请手动复制'); }
   }
 }
 
@@ -9701,6 +11044,8 @@ class KnowledgeMasterApp {
     this.soundSynth = soundSynth;
     this.speechSynth = speechSynth;
     this.storage = storageAdapter;
+    this.writeScheduler = new WriteScheduler(this.storage, { debounceMs: 150, maxWaitMs: 1500 });
+    this.dataSyncManager = new DataSyncManager({ storage: this.storage });
     this.exporter = fileExporter;
 
     // 状态初始化
@@ -9752,6 +11097,10 @@ class KnowledgeMasterApp {
     this.favoritesManager = new FavoritesManagerController(this);
     this.deckVersioning = new DeckVersionController(this);
     this.mcpBridge = new McpBridgeController(this.aiAgent.executor);
+    this.agentWorkspace = new AgentWorkspaceNavigation({ onActivate: tab => {
+      if (this.router.currentView !== 'agent') this.router.navigate('agent');
+      if (tab === 'chat') this.aiAgent.renderCurrentSession();
+    } });
     this._lastJevRecommendation = null;
     this._lastAutoExpandedJevTarget = null;
   }
@@ -9765,9 +11114,12 @@ class KnowledgeMasterApp {
     this.mcpBridge.init();
     this.updateSpeechUiState(this.speechSynth.isAutoSpeechEnabled());
     this.router.navigate('dashboard');
+    this.agentWorkspace.init();
 
     if (typeof window !== 'undefined') {
       window.app = this;
+      window.addEventListener('pagehide', () => this.writeScheduler?.flush(() => this._getStateSnapshot()));
+      window.addEventListener('beforeunload', () => this.writeScheduler?.flush(() => this._getStateSnapshot()));
     }
   }
 
@@ -9780,6 +11132,7 @@ class KnowledgeMasterApp {
     const deck = this.getAllDecks().find(d => d.id === deckId);
     const deckTitle = deck ? deck.title : deckId;
     this.router.navigate('agent');
+    this.agentWorkspace.select('chat');
     const prompt = `请为题库《${deckTitle}》(ID: ${deckId}) 生成系统化知识导学内容（Advance Organizer）。
 请先调用 tool_get_deck(deckId="${deckId}", title="${deckTitle}") 分析题库《${deckTitle}》的知识分类与考点，梳理核心认知模型与易混淆对比表，然后调用 tool_update_deck_guide(deckId="${deckId}", title="${deckTitle}") 为题库《${deckTitle}》配置系统化导学页！`;
     setTimeout(() => {
@@ -10154,6 +11507,21 @@ class KnowledgeMasterApp {
 
   // ==================== 数据状态加载与持久化 ====================
 
+  _getStateSnapshot() {
+    return {
+      profile: {
+        version: 2,
+        lastActiveAt: Date.now(),
+        deckStates: this.state.deckStates
+      },
+      customDecks: this.state.customDecks,
+      activeDeckId: this.state.activeDeckId,
+      maskState: this.isAnswerMasked,
+      deckVersions: this.deckVersioning?.versionsMap || null,
+      recycleBin: this.deckVersioning?.recycleBin || null
+    };
+  }
+
   loadUserData() {
     const profile = this.storage.loadProfile();
     if (profile && profile.deckStates) {
@@ -10161,15 +11529,14 @@ class KnowledgeMasterApp {
     }
   }
 
-  saveUserData() {
-    this.storage.saveProfile({
-      version: 2,
-      lastActiveAt: Date.now(),
-      deckStates: this.state.deckStates
-    });
-    this.storage.saveCustomDecks(this.state.customDecks);
-    this.storage.saveActiveDeckId(this.state.activeDeckId);
-    this.storage.saveMaskState(this.isAnswerMasked);
+  saveUserData(options = {}) {
+    const { immediate = false, domains = null } = options;
+    if (domains && Array.isArray(domains)) {
+      domains.forEach(d => this.writeScheduler.markDirty(d));
+    } else {
+      this.writeScheduler.markDirty(STORAGE_DOMAINS.PROFILE);
+    }
+    return this.writeScheduler.schedule(() => this._getStateSnapshot(), { immediate });
   }
 
   getAllDecks() {
@@ -10200,7 +11567,8 @@ class KnowledgeMasterApp {
     this.state.activeDeckId = deckId;
     this._lastJevRecommendation = null;
     this._lastAutoExpandedJevTarget = null;
-    this.saveUserData();
+    this.writeScheduler.markDirty(STORAGE_DOMAINS.ACTIVE_DECK_ID);
+    this.saveUserData({ domains: [STORAGE_DOMAINS.ACTIVE_DECK_ID] });
     this.resetStudyFilters();
     this.renderDeckSelector();
     this.renderAllViews();
@@ -11142,14 +12510,220 @@ class KnowledgeMasterApp {
 
   showBackupModal() {
     ModalController.open('modal-backup');
+    this.loadWebDavConfigToUI();
+    this.updateRollbackBanner();
   }
 
   closeBackupModal() {
     ModalController.close('modal-backup');
   }
 
+  switchBackupTab(tabName) {
+    const localTabBtn = document.getElementById('tab-btn-backup-local');
+    const remoteTabBtn = document.getElementById('tab-btn-backup-remote');
+    const localPanel = document.getElementById('backup-panel-local');
+    const remotePanel = document.getElementById('backup-panel-remote');
+
+    if (tabName === 'remote') {
+      if (localTabBtn) localTabBtn.className = 'px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200 transition';
+      if (remoteTabBtn) remoteTabBtn.className = 'px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 transition';
+      if (localPanel) localPanel.classList.add('hidden');
+      if (remotePanel) remotePanel.classList.remove('hidden');
+      this.loadWebDavConfigToUI();
+      this.updateRollbackBanner();
+    } else {
+      if (localTabBtn) localTabBtn.className = 'px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 transition';
+      if (remoteTabBtn) remoteTabBtn.className = 'px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200 transition';
+      if (localPanel) localPanel.classList.remove('hidden');
+      if (remotePanel) remotePanel.classList.add('hidden');
+    }
+  }
+
+  loadWebDavConfigToUI() {
+    const cfg = this.dataSyncManager.config;
+    const epInput = document.getElementById('webdav-input-endpoint');
+    const userInput = document.getElementById('webdav-input-username');
+    const passInput = document.getElementById('webdav-input-password');
+    const baseInput = document.getElementById('webdav-input-basepath');
+    const wsInput = document.getElementById('webdav-input-workspace');
+
+    if (epInput && cfg.endpoint) epInput.value = cfg.endpoint;
+    if (userInput && cfg.username) userInput.value = cfg.username;
+    if (passInput && cfg.password) passInput.value = cfg.password;
+    if (baseInput && cfg.basePath) baseInput.value = cfg.basePath;
+    if (wsInput && cfg.workspaceId) wsInput.value = cfg.workspaceId;
+  }
+
+  saveWebDavConfig() {
+    const ep = document.getElementById('webdav-input-endpoint')?.value?.trim() || '';
+    const user = document.getElementById('webdav-input-username')?.value?.trim() || '';
+    const pass = document.getElementById('webdav-input-password')?.value || '';
+    const base = document.getElementById('webdav-input-basepath')?.value?.trim() || 'knowledge-arena';
+    const ws = document.getElementById('webdav-input-workspace')?.value?.trim() || 'default';
+
+    this.dataSyncManager.saveConfig({
+      endpoint: ep,
+      username: user,
+      password: pass,
+      basePath: base,
+      workspaceId: ws
+    });
+
+    this._setWebDavStatus('配置已保存到本地', 'success');
+  }
+
+  async testWebDavConnection() {
+    this.saveWebDavConfig();
+    this._setWebDavStatus('正在探测 WebDAV 节点与条件写 (CAS) 能力...', 'info');
+
+    try {
+      const res = await this.dataSyncManager.testConnection();
+      if (res.ok) {
+        const casInfo = res.conditionalReplace ? '支持强条件覆盖 (CAS If-Match)' : '未检测到条件覆盖支持';
+        this._setWebDavStatus(`连通正常！${casInfo}`, 'success');
+      } else {
+        this._setWebDavStatus(`连通失败: ${res.error || '未知错误'} (HTTP ${res.statusCode || 'N/A'})`, 'error');
+      }
+    } catch (err) {
+      this._setWebDavStatus(`探测异常: ${err.message}`, 'error');
+    }
+  }
+
+  async createWebDavBackup() {
+    this.saveWebDavConfig();
+    this._setWebDavStatus('正在生成 v3 一致性快照并上传...', 'info');
+
+    try {
+      const res = await this.dataSyncManager.createBackup(
+        () => this._getStateSnapshot(),
+        {
+          writeScheduler: this.writeScheduler,
+          localRevision: this.writeScheduler.getRevision()
+        }
+      );
+
+      this._setWebDavStatus(`备份成功！快照 ID: ${res.snapshotId} (哈希: ${res.contentHash.slice(0, 8)})`, 'success');
+      this.loadWebDavBackups();
+    } catch (err) {
+      this._setWebDavStatus(`上传备份失败: ${err.message}`, 'error');
+    }
+  }
+
+  async loadWebDavBackups() {
+    this.saveWebDavConfig();
+    const listEl = document.getElementById('webdav-backup-list');
+    if (listEl) {
+      listEl.innerHTML = '<div class="text-center py-4 text-slate-400">正在拉取云端快照列表...</div>';
+    }
+
+    try {
+      const backups = await this.dataSyncManager.listBackups();
+      if (!listEl) return;
+
+      if (backups.length === 0) {
+        listEl.innerHTML = '<div class="text-center py-4 text-slate-500">云端暂无历史备份快照</div>';
+        return;
+      }
+
+      listEl.innerHTML = backups.map(b => {
+        const filename = b.path.split('/').pop();
+        const dateStr = b.modifiedAt ? new Date(b.modifiedAt).toLocaleString() : '未知时间';
+        const sizeStr = b.size ? `${(b.size / 1024).toFixed(1)} KB` : 'N/A';
+        const safePath = b.path.replace(/'/g, "\\'");
+
+        return `<div class="p-2 rounded-lg bg-slate-900 border border-slate-800 flex justify-between items-center hover:border-slate-700 transition">
+          <div class="truncate mr-2">
+            <div class="font-mono text-[11px] text-slate-200 truncate">${filename}</div>
+            <div class="text-[10px] text-slate-500">${dateStr} · ${sizeStr}</div>
+          </div>
+          <button onclick="app.restoreWebDavBackup('${safePath}')" class="shrink-0 px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 text-[11px] font-semibold transition">
+            恢复
+          </button>
+        </div>`;
+      }).join('');
+    } catch (err) {
+      if (listEl) {
+        listEl.innerHTML = `<div class="text-center py-4 text-rose-400">拉取列表失败: ${err.message}</div>`;
+      }
+    }
+  }
+
+  async restoreWebDavBackup(remotePath) {
+    if (typeof confirm !== 'undefined' && !confirm('警告：从云端备份恢复将更新当前本地题库与做题进度！\n系统将自动创建本次恢复前的安全回滚快照。是否继续？')) {
+      return;
+    }
+
+    this._setWebDavStatus('正在下载并安全应用云端快照...', 'info');
+
+    try {
+      const res = await this.dataSyncManager.restoreBackup(remotePath, this.storage);
+      this.loadUserData();
+      this.renderAllViews();
+      this.updateRollbackBanner();
+      this._setWebDavStatus(`恢复成功！已还原 ${res.summary.customDeckCount} 个题库、${res.summary.totalCards || 0} 张卡片进度`, 'success');
+      if (typeof alert !== 'undefined') {
+        alert(`已成功从云端快照恢复数据！\n题库数: ${res.summary.customDeckCount}，卡片进度: ${res.summary.totalCards || 0}`);
+      }
+    } catch (err) {
+      this._setWebDavStatus(`恢复失败: ${err.message}`, 'error');
+      if (typeof alert !== 'undefined') alert(`恢复失败: ${err.message}`);
+    }
+  }
+
+  restoreRollbackPoint() {
+    const point = this.dataSyncManager.getRollbackSafetyPoint();
+    if (!point) {
+      if (typeof alert !== 'undefined') alert('未找到可用的本地安全回滚点');
+      return;
+    }
+
+    if (typeof confirm !== 'undefined' && !confirm(`确定撤销上次恢复，回退至 ${new Date(point.createdAt).toLocaleString()} 的本地状态吗？`)) {
+      return;
+    }
+
+    try {
+      if (point.profile && this.storage.saveProfile) this.storage.saveProfile(point.profile);
+      if (point.customDecks && this.storage.saveCustomDecks) this.storage.saveCustomDecks(point.customDecks);
+      if (point.activeDeckId && this.storage.saveActiveDeckId) this.storage.saveActiveDeckId(point.activeDeckId);
+      if (point.maskState !== undefined && this.storage.saveMaskState) this.storage.saveMaskState(point.maskState);
+      if (point.deckVersions && this.storage.saveDeckVersions) this.storage.saveDeckVersions(point.deckVersions);
+      if (point.recycleBin && this.storage.saveRecycleBin) this.storage.saveRecycleBin(point.recycleBin);
+
+      this.loadUserData();
+      this.renderAllViews();
+      this._setWebDavStatus('已成功回退至恢复前快照', 'success');
+      if (typeof alert !== 'undefined') alert('已成功回滚至先前本地状态！');
+    } catch (err) {
+      if (typeof alert !== 'undefined') alert(`回滚失败: ${err.message}`);
+    }
+  }
+
+  updateRollbackBanner() {
+    const banner = document.getElementById('webdav-rollback-banner');
+    if (!banner) return;
+    const point = this.dataSyncManager.getRollbackSafetyPoint();
+    if (point) banner.classList.remove('hidden');
+    else banner.classList.add('hidden');
+  }
+
+  _setWebDavStatus(msg, type = 'info') {
+    const badge = document.getElementById('webdav-status-badge');
+    if (!badge) return;
+    badge.className = 'p-2.5 rounded-xl text-xs border';
+
+    if (type === 'success') {
+      badge.classList.add('bg-emerald-950/40', 'border-emerald-500/40', 'text-emerald-300');
+    } else if (type === 'error') {
+      badge.classList.add('bg-rose-950/40', 'border-rose-500/40', 'text-rose-300');
+    } else {
+      badge.classList.add('bg-sky-950/40', 'border-sky-500/40', 'text-sky-300');
+    }
+    badge.innerText = msg;
+  }
+
   exportBackupJSON() {
     try {
+      this.writeScheduler.flush(() => this._getStateSnapshot());
       const backupData = {
         version: 2,
         exportedAt: new Date().toISOString(),
@@ -11171,6 +12745,7 @@ class KnowledgeMasterApp {
     const file = event?.target?.files?.[0];
     if (!file) return;
     try {
+      this.writeScheduler.flush(() => this._getStateSnapshot());
       const data = await this.exporter.importJSONFile(file);
       if (!data || typeof data !== 'object') {
         throw new Error('无效的备份文件结构');
@@ -11290,7 +12865,8 @@ class KnowledgeMasterApp {
 
   toggleAnswerMask() {
     this.isAnswerMasked = !this.isAnswerMasked;
-    this.saveUserData();
+    this.writeScheduler.markDirty(STORAGE_DOMAINS.MASK_STATE);
+    this.saveUserData({ domains: [STORAGE_DOMAINS.MASK_STATE] });
     this.updateStudyStatsBadge();
     this.treeRenderer.renderCards();
   }
@@ -11516,7 +13092,8 @@ class KnowledgeMasterApp {
       if (idx !== -1) {
         this.draftDeck.id = this.editingDeckId;
         this.state.customDecks[idx] = JSON.parse(JSON.stringify(this.draftDeck));
-        this.saveUserData();
+        this.writeScheduler.markDirty(STORAGE_DOMAINS.CUSTOM_DECKS);
+        this.saveUserData({ immediate: true, domains: [STORAGE_DOMAINS.CUSTOM_DECKS] });
         alert(`✅ 自定义题库「${this.draftDeck.title}」已成功保存并原地更新！`);
       }
     } else {
@@ -11528,7 +13105,9 @@ class KnowledgeMasterApp {
       if (!this.state.customDecks) this.state.customDecks = [];
       this.state.customDecks.push(newDeck);
       this.state.activeDeckId = newDeckId;
-      this.saveUserData();
+      this.writeScheduler.markDirty(STORAGE_DOMAINS.CUSTOM_DECKS);
+      this.writeScheduler.markDirty(STORAGE_DOMAINS.ACTIVE_DECK_ID);
+      this.saveUserData({ immediate: true, domains: [STORAGE_DOMAINS.CUSTOM_DECKS, STORAGE_DOMAINS.ACTIVE_DECK_ID] });
       alert(`🎉 题库「${newDeck.title}」保存成功，已自动设为当前激活题库！`);
     }
 

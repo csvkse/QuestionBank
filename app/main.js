@@ -17,7 +17,9 @@ import { validateDeckHealth } from '../shared/deck-validator.js';
 import { soundSynth } from '../platform/audio/web-audio-synth.js';
 import { speechSynth, isLanguageDeck, getDeckLangCode } from '../platform/audio/speech-synth.js';
 import { storageAdapter } from '../platform/storage/local-storage-adapter.js';
+import { WriteScheduler, STORAGE_DOMAINS } from '../platform/storage/write-scheduler.js';
 import { fileExporter } from '../platform/exporter/file-exporter.js';
+import { DataSyncManager } from '../features/data-management/index.js';
 
 import { ModalController } from '../design-system/components/modal.js';
 import { QuizRunner, ComboEffectController, SandboxConfigController, SteppedProgressController } from '../features/arena/index.js';
@@ -25,7 +27,7 @@ import { MatrixConsoleController, TreeRenderer, FocusReaderController } from '..
 import { VisualEditorController, MarkdownEditorController } from '../features/deck-studio/index.js';
 import { DeckCrudController, FavoritesManagerController, DeckVersionController } from '../features/deck-manager/index.js';
 import { TimelineBoardController, RadarChartController } from '../features/review-board/index.js';
-import { AiAgentUIController, REFERENCE_PRESET_PROVIDERS, DEFAULT_PROVIDERS } from '../features/ai-agent/index.js';
+import { AiAgentUIController, AgentWorkspaceNavigation, REFERENCE_PRESET_PROVIDERS, DEFAULT_PROVIDERS } from '../features/ai-agent/index.js';
 import { JevClient, JevUi } from '../features/jev/index.js';
 import { AppRouter } from './router.js';
 import { McpBridgeController } from '../features/mcp-bridge/index.js';
@@ -35,6 +37,8 @@ export class KnowledgeMasterApp {
     this.soundSynth = soundSynth;
     this.speechSynth = speechSynth;
     this.storage = storageAdapter;
+    this.writeScheduler = new WriteScheduler(this.storage, { debounceMs: 150, maxWaitMs: 1500 });
+    this.dataSyncManager = new DataSyncManager({ storage: this.storage });
     this.exporter = fileExporter;
 
     // 状态初始化
@@ -86,6 +90,10 @@ export class KnowledgeMasterApp {
     this.favoritesManager = new FavoritesManagerController(this);
     this.deckVersioning = new DeckVersionController(this);
     this.mcpBridge = new McpBridgeController(this.aiAgent.executor);
+    this.agentWorkspace = new AgentWorkspaceNavigation({ onActivate: tab => {
+      if (this.router.currentView !== 'agent') this.router.navigate('agent');
+      if (tab === 'chat') this.aiAgent.renderCurrentSession();
+    } });
     this._lastJevRecommendation = null;
     this._lastAutoExpandedJevTarget = null;
   }
@@ -99,9 +107,12 @@ export class KnowledgeMasterApp {
     this.mcpBridge.init();
     this.updateSpeechUiState(this.speechSynth.isAutoSpeechEnabled());
     this.router.navigate('dashboard');
+    this.agentWorkspace.init();
 
     if (typeof window !== 'undefined') {
       window.app = this;
+      window.addEventListener('pagehide', () => this.writeScheduler?.flush(() => this._getStateSnapshot()));
+      window.addEventListener('beforeunload', () => this.writeScheduler?.flush(() => this._getStateSnapshot()));
     }
   }
 
@@ -114,6 +125,7 @@ export class KnowledgeMasterApp {
     const deck = this.getAllDecks().find(d => d.id === deckId);
     const deckTitle = deck ? deck.title : deckId;
     this.router.navigate('agent');
+    this.agentWorkspace.select('chat');
     const prompt = `请为题库《${deckTitle}》(ID: ${deckId}) 生成系统化知识导学内容（Advance Organizer）。
 请先调用 tool_get_deck(deckId="${deckId}", title="${deckTitle}") 分析题库《${deckTitle}》的知识分类与考点，梳理核心认知模型与易混淆对比表，然后调用 tool_update_deck_guide(deckId="${deckId}", title="${deckTitle}") 为题库《${deckTitle}》配置系统化导学页！`;
     setTimeout(() => {
@@ -488,6 +500,21 @@ export class KnowledgeMasterApp {
 
   // ==================== 数据状态加载与持久化 ====================
 
+  _getStateSnapshot() {
+    return {
+      profile: {
+        version: 2,
+        lastActiveAt: Date.now(),
+        deckStates: this.state.deckStates
+      },
+      customDecks: this.state.customDecks,
+      activeDeckId: this.state.activeDeckId,
+      maskState: this.isAnswerMasked,
+      deckVersions: this.deckVersioning?.versionsMap || null,
+      recycleBin: this.deckVersioning?.recycleBin || null
+    };
+  }
+
   loadUserData() {
     const profile = this.storage.loadProfile();
     if (profile && profile.deckStates) {
@@ -495,15 +522,14 @@ export class KnowledgeMasterApp {
     }
   }
 
-  saveUserData() {
-    this.storage.saveProfile({
-      version: 2,
-      lastActiveAt: Date.now(),
-      deckStates: this.state.deckStates
-    });
-    this.storage.saveCustomDecks(this.state.customDecks);
-    this.storage.saveActiveDeckId(this.state.activeDeckId);
-    this.storage.saveMaskState(this.isAnswerMasked);
+  saveUserData(options = {}) {
+    const { immediate = false, domains = null } = options;
+    if (domains && Array.isArray(domains)) {
+      domains.forEach(d => this.writeScheduler.markDirty(d));
+    } else {
+      this.writeScheduler.markDirty(STORAGE_DOMAINS.PROFILE);
+    }
+    return this.writeScheduler.schedule(() => this._getStateSnapshot(), { immediate });
   }
 
   getAllDecks() {
@@ -534,7 +560,8 @@ export class KnowledgeMasterApp {
     this.state.activeDeckId = deckId;
     this._lastJevRecommendation = null;
     this._lastAutoExpandedJevTarget = null;
-    this.saveUserData();
+    this.writeScheduler.markDirty(STORAGE_DOMAINS.ACTIVE_DECK_ID);
+    this.saveUserData({ domains: [STORAGE_DOMAINS.ACTIVE_DECK_ID] });
     this.resetStudyFilters();
     this.renderDeckSelector();
     this.renderAllViews();
@@ -1476,14 +1503,220 @@ export class KnowledgeMasterApp {
 
   showBackupModal() {
     ModalController.open('modal-backup');
+    this.loadWebDavConfigToUI();
+    this.updateRollbackBanner();
   }
 
   closeBackupModal() {
     ModalController.close('modal-backup');
   }
 
+  switchBackupTab(tabName) {
+    const localTabBtn = document.getElementById('tab-btn-backup-local');
+    const remoteTabBtn = document.getElementById('tab-btn-backup-remote');
+    const localPanel = document.getElementById('backup-panel-local');
+    const remotePanel = document.getElementById('backup-panel-remote');
+
+    if (tabName === 'remote') {
+      if (localTabBtn) localTabBtn.className = 'px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200 transition';
+      if (remoteTabBtn) remoteTabBtn.className = 'px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 transition';
+      if (localPanel) localPanel.classList.add('hidden');
+      if (remotePanel) remotePanel.classList.remove('hidden');
+      this.loadWebDavConfigToUI();
+      this.updateRollbackBanner();
+    } else {
+      if (localTabBtn) localTabBtn.className = 'px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 transition';
+      if (remoteTabBtn) remoteTabBtn.className = 'px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200 transition';
+      if (localPanel) localPanel.classList.remove('hidden');
+      if (remotePanel) remotePanel.classList.add('hidden');
+    }
+  }
+
+  loadWebDavConfigToUI() {
+    const cfg = this.dataSyncManager.config;
+    const epInput = document.getElementById('webdav-input-endpoint');
+    const userInput = document.getElementById('webdav-input-username');
+    const passInput = document.getElementById('webdav-input-password');
+    const baseInput = document.getElementById('webdav-input-basepath');
+    const wsInput = document.getElementById('webdav-input-workspace');
+
+    if (epInput && cfg.endpoint) epInput.value = cfg.endpoint;
+    if (userInput && cfg.username) userInput.value = cfg.username;
+    if (passInput && cfg.password) passInput.value = cfg.password;
+    if (baseInput && cfg.basePath) baseInput.value = cfg.basePath;
+    if (wsInput && cfg.workspaceId) wsInput.value = cfg.workspaceId;
+  }
+
+  saveWebDavConfig() {
+    const ep = document.getElementById('webdav-input-endpoint')?.value?.trim() || '';
+    const user = document.getElementById('webdav-input-username')?.value?.trim() || '';
+    const pass = document.getElementById('webdav-input-password')?.value || '';
+    const base = document.getElementById('webdav-input-basepath')?.value?.trim() || 'knowledge-arena';
+    const ws = document.getElementById('webdav-input-workspace')?.value?.trim() || 'default';
+
+    this.dataSyncManager.saveConfig({
+      endpoint: ep,
+      username: user,
+      password: pass,
+      basePath: base,
+      workspaceId: ws
+    });
+
+    this._setWebDavStatus('配置已保存到本地', 'success');
+  }
+
+  async testWebDavConnection() {
+    this.saveWebDavConfig();
+    this._setWebDavStatus('正在探测 WebDAV 节点与条件写 (CAS) 能力...', 'info');
+
+    try {
+      const res = await this.dataSyncManager.testConnection();
+      if (res.ok) {
+        const casInfo = res.conditionalReplace ? '支持强条件覆盖 (CAS If-Match)' : '未检测到条件覆盖支持';
+        this._setWebDavStatus(`连通正常！${casInfo}`, 'success');
+      } else {
+        this._setWebDavStatus(`连通失败: ${res.error || '未知错误'} (HTTP ${res.statusCode || 'N/A'})`, 'error');
+      }
+    } catch (err) {
+      this._setWebDavStatus(`探测异常: ${err.message}`, 'error');
+    }
+  }
+
+  async createWebDavBackup() {
+    this.saveWebDavConfig();
+    this._setWebDavStatus('正在生成 v3 一致性快照并上传...', 'info');
+
+    try {
+      const res = await this.dataSyncManager.createBackup(
+        () => this._getStateSnapshot(),
+        {
+          writeScheduler: this.writeScheduler,
+          localRevision: this.writeScheduler.getRevision()
+        }
+      );
+
+      this._setWebDavStatus(`备份成功！快照 ID: ${res.snapshotId} (哈希: ${res.contentHash.slice(0, 8)})`, 'success');
+      this.loadWebDavBackups();
+    } catch (err) {
+      this._setWebDavStatus(`上传备份失败: ${err.message}`, 'error');
+    }
+  }
+
+  async loadWebDavBackups() {
+    this.saveWebDavConfig();
+    const listEl = document.getElementById('webdav-backup-list');
+    if (listEl) {
+      listEl.innerHTML = '<div class="text-center py-4 text-slate-400">正在拉取云端快照列表...</div>';
+    }
+
+    try {
+      const backups = await this.dataSyncManager.listBackups();
+      if (!listEl) return;
+
+      if (backups.length === 0) {
+        listEl.innerHTML = '<div class="text-center py-4 text-slate-500">云端暂无历史备份快照</div>';
+        return;
+      }
+
+      listEl.innerHTML = backups.map(b => {
+        const filename = b.path.split('/').pop();
+        const dateStr = b.modifiedAt ? new Date(b.modifiedAt).toLocaleString() : '未知时间';
+        const sizeStr = b.size ? `${(b.size / 1024).toFixed(1)} KB` : 'N/A';
+        const safePath = b.path.replace(/'/g, "\\'");
+
+        return `<div class="p-2 rounded-lg bg-slate-900 border border-slate-800 flex justify-between items-center hover:border-slate-700 transition">
+          <div class="truncate mr-2">
+            <div class="font-mono text-[11px] text-slate-200 truncate">${filename}</div>
+            <div class="text-[10px] text-slate-500">${dateStr} · ${sizeStr}</div>
+          </div>
+          <button onclick="app.restoreWebDavBackup('${safePath}')" class="shrink-0 px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 text-[11px] font-semibold transition">
+            恢复
+          </button>
+        </div>`;
+      }).join('');
+    } catch (err) {
+      if (listEl) {
+        listEl.innerHTML = `<div class="text-center py-4 text-rose-400">拉取列表失败: ${err.message}</div>`;
+      }
+    }
+  }
+
+  async restoreWebDavBackup(remotePath) {
+    if (typeof confirm !== 'undefined' && !confirm('警告：从云端备份恢复将更新当前本地题库与做题进度！\n系统将自动创建本次恢复前的安全回滚快照。是否继续？')) {
+      return;
+    }
+
+    this._setWebDavStatus('正在下载并安全应用云端快照...', 'info');
+
+    try {
+      const res = await this.dataSyncManager.restoreBackup(remotePath, this.storage);
+      this.loadUserData();
+      this.renderAllViews();
+      this.updateRollbackBanner();
+      this._setWebDavStatus(`恢复成功！已还原 ${res.summary.customDeckCount} 个题库、${res.summary.totalCards || 0} 张卡片进度`, 'success');
+      if (typeof alert !== 'undefined') {
+        alert(`已成功从云端快照恢复数据！\n题库数: ${res.summary.customDeckCount}，卡片进度: ${res.summary.totalCards || 0}`);
+      }
+    } catch (err) {
+      this._setWebDavStatus(`恢复失败: ${err.message}`, 'error');
+      if (typeof alert !== 'undefined') alert(`恢复失败: ${err.message}`);
+    }
+  }
+
+  restoreRollbackPoint() {
+    const point = this.dataSyncManager.getRollbackSafetyPoint();
+    if (!point) {
+      if (typeof alert !== 'undefined') alert('未找到可用的本地安全回滚点');
+      return;
+    }
+
+    if (typeof confirm !== 'undefined' && !confirm(`确定撤销上次恢复，回退至 ${new Date(point.createdAt).toLocaleString()} 的本地状态吗？`)) {
+      return;
+    }
+
+    try {
+      if (point.profile && this.storage.saveProfile) this.storage.saveProfile(point.profile);
+      if (point.customDecks && this.storage.saveCustomDecks) this.storage.saveCustomDecks(point.customDecks);
+      if (point.activeDeckId && this.storage.saveActiveDeckId) this.storage.saveActiveDeckId(point.activeDeckId);
+      if (point.maskState !== undefined && this.storage.saveMaskState) this.storage.saveMaskState(point.maskState);
+      if (point.deckVersions && this.storage.saveDeckVersions) this.storage.saveDeckVersions(point.deckVersions);
+      if (point.recycleBin && this.storage.saveRecycleBin) this.storage.saveRecycleBin(point.recycleBin);
+
+      this.loadUserData();
+      this.renderAllViews();
+      this._setWebDavStatus('已成功回退至恢复前快照', 'success');
+      if (typeof alert !== 'undefined') alert('已成功回滚至先前本地状态！');
+    } catch (err) {
+      if (typeof alert !== 'undefined') alert(`回滚失败: ${err.message}`);
+    }
+  }
+
+  updateRollbackBanner() {
+    const banner = document.getElementById('webdav-rollback-banner');
+    if (!banner) return;
+    const point = this.dataSyncManager.getRollbackSafetyPoint();
+    if (point) banner.classList.remove('hidden');
+    else banner.classList.add('hidden');
+  }
+
+  _setWebDavStatus(msg, type = 'info') {
+    const badge = document.getElementById('webdav-status-badge');
+    if (!badge) return;
+    badge.className = 'p-2.5 rounded-xl text-xs border';
+
+    if (type === 'success') {
+      badge.classList.add('bg-emerald-950/40', 'border-emerald-500/40', 'text-emerald-300');
+    } else if (type === 'error') {
+      badge.classList.add('bg-rose-950/40', 'border-rose-500/40', 'text-rose-300');
+    } else {
+      badge.classList.add('bg-sky-950/40', 'border-sky-500/40', 'text-sky-300');
+    }
+    badge.innerText = msg;
+  }
+
   exportBackupJSON() {
     try {
+      this.writeScheduler.flush(() => this._getStateSnapshot());
       const backupData = {
         version: 2,
         exportedAt: new Date().toISOString(),
@@ -1505,6 +1738,7 @@ export class KnowledgeMasterApp {
     const file = event?.target?.files?.[0];
     if (!file) return;
     try {
+      this.writeScheduler.flush(() => this._getStateSnapshot());
       const data = await this.exporter.importJSONFile(file);
       if (!data || typeof data !== 'object') {
         throw new Error('无效的备份文件结构');
@@ -1624,7 +1858,8 @@ export class KnowledgeMasterApp {
 
   toggleAnswerMask() {
     this.isAnswerMasked = !this.isAnswerMasked;
-    this.saveUserData();
+    this.writeScheduler.markDirty(STORAGE_DOMAINS.MASK_STATE);
+    this.saveUserData({ domains: [STORAGE_DOMAINS.MASK_STATE] });
     this.updateStudyStatsBadge();
     this.treeRenderer.renderCards();
   }
@@ -1850,7 +2085,8 @@ export class KnowledgeMasterApp {
       if (idx !== -1) {
         this.draftDeck.id = this.editingDeckId;
         this.state.customDecks[idx] = JSON.parse(JSON.stringify(this.draftDeck));
-        this.saveUserData();
+        this.writeScheduler.markDirty(STORAGE_DOMAINS.CUSTOM_DECKS);
+        this.saveUserData({ immediate: true, domains: [STORAGE_DOMAINS.CUSTOM_DECKS] });
         alert(`✅ 自定义题库「${this.draftDeck.title}」已成功保存并原地更新！`);
       }
     } else {
@@ -1862,7 +2098,9 @@ export class KnowledgeMasterApp {
       if (!this.state.customDecks) this.state.customDecks = [];
       this.state.customDecks.push(newDeck);
       this.state.activeDeckId = newDeckId;
-      this.saveUserData();
+      this.writeScheduler.markDirty(STORAGE_DOMAINS.CUSTOM_DECKS);
+      this.writeScheduler.markDirty(STORAGE_DOMAINS.ACTIVE_DECK_ID);
+      this.saveUserData({ immediate: true, domains: [STORAGE_DOMAINS.CUSTOM_DECKS, STORAGE_DOMAINS.ACTIVE_DECK_ID] });
       alert(`🎉 题库「${newDeck.title}」保存成功，已自动设为当前激活题库！`);
     }
 

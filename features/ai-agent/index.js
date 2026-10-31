@@ -4,6 +4,7 @@
  */
 
 export { AiAgentUIController } from './agent-ui.js';
+export { AgentWorkspaceNavigation } from './workspace-navigation.js';
 export { DECK_TOOL_DEFINITIONS } from './tool-definitions.js';
 export { DeckToolExecutor } from './tool-executor.js';
 export { SessionStore, DEFAULT_AI_CONFIG } from './session-store.js';
