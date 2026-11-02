@@ -147,13 +147,13 @@ function assert(condition, message) {
 
   // 2.2f 反向代理非标别名路径与协议自动补全校验
   const aliasDav = new WebDavAdapter({
-    endpoint: 'gateway.example.com.com:8443/custom/proxy-alias/v1',
+    endpoint: 'gateway.example.com:8443/custom/proxy-alias/v1',
     basePath: '/root/abc'
   });
   assert(aliasDav.endpoint.startsWith('https://'), '缺失协议的主机地址应自动补全 https://');
   const aliasUrl = aliasDav._buildUrl('default/snap.json');
   assert(
-    aliasUrl === 'https://gateway.example.com.com.com:8443/custom/proxy-alias/v1/root/abc/default/snap.json',
+    aliasUrl === 'https://gateway.example.com:8443/custom/proxy-alias/v1/root/abc/default/snap.json',
     '反向代理带端口与复杂非标别名路径时应完整保留并正确与多级目录拼接'
   );
 
