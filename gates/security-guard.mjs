@@ -306,6 +306,157 @@ export class AssignmentLexerStrategy {
 }
 
 // ============================================================================
+
+// ----------------------------------------------------------------------------
+// 3.4 香农信息熵检测策略 (ShannonEntropyStrategy)
+// ----------------------------------------------------------------------------
+
+export function computeShannonEntropy(str) {
+  if (!str || str.length === 0) return 0;
+  const freq = new Map();
+  for (const char of str) {
+    freq.set(char, (freq.get(char) || 0) + 1);
+  }
+  let entropy = 0;
+  const len = str.length;
+  for (const count of freq.values()) {
+    const p = count / len;
+    entropy -= p * Math.log2(p);
+  }
+  return entropy;
+}
+
+export function detectCharset(str) {
+  if (/^[0-9a-fA-F]+$/.test(str)) return 'hex';
+  if (/^[A-Za-z0-9+/=_-]+$/.test(str)) return 'base64';
+  return 'general';
+}
+
+export class ShannonEntropyStrategy {
+  constructor() {
+    this.name = 'ShannonEntropyStrategy';
+  }
+
+  evaluate(line, context) {
+    const findings = [];
+    if (!line.includes("'") && !line.includes('"') && !line.includes('`')) return findings;
+
+    const hasSensitiveContext = /(token|secret|api[_-]?key|auth|password|passwd|private|bearer|credential|session)/i.test(line);
+
+    const literalMatches = line.matchAll(/(['"`])([^'"`\r\n]{16,})\1/g);
+    for (const match of literalMatches) {
+      const val = match[2].trim();
+
+      // 1. 过滤非 ASCII (汉字、全角标点等自然语言文案)
+      if (/[^\x21-\x7E]/.test(val)) continue;
+
+      // 2. 过滤文件路径、URL、带空格文本
+      if (val.includes('/') || val.includes('\\') || val.includes(' ') || val.includes(',')) continue;
+
+      // 3. 安全占位符与白名单模式过滤
+      if (
+        SAFE_PLACEHOLDERS.has(val) ||
+        val.startsWith('http://') || val.startsWith('https://') ||
+        val.startsWith('mock_') || val.startsWith('test_') ||
+        val.startsWith('dummy_') || val.startsWith('your_') ||
+        val.startsWith('<') ||
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val) // UUID
+      ) {
+        continue;
+      }
+
+      const charset = detectCharset(val);
+      // 仅对纯 Hex 或纯 Base64/密文形态进行熵值度量
+      if (charset !== 'hex' && charset !== 'base64') continue;
+
+      const entropy = computeShannonEntropy(val);
+
+      let isHighEntropy = false;
+      if (hasSensitiveContext) {
+        // 敏感键名语境下自适应阈值
+        if (charset === 'hex' && val.length >= 24 && entropy >= 3.3) {
+          isHighEntropy = true;
+        } else if (charset === 'base64' && val.length >= 18 && entropy >= 4.0) {
+          isHighEntropy = true;
+        }
+      } else {
+        // 无敏感键名：仅拦截超长高熵密文
+        if (charset === 'hex' && val.length >= 32 && entropy >= 3.5) {
+          isHighEntropy = true;
+        } else if (charset === 'base64' && val.length >= 28 && entropy >= 4.5 && !val.includes('.')) {
+          isHighEntropy = true;
+        }
+      }
+
+      if (isHighEntropy) {
+        findings.push({
+          rule: 'FE-SEC-HIGH-ENTROPY',
+          severity: 'ERROR',
+          message: `High Shannon entropy secret pattern detected (entropy: ${entropy.toFixed(2)}, len: ${val.length}, charset: ${charset}): '${val.substring(0, 8)}...'. Must use standard placeholder from AGENTS.md.`,
+          line: context.lineNum,
+          file: context.file
+        });
+      }
+    }
+
+    return findings;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 3.5 脱敏规则合规校验策略 (DesensitizationRuleStrategy)
+// ----------------------------------------------------------------------------
+
+export class DesensitizationRuleStrategy {
+  constructor() {
+    this.name = 'DesensitizationRuleStrategy';
+  }
+
+  evaluate(line, context) {
+    const findings = [];
+
+    // 1. 伪脱敏探针 (Partial Masking Probe)
+    const partialMaskMatches = line.matchAll(/(['"`])([a-zA-Z0-9_\-]{16,})([*xX.]{3,})\1/g);
+    for (const m of partialMaskMatches) {
+      const rawPrefix = m[2];
+      const fullLiteral = m[0];
+      if (fullLiteral.includes('lwt_live_8f3a9e') || fullLiteral.includes('test') || fullLiteral.includes('mock')) {
+        continue;
+      }
+      const effectiveExposed = rawPrefix.replace(/^(sk-proj-|sk-live-|sk-|ghp_|github_pat_)/i, '');
+      if (effectiveExposed.length >= 12) {
+        findings.push({
+          rule: 'FE-SEC-INSUFFICIENT-MASKING',
+          severity: 'ERROR',
+          message: `Insufficient pseudo-masking detected (${effectiveExposed.length} chars exposed before mask). Must use standard placeholder (e.g. 'sk-proj-test-secret-key-1234567890' or 'lwt_live_8f3a9e...').`,
+          line: context.lineNum,
+          file: context.file
+        });
+      }
+    }
+
+    // 2. 标准占位符契约强校验 (Tunnel ID 格式等)
+    const tunnelAssignMatch = line.match(/\b(tunnel[_-]?id)\s*[:=]\s*(['"`])([^'"`\r\n]+)\2/i);
+    if (tunnelAssignMatch) {
+      const val = tunnelAssignMatch[3].trim();
+      if (!SAFE_PLACEHOLDERS.has(val) && !val.startsWith('mock_') && !val.startsWith('<')) {
+        const hexPart = val.replace(/^tunnel_/i, '');
+        if (hexPart.length !== 32 || !/^[0-9a-fA-F]{32}$/.test(hexPart)) {
+          findings.push({
+            rule: 'FE-SEC-PLACEHOLDER-CONTRACT',
+            severity: 'ERROR',
+            message: `Invalid Tunnel ID format '${val}'. Must strictly adhere to 'tunnel_0123456789abcdef0123456789abcdef' (32 hex characters).`,
+            line: context.lineNum,
+            file: context.file
+          });
+        }
+      }
+    }
+
+    return findings;
+  }
+}
+
 // 4. 核心治理扫描引擎 (SecurityGovernanceEngine)
 // ============================================================================
 
@@ -314,7 +465,9 @@ export class SecurityGovernanceEngine {
     this.strategies = [
       new HighConfidenceSecretStrategy(),
       new AssignmentLexerStrategy(),
-      new RfcDomainStrategy()
+      new RfcDomainStrategy(),
+      new ShannonEntropyStrategy(),
+      new DesensitizationRuleStrategy()
     ];
     this.excludes = options.excludes || DEFAULT_EXCLUDES;
   }

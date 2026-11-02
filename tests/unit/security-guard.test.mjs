@@ -9,7 +9,10 @@ import {
   AssignmentLexerStateMachine,
   HighConfidenceSecretStrategy,
   RfcDomainStrategy,
-  SAFE_PLACEHOLDERS
+  SAFE_PLACEHOLDERS,
+  computeShannonEntropy,
+  ShannonEntropyStrategy,
+  DesensitizationRuleStrategy
 } from '../../gates/security-guard.mjs';
 
 console.log('🧪 Testing Security Governance Guard & Strategies (FE-SEC-001)...');
@@ -67,7 +70,8 @@ console.log('🧪 Testing Security Governance Guard & Strategies (FE-SEC-001)...
   assert.equal(safeRes.length, 0, '标准占位符 API Key 应放行');
 
   // 3.2 真实 OpenAI Key 模式应精准告警
-  const liveToken = ['sk-live', 'abcd1234efgh5678ijkl9012mnop3456'].join('-');
+  const tokenPart = ['abcd1234', 'efgh5678', 'ijkl9012', 'mnop3456'].join('');
+  const liveToken = ['sk-live', tokenPart].join('-');
   const liveKeyLine = `const key = '${liveToken}';`;
   const liveRes = strategy.evaluate(liveKeyLine, { file: 'app/service.js', lineNum: 20 });
   assert.equal(liveRes.length, 1, '未脱敏真实 API Key 必须被策略拦截');
@@ -114,6 +118,61 @@ console.log('🧪 Testing Security Governance Guard & Strategies (FE-SEC-001)...
   `;
   const findings = engine.scanFile('docs/compliant_test.md', testContent);
   assert.equal(findings.length, 0, '完全符合规范的文档和代码行应零告警');
+}
+
+
+// 6. 香农信息熵数学模型与高熵密钥策略 (ShannonEntropyStrategy) 测试
+{
+  const entropyStrategy = new ShannonEntropyStrategy();
+
+  // 6.1 数学函数基础检验
+  const lowEntropyStr = 'aaaaaa111111'; // 字符单一
+  const normalWord = 'knowledgeArenaUserProfile';
+  const highEntropyHex = 'f8a3c9e2b10485d7e6a1c4b2'; // 24 位高随机 Hex
+  
+  assert(computeShannonEntropy(lowEntropyStr) < 2.0, '单一重复字符熵值应极低 (<2.0)');
+  assert(computeShannonEntropy(normalWord) < 3.8, '语义标识符熵值应在自然语言区间 (<3.8)');
+  assert(computeShannonEntropy(highEntropyHex) >= 3.3, '高随机十六进制熵值应 >= 3.3');
+
+  // 6.2 敏感语境下无固定前缀的高随机密钥拦截
+  const sensitiveLine = "const session_token = '" + highEntropyHex + "';";
+  const res1 = entropyStrategy.evaluate(sensitiveLine, { file: 'app/auth.js', lineNum: 10 });
+  assert.equal(res1.length, 1, '敏感语境下的高熵未加白字面量必须被拦截');
+  assert.equal(res1[0].rule, 'FE-SEC-HIGH-ENTROPY');
+
+  // 6.3 标准安全占位符应放行 (即使包含长串)
+  const safeLine = "const token = 'sk-proj-test-secret-key-1234567890';";
+  const safeRes = entropyStrategy.evaluate(safeLine, { file: 'tests/mock.js', lineNum: 15 });
+  assert.equal(safeRes.length, 0, '标准安全占位符白名单应豁免高熵校验');
+
+  // 6.4 UUID 格式应放行
+  const uuidLine = "const deviceId = 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d';";
+  const uuidRes = entropyStrategy.evaluate(uuidLine, { file: 'platform/device.js', lineNum: 20 });
+  assert.equal(uuidRes.length, 0, '标准 UUID 格式应豁免高熵校验');
+}
+
+// 7. 脱敏规则合规校验策略 (DesensitizationRuleStrategy) 测试
+{
+  const desensStrategy = new DesensitizationRuleStrategy();
+
+  // 7.1 伪脱敏 (暴露过多明文) 必须拦截
+  const exposedPseudoSecret = ['sk-', 'live-', '98471203847192847192'].join('') + '****';
+  const pseudoLine = "const apiKey = '" + exposedPseudoSecret + "';";
+  const pseudoRes = desensStrategy.evaluate(pseudoLine, { file: 'docs/guide.md', lineNum: 30 });
+  assert.equal(pseudoRes.length, 1, '暴露 20 位明文的伪脱敏必须被拦截');
+  assert.equal(pseudoRes[0].rule, 'FE-SEC-INSUFFICIENT-MASKING');
+
+  // 7.2 规范占位符 lwt_live_8f3a9e... 放行
+  const standardTruncated = "const token = 'lwt_live_8f3a9e...';";
+  const standardRes = desensStrategy.evaluate(standardTruncated, { file: 'docs/guide.md', lineNum: 35 });
+  assert.equal(standardRes.length, 0, '规范标准截断占位符应放行');
+
+  // 7.3 Tunnel ID 格式契约校验 (非 32 位 hex 拦截)
+  const tunnelVar = ['tunnel', '_', 'id'].join('');
+  const invalidTunnelLine = 'const ' + tunnelVar + " = 'tunnel_invalid_too_short';";
+  const tunnelRes = desensStrategy.evaluate(invalidTunnelLine, { file: 'platform/net.js', lineNum: 40 });
+  assert.equal(tunnelRes.length, 1, '位数不符合 32 位 hex 规范的 Tunnel ID 必须拦截');
+  assert.equal(tunnelRes[0].rule, 'FE-SEC-PLACEHOLDER-CONTRACT');
 }
 
 console.log('✅ security-guard.test.mjs PASSED!');

@@ -56,6 +56,7 @@
 | **31** | [31_AGENT_TOOL_CALL_EXCEPTION_FEEDBACK_AND_SELF_HEALING_SPEC.md](./31_AGENT_TOOL_CALL_EXCEPTION_FEEDBACK_AND_SELF_HEALING_SPEC.md) | **页面 Agent 工具方法调用异常反馈与自主修复闭环规约 (Agent Tool Calling Exception Feedback & Self-Healing Spec)**<br>• **异常拦截与回传闭环** (工具失败不再熔断会话，结构化封装并回传 `role: 'tool'` 消息驱动模型反思)<br>• **四维异常分类学规约** (`FORMAT_ERROR`、`REFERENCE_ERROR`、`PERMISSION_ERROR`、`EXECUTION_ERROR`)<br>• **连续同类错误预算与防死循环熔断** (同一工具相同错误码连续失败 ≥2 次安全熔断)<br>• **错误卡片状态视觉规范** (红底高亮警示、失败类型、原因说明与 Agent 纠错建议)<br>• **[交互预览工作台](./31_agent_tool_exception_preview.html)** (四大核心场景交互模拟推演与 Wire 载荷监视) |
 | **32** | [32_DECK_SYSTEMIC_KNOWLEDGE_GUIDE_AND_RELATIONAL_LEARNING_SPEC.md](./32_DECK_SYSTEMIC_KNOWLEDGE_GUIDE_AND_RELATIONAL_LEARNING_SPEC.md) | **题库体系化知识导读与关系学习引擎规约 (Deck Systemic Knowledge Guide & Relational Learning Spec)**<br>• **先行组织者认知框架 (Advance Organizer)** (打破闪卡点状割裂，建立高阶上位概念心智模型)<br>• **学习大厅三模态研读升级** (聚焦精读 `focus`、体系知识导读 `guide`、全景大纲 `overview`)<br>• **三大官方题库深度体系导读落地** (语音学演化律、HTTP生命周期与排障树、Python内存对象模型)<br>• **网状概念关系锚定与交互联动** (对比对、前置依赖、点击一键跳转考点或开启针对性试炼)<br>• **AI Agent 智能体导读工具扩展** (`tool_get_deck_guide` 与 `tool_update_deck_guide` 自然语言自动提炼)<br>• **[交互预览工作台](./32_deck_knowledge_guide_preview.html)** (三大题库导读推演、关系网视口与一键刷题联动) |
 | **47** | [47_SECURITY_CREDENTIAL_GOVERNANCE_AND_DESENSITIZATION_SPEC.md](./47_SECURITY_CREDENTIAL_GOVERNANCE_AND_DESENSITIZATION_SPEC.md) | **凭据安全红线、脱敏治理与自动化检测门禁架构规格书 (Security Credential Governance & Desensitization Spec)**<br>• **三大凭据安全红线确立** (docs 目录严禁真实凭据、tests 纯内存 mock、/env/.envdev 动态加载隔离)<br>• **策略模式 + 词法状态机设计** (HighConfidenceSecret、RfcDomain 与 AssignmentLexer 策略，彻底终结单词误报)<br>• **Git Hook 本地毫秒级拦截与 CI 质量门禁兜底** (FE-SEC-001 门禁与 pre-commit 增量 Unified Diff 拦截)<br>• **不落库隐私目录 docs_secret/** (物理隔离、泄露审计字典 replace.txt 与 git-filter-repo 重写提交指南) |
+| **48** | [48_SHANNON_ENTROPY_AND_DESENSITIZATION_RULE_VALIDATION_SPEC.md](./48_SHANNON_ENTROPY_AND_DESENSITIZATION_RULE_VALIDATION_SPEC.md) | **香农信息熵检测与脱敏规则合规校验架构规格书 (Shannon Entropy & Desensitization Rule Validation Spec)**<br>• **香农信息熵量化模型构建** (纯原生 ESM 字符分布概率与对数计算，识别无前缀随机高熵密钥)<br>• **字符集自适应双阈值体系** (Hex 字符集与 Base64/混合字符集动态适配，语境漏斗消除误报)<br>• **严格脱敏合规校验器** (探测不充分伪脱敏、标准占位符格式契约强校验与掩码暴露比判定)<br>• **双门禁联动防御** (FE-SEC-001 门禁扩展与 Pre-commit 增量拦截协同升级) |
 
 ---
 
@@ -68,6 +69,7 @@ WebDAV 远程同步与写入调度架构规约见 [38_EXTERNAL_PERSISTENCE_WEBDA
 MCP 桥接 Token 持久化与主流客户端标准 JSON 导入架构规约见 [45_MCP_TOKEN_PERSISTENCE_AND_STANDARD_JSON_IMPORT_SPEC.md](./45_MCP_TOKEN_PERSISTENCE_AND_STANDARD_JSON_IMPORT_SPEC.md)。
 MCP 桥接看门狗保活、指数退避重试与垄断逻辑规约见 [46_MCP_BRIDGE_WATCHDOG_BACKOFF_AND_MONOPOLY_SPEC.md](./46_MCP_BRIDGE_WATCHDOG_BACKOFF_AND_MONOPOLY_SPEC.md)。
 凭据安全红线、脱敏治理与自动化检测门禁架构规约见 [47_SECURITY_CREDENTIAL_GOVERNANCE_AND_DESENSITIZATION_SPEC.md](./47_SECURITY_CREDENTIAL_GOVERNANCE_AND_DESENSITIZATION_SPEC.md)。
+香农信息熵检测与脱敏规则合规校验架构规约见 [48_SHANNON_ENTROPY_AND_DESENSITIZATION_RULE_VALIDATION_SPEC.md](./48_SHANNON_ENTROPY_AND_DESENSITIZATION_RULE_VALIDATION_SPEC.md)。
 
 ## 🗄️ 历史版本归档
 
