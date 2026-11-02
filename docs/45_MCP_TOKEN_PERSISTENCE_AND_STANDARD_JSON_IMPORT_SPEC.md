@@ -115,7 +115,7 @@ flowchart TD
 如果系统仅提供一段通用抽象的 JSON：
 ```json
 {
-  "url": "https://gateway.example.com.com/mcp/sse?room=my_room",
+  "url": "https://gateway.example.com/mcp/sse?room=my_room",
   "headers": { "Authorization": "Bearer my_token" }
 }
 ```
@@ -192,7 +192,7 @@ classDiagram
 - **统一参数契约 (`ConfigParams`)**：
   ```javascript
   {
-    endpointUrl: 'https://gateway.example.com.com/mcp/sse?room=my_room',
+    endpointUrl: 'https://gateway.example.com/mcp/sse?room=my_room',
     token: 'my_secret_token',
     includeToken: true,
     serverName: 'knowledge-arena'
