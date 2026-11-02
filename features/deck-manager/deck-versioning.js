@@ -85,7 +85,7 @@ export class DeckVersionController {
       }
     }
 
-    this.app.saveUserData();
+    this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
     return {
       success: true, deckId, restoredVersionId: versionId,
@@ -121,7 +121,7 @@ export class DeckVersionController {
       this.app.state.activeDeckId = 'deck_verbs';
       if (this.storage?.saveActiveDeckId) this.storage.saveActiveDeckId('deck_verbs');
     }
-    this.app.saveUserData();
+    this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
     return { success: true, deckId, title: targetDeck.title };
   }
@@ -136,7 +136,7 @@ export class DeckVersionController {
 
     this.recycleBin.splice(idx, 1);
     if (this.storage?.saveRecycleBin) this.storage.saveRecycleBin(this.recycleBin);
-    this.app.saveUserData();
+    this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
     return { success: true, deckId, title: item.deckTitle };
   }
@@ -179,7 +179,7 @@ export class DeckVersionController {
     });
 
     const health = validateDeckHealth(deck);
-    this.app.saveUserData();
+    this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
     return { success: true, deckId, title: deck.title, updatedCount, warnings: health.warnings };
   }
@@ -201,7 +201,7 @@ export class DeckVersionController {
     const deletedCount = beforeCount - deck.entities.length;
 
     const health = validateDeckHealth(deck);
-    this.app.saveUserData();
+    this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
     return {
       success: true, deckId, deletedCount,
@@ -234,7 +234,7 @@ export class DeckVersionController {
       }
     }
 
-    this.app.saveUserData();
+    this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
     return { success: true, deckId, title: deck.title, guide: deck.guide };
   }
@@ -249,7 +249,7 @@ export class DeckVersionController {
     });
 
     deck.guide = null;
-    this.app.saveUserData();
+    this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
     return { success: true, deckId, guide: null };
   }

@@ -7114,7 +7114,7 @@ class DeckVersionController {
       }
     }
 
-    this.app.saveUserData();
+    this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
     return {
       success: true, deckId, restoredVersionId: versionId,
@@ -7150,7 +7150,7 @@ class DeckVersionController {
       this.app.state.activeDeckId = 'deck_verbs';
       if (this.storage?.saveActiveDeckId) this.storage.saveActiveDeckId('deck_verbs');
     }
-    this.app.saveUserData();
+    this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
     return { success: true, deckId, title: targetDeck.title };
   }
@@ -7165,7 +7165,7 @@ class DeckVersionController {
 
     this.recycleBin.splice(idx, 1);
     if (this.storage?.saveRecycleBin) this.storage.saveRecycleBin(this.recycleBin);
-    this.app.saveUserData();
+    this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
     return { success: true, deckId, title: item.deckTitle };
   }
@@ -7208,7 +7208,7 @@ class DeckVersionController {
     });
 
     const health = validateDeckHealth(deck);
-    this.app.saveUserData();
+    this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
     return { success: true, deckId, title: deck.title, updatedCount, warnings: health.warnings };
   }
@@ -7230,7 +7230,7 @@ class DeckVersionController {
     const deletedCount = beforeCount - deck.entities.length;
 
     const health = validateDeckHealth(deck);
-    this.app.saveUserData();
+    this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
     return {
       success: true, deckId, deletedCount,
@@ -7263,7 +7263,7 @@ class DeckVersionController {
       }
     }
 
-    this.app.saveUserData();
+    this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
     return { success: true, deckId, title: deck.title, guide: deck.guide };
   }
@@ -7278,7 +7278,7 @@ class DeckVersionController {
     });
 
     deck.guide = null;
-    this.app.saveUserData();
+    this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
     return { success: true, deckId, guide: null };
   }
@@ -8375,9 +8375,13 @@ class DeckToolExecutor {
     this.app = app;
   }
 
-  _saveAndRender() {
-    this.app.saveUserData();
-    this.app.renderAllViews();
+  _saveAndRender(extraDomains = []) {
+    const domains = ['customDecks', 'profile', 'activeDeckId', ...extraDomains];
+    if (this.app.saveUserData) this.app.saveUserData({ immediate: true, domains });
+    this.app.renderDeckSelector?.();
+    this.app.renderDeckManagerList?.();
+    this.app.renderActiveDeckIndicator?.();
+    this.app.renderAllViews?.();
   }
 
   _resolveDeck(queryId, queryTitle, customOnly = false) {
@@ -8475,8 +8479,13 @@ class DeckToolExecutor {
 
         this.app.state.customDecks = this.app.state.customDecks || [];
         this.app.state.customDecks.push(newDeck);
+        if (args.activateImmediately !== false) this.app.state.activeDeckId = newDeck.id;
         this._saveAndRender();
-        return { success: true, deckId: newDeck.id, title: newDeck.title, entitiesCount: newDeck.entities.length, message: `题库《${newDeck.title}》已成功落库保存！` };
+        return {
+          success: true, deckId: newDeck.id, title: newDeck.title, entitiesCount: newDeck.entities.length,
+          active: this.app.state.activeDeckId === newDeck.id, persistence: { persisted: true, storage: 'localStorage', committedAt: Date.now() },
+          message: `题库《${newDeck.title}》已成功落库保存${this.app.state.activeDeckId === newDeck.id ? '，并设为当前激活题库！' : '！'}`
+        };
       }
 
       case 'tool_update_deck_meta': {
@@ -8488,21 +8497,19 @@ class DeckToolExecutor {
         if (args.icon) deck.icon = args.icon;
         if (args.description !== undefined) deck.description = args.description;
         this._saveAndRender();
-        return { success: true, message: `题库元信息已更新` };
+        return { success: true, message: '题库元信息已更新' };
       }
 
-      case 'tool_delete_deck': {
+      case 'tool_delete_deck':
         if (!args?.deckId) throw new ToolFormatError('缺少必填参数 deckId', 'MISSING_FIELD', '必须指定要删除的 deckId');
         if (['deck_verbs', 'deck_http', 'deck_python'].includes(args.deckId)) throw new ToolPermissionError('系统预设题库禁止删除', 'BUILTIN_PROTECTED', '系统内置题库受保护禁止删除');
         try {
-          if (this.app.deckVersioning) return this.app.deckVersioning.softDeleteDeck(args.deckId);
-          this.app.state.customDecks = (this.app.state.customDecks || []).filter(d => d.id !== args.deckId);
+          let res = { success: true, message: `题库 ${args.deckId} 已删除` };
+          if (this.app.deckVersioning) res = this.app.deckVersioning.softDeleteDeck(args.deckId);
+          else this.app.state.customDecks = (this.app.state.customDecks || []).filter(d => d.id !== args.deckId);
           this._saveAndRender();
-          return { success: true, message: `题库 ${args.deckId} 已删除` };
-        } catch (e) {
-          throw new ToolReferenceError(e.message, 'DECK_NOT_FOUND', '删除题库失败');
-        }
-      }
+          return res;
+        } catch (e) { throw new ToolReferenceError(e.message, 'DECK_NOT_FOUND', '删除题库失败'); }
 
       case 'tool_add_entities': {
         if (!args?.deckId || !Array.isArray(args.entities) || args.entities.length === 0) throw new ToolFormatError('缺少 deckId 或 entities 数组', 'MISSING_FIELD', '必须传入 deckId 与实体数组');
@@ -8570,16 +8577,16 @@ class DeckToolExecutor {
           deck.id = 'deck_' + crypto.randomUUID();
           this.app.state.customDecks = this.app.state.customDecks || [];
           this.app.state.customDecks.push(deck);
+          if (args.activateImmediately !== false) this.app.state.activeDeckId = deck.id;
           this._saveAndRender();
-          return { success: true, deckId: deck.id, title: deck.title, entitiesCount: deck.entities.length };
+          return { success: true, deckId: deck.id, title: deck.title, entitiesCount: deck.entities.length, active: this.app.state.activeDeckId === deck.id, persistence: { persisted: true, storage: 'localStorage', committedAt: Date.now() } };
         } catch (err) {
           throw new ToolExecutionError(`Markdown 解析入库失败: ${err.message}`, 'MARKDOWN_PARSE_FAILED', '请核对 Markdown 格式');
         }
       }
 
       case 'tool_get_deck_guide': {
-        const queryId = args?.deckId || args?.id;
-        const queryTitle = args?.title || args?.deckTitle;
+        const queryId = args?.deckId || args?.id, queryTitle = args?.title || args?.deckTitle;
         if (!queryId && !queryTitle) throw new ToolFormatError('缺少必填参数 deckId 或 title', 'MISSING_FIELD', '必须传入具体的 deckId 或 title 字符串');
         const deck = this._resolveDeck(queryId, queryTitle, false);
         if (!deck) throw new ToolReferenceError(`未找到题库 "${queryId || queryTitle}"`, 'DECK_NOT_FOUND', '请核对 deckId 或题库名称是否正确');
@@ -8604,55 +8611,36 @@ class DeckToolExecutor {
         const target = this._resolveDeck(args?.deckId || args?.id, args?.title || args?.deckTitle, true);
         const resolvedId = target ? target.id : (args?.deckId || args?.id);
         if (!resolvedId) throw new ToolFormatError('缺少 deckId 或 title', 'MISSING_FIELD', '必须指定 deckId 或 title');
-        try {
-          return this.app.deckVersioning.deleteDeckGuide(resolvedId);
-        } catch (e) {
-          throw new ToolReferenceError(e.message, 'DELETE_GUIDE_FAILED', '清空导学失败');
-        }
+        try { return this.app.deckVersioning.deleteDeckGuide(resolvedId); }
+        catch (e) { throw new ToolReferenceError(e.message, 'DELETE_GUIDE_FAILED', '清空导学失败'); }
       }
 
       case 'tool_patch_deck_guide': {
         const target = this._resolveDeck(args?.deckId || args?.id, args?.title || args?.deckTitle, true);
         const resolvedId = target ? target.id : (args?.deckId || args?.id);
         if (!resolvedId || !args?.operation) throw new ToolFormatError('缺少 deckId/title 或 operation', 'MISSING_FIELD', '必须指定 deckId/title 与 operation');
-        try {
-          return this.app.deckVersioning.patchDeckGuide(resolvedId, args);
-        } catch (e) {
-          throw new ToolReferenceError(e.message, 'PATCH_GUIDE_FAILED', '导学增量修改失败');
-        }
+        try { return this.app.deckVersioning.patchDeckGuide(resolvedId, args); }
+        catch (e) { throw new ToolReferenceError(e.message, 'PATCH_GUIDE_FAILED', '导学增量修改失败'); }
       }
 
-      case 'tool_batch_update_entities': {
+      case 'tool_batch_update_entities':
         if (!args?.deckId || !Array.isArray(args.updates)) throw new ToolFormatError('缺少 deckId 或 updates 数组', 'MISSING_FIELD', '必须指定 deckId 与 updates 数组');
-        try {
-          return this.app.deckVersioning.batchUpdateEntities(args.deckId, args.updates, { mode: args.mode, author: 'agent' });
-        } catch (e) {
-          throw new ToolReferenceError(e.message, 'BATCH_UPDATE_FAILED', '批量更新考点失败');
-        }
-      }
+        try { return this.app.deckVersioning.batchUpdateEntities(args.deckId, args.updates, { mode: args.mode, author: 'agent' }); }
+        catch (e) { throw new ToolReferenceError(e.message, 'BATCH_UPDATE_FAILED', '批量更新考点失败'); }
 
-      case 'tool_batch_delete_entities': {
+      case 'tool_batch_delete_entities':
         if (!args?.deckId || !Array.isArray(args.entityIds)) throw new ToolFormatError('缺少 deckId 或 entityIds 数组', 'MISSING_FIELD', '必须指定 deckId 与 entityIds 数组');
-        try {
-          return this.app.deckVersioning.batchDeleteEntities(args.deckId, args.entityIds, { author: 'agent' });
-        } catch (e) {
-          throw new ToolReferenceError(e.message, 'BATCH_DELETE_FAILED', '批量删除考点失败');
-        }
-      }
+        try { return this.app.deckVersioning.batchDeleteEntities(args.deckId, args.entityIds, { author: 'agent' }); }
+        catch (e) { throw new ToolReferenceError(e.message, 'BATCH_DELETE_FAILED', '批量删除考点失败'); }
 
-      case 'tool_list_deck_versions': {
+      case 'tool_list_deck_versions':
         if (!args?.deckId) throw new ToolFormatError('缺少 deckId', 'MISSING_FIELD', '必须指定 deckId');
         return this.app.deckVersioning ? this.app.deckVersioning.getVersions(args.deckId) : [];
-      }
 
-      case 'tool_rollback_deck_version': {
+      case 'tool_rollback_deck_version':
         if (!args?.deckId || !args?.versionId) throw new ToolFormatError('缺少 deckId 或 versionId', 'MISSING_FIELD', '必须指定 deckId 与 versionId');
-        try {
-          return this.app.deckVersioning.rollbackToVersion(args.deckId, args.versionId);
-        } catch (e) {
-          throw new ToolReferenceError(e.message, 'ROLLBACK_FAILED', '版本回滚失败');
-        }
-      }
+        try { return this.app.deckVersioning.rollbackToVersion(args.deckId, args.versionId); }
+        catch (e) { throw new ToolReferenceError(e.message, 'ROLLBACK_FAILED', '版本回滚失败'); }
 
       case 'tool_create_deck_snapshot': {
         if (!args?.deckId) throw new ToolFormatError('缺少 deckId', 'MISSING_FIELD', '必须指定 deckId');
@@ -12683,7 +12671,7 @@ class KnowledgeMasterApp {
     if (domains && Array.isArray(domains)) {
       domains.forEach(d => this.writeScheduler.markDirty(d));
     } else {
-      this.writeScheduler.markDirty(STORAGE_DOMAINS.PROFILE);
+      Object.values(STORAGE_DOMAINS).forEach(d => this.writeScheduler.markDirty(d));
     }
     return this.writeScheduler.schedule(() => this._getStateSnapshot(), { immediate });
   }
@@ -12750,7 +12738,12 @@ class KnowledgeMasterApp {
     if (titleEl) titleEl.innerText = activeDeck.title;
   }
 
+  renderActiveDeckIndicator() {
+    this.renderDeckSelector();
+  }
+
   renderAllViews() {
+    this.renderDeckSelector();
     this.renderDashboard();
     this.renderStudyHub();
     this.renderReviewBoard();

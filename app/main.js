@@ -527,7 +527,7 @@ export class KnowledgeMasterApp {
     if (domains && Array.isArray(domains)) {
       domains.forEach(d => this.writeScheduler.markDirty(d));
     } else {
-      this.writeScheduler.markDirty(STORAGE_DOMAINS.PROFILE);
+      Object.values(STORAGE_DOMAINS).forEach(d => this.writeScheduler.markDirty(d));
     }
     return this.writeScheduler.schedule(() => this._getStateSnapshot(), { immediate });
   }
@@ -594,7 +594,12 @@ export class KnowledgeMasterApp {
     if (titleEl) titleEl.innerText = activeDeck.title;
   }
 
+  renderActiveDeckIndicator() {
+    this.renderDeckSelector();
+  }
+
   renderAllViews() {
+    this.renderDeckSelector();
     this.renderDashboard();
     this.renderStudyHub();
     this.renderReviewBoard();
