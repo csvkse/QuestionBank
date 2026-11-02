@@ -2,12 +2,14 @@ import { McpToolAdapter } from './tool-adapter.js';
 import { BrowserBridgeTransport } from '../../platform/network/browser-bridge-transport.js';
 import { McpPreferences, mcpPresentation, createClientEndpoint } from './settings-model.js';
 import { ClientConfigRegistry } from './client-adapters.js';
+import { MonopolyCoordinator } from '../../platform/network/monopoly-coordinator.js';
 
 export class McpBridgeController {
-  constructor(executor) {
+  constructor(executor, options = {}) {
     this.adapter = new McpToolAdapter(executor);
     this.preferences = new McpPreferences();
     this.configRegistry = new ClientConfigRegistry();
+    this.monopoly = options.monopoly || new MonopolyCoordinator();
     this.activeClient = 'cursor';
     this.connectionAttempt = 0;
     this.transport = new BrowserBridgeTransport({
@@ -114,6 +116,7 @@ export class McpBridgeController {
     if (['FAILED', 'DISPLACED'].includes(state)) {
       this.releaseLock?.();
       this.releaseLock = null;
+      this.monopoly?.release();
     }
   }
 
@@ -121,7 +124,6 @@ export class McpBridgeController {
     if (this.connecting || mcpPresentation(this.transport.state).locked) return;
     this.connecting = true;
     const attempt = ++this.connectionAttempt;
-    let acquired = false;
     try {
       if (!['https:', 'http:'].includes(location.protocol) || !globalThis.isSecureContext) {
         throw new Error('请从 HTTPS 或本机 localhost 页面连接桥接');
@@ -135,22 +137,13 @@ export class McpBridgeController {
       if (!remember && input) input.value = '';
       this.renderState('CONNECTING');
 
-      if (navigator.locks) {
-        acquired = await new Promise((resolve, reject) => {
-          void navigator.locks.request('knowledge-master-mcp-host', { ifAvailable: true }, lock => {
-            if (!lock || attempt !== this.connectionAttempt) {
-              resolve(false);
-              return;
-            }
-            return new Promise(release => {
-              this.releaseLock = release;
-              resolve(true);
-            });
-          }).catch(reject);
-        });
-        if (attempt !== this.connectionAttempt) return;
-        if (!acquired) throw new Error('另一个标签页正在提供 MCP，请先断开它');
+      const lockRes = await this.monopoly.acquire({ server, room });
+      if (attempt !== this.connectionAttempt) {
+        this.monopoly.release();
+        return;
       }
+      if (!lockRes.acquired) throw new Error('另一个标签页正在为此房间提供 MCP，请先断开它');
+      this.releaseLock = lockRes.release;
 
       this.adapter.ledger.clear();
       await this.transport.start({ server, room, token });
@@ -170,6 +163,7 @@ export class McpBridgeController {
       this.transport.stop();
       this.releaseLock?.();
       this.releaseLock = null;
+      this.monopoly?.release();
       const statusEl = document.getElementById('mcp-status');
       if (statusEl) statusEl.textContent = error.message;
     } finally {
@@ -185,6 +179,7 @@ export class McpBridgeController {
     this.transport.stop();
     this.releaseLock?.();
     this.releaseLock = null;
+    this.monopoly?.release();
     const remember = document.getElementById('mcp-remember')?.checked;
     if (!remember) {
       const token = document.getElementById('mcp-token');

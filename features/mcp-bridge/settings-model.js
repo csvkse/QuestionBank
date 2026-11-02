@@ -85,6 +85,7 @@ export function createClientEndpoint(server, room) {
 export function mcpPresentation(state) {
   const labels = {
     DISABLED: '未连接',
+    ACQUIRING_LOCK: '正在检查并获取本地独占锁',
     CONNECTING: '连接中',
     REGISTERING: '正在注册工具',
     REGISTERED: '已连接，等待外部调用验证',
