@@ -12,6 +12,7 @@ export class McpBridgeController {
     this.monopoly = options.monopoly || new MonopolyCoordinator();
     this.activeClient = 'cursor';
     this.connectionAttempt = 0;
+    this.lastRenderedState = 'DISABLED';
     this.transport = new BrowserBridgeTransport({
       adapter: this.adapter,
       onState: state => this.renderState(state),
@@ -20,19 +21,53 @@ export class McpBridgeController {
         if (target) target.textContent = `${name} · ${status}`;
       }
     });
+    this.monopoly.initControl?.(() => this.stepDownToStandby());
+  }
+
+  _getInputs() {
+    return {
+      server: document.getElementById('mcp-server')?.value?.trim() || '',
+      room: document.getElementById('mcp-room')?.value?.trim() || '',
+      token: document.getElementById('mcp-token')?.value?.trim() || ''
+    };
+  }
+
+  stepDownToStandby() {
+    this.transport.stop();
+    this.renderState('STANDBY');
+    const { server, room, token } = this._getInputs();
+    void this.monopoly.electLeader({
+      server, room,
+      onPromoted: async () => {
+        this.adapter.ledger.clear();
+        await this.transport.start({ server, room, token });
+      },
+      onDemoted: state => this.renderState(state || 'STANDBY')
+    });
   }
 
   init() {
     document.getElementById('mcp-bridge-form')?.addEventListener('submit', event => {
       event.preventDefault();
-      void this.connect();
+      const isStandby = this.lastRenderedState === 'STANDBY';
+      void this.connect({ force: isStandby });
     });
     document.getElementById('mcp-disconnect')?.addEventListener('click', () => this.disconnect());
     document.getElementById('mcp-copy-endpoint')?.addEventListener('click', () => { void this.copyEndpoint(); });
     document.getElementById('mcp-copy-config')?.addEventListener('click', () => { void this.copyConfig(); });
     document.getElementById('mcp-forget')?.addEventListener('click', () => this.forgetPreferences());
+    document.getElementById('mcp-auto-start')?.addEventListener('change', event => {
+      if (event.target.checked) {
+        const rem = document.getElementById('mcp-remember');
+        if (rem) rem.checked = true;
+      }
+    });
     document.getElementById('mcp-remember')?.addEventListener('change', event => {
-      if (!event.target.checked) this.forgetPreferences();
+      if (!event.target.checked) {
+        const auto = document.getElementById('mcp-auto-start');
+        if (auto) auto.checked = false;
+        this.forgetPreferences();
+      }
     });
     document.getElementById('mcp-include-token')?.addEventListener('change', () => this.updatePreview());
 
@@ -53,14 +88,14 @@ export class McpBridgeController {
 
     const saved = this.preferences.load();
     if (saved) {
-      const serverEl = document.getElementById('mcp-server');
-      const roomEl = document.getElementById('mcp-room');
-      const tokenEl = document.getElementById('mcp-token');
+      for (const [id, val] of Object.entries({ 'mcp-server': saved.server, 'mcp-room': saved.room, 'mcp-token': saved.token })) {
+        const el = document.getElementById(id);
+        if (el && val) el.value = val;
+      }
       const rememberEl = document.getElementById('mcp-remember');
-      if (serverEl) serverEl.value = saved.server;
-      if (roomEl) roomEl.value = saved.room;
-      if (tokenEl && saved.token) tokenEl.value = saved.token;
       if (rememberEl) rememberEl.checked = Boolean(saved.rememberToken || saved.token);
+      const autoStartEl = document.getElementById('mcp-auto-start');
+      if (autoStartEl) autoStartEl.checked = Boolean(saved.autoStart);
     }
 
     const tools = this.adapter.listTools();
@@ -85,7 +120,12 @@ export class McpBridgeController {
     window.addEventListener('pagehide', () => this.disconnect());
     this.renderClientTabs();
     this.updatePreview();
-    this.renderState('DISABLED');
+
+    if (saved?.autoStart && saved?.server && saved?.room && saved?.token) {
+      void this.connect();
+    } else {
+      this.renderState('DISABLED');
+    }
   }
 
   renderClientTabs() {
@@ -99,6 +139,7 @@ export class McpBridgeController {
   }
 
   renderState(state) {
+    this.lastRenderedState = state;
     const target = document.getElementById('mcp-status');
     const presentation = mcpPresentation(this.connecting && state === 'DISABLED' ? 'CONNECTING' : state);
     if (target) target.textContent = presentation.label;
@@ -110,66 +151,66 @@ export class McpBridgeController {
       if (input) input.disabled = busy;
     }
     const button = document.getElementById('mcp-connect');
-    if (button) button.disabled = busy;
+    if (button) {
+      button.disabled = busy;
+      button.textContent = state === 'STANDBY' ? '设为主节点 (抢占)' : '连接并启用全部工具';
+    }
     const disconnect = document.getElementById('mcp-disconnect');
-    if (disconnect) disconnect.disabled = !busy;
+    if (disconnect) disconnect.disabled = !busy && state !== 'STANDBY';
     if (['FAILED', 'DISPLACED'].includes(state)) {
-      this.releaseLock?.();
-      this.releaseLock = null;
       this.monopoly?.release();
     }
   }
 
-  async connect() {
-    if (this.connecting || mcpPresentation(this.transport.state).locked) return;
+  async connect({ force = false } = {}) {
+    if (this.connecting || (mcpPresentation(this.transport.state).locked && !force)) return;
     this.connecting = true;
     const attempt = ++this.connectionAttempt;
     try {
       if (!['https:', 'http:'].includes(location.protocol) || !globalThis.isSecureContext) {
         throw new Error('请从 HTTPS 或本机 localhost 页面连接桥接');
       }
-      const server = document.getElementById('mcp-server')?.value?.trim() || '';
-      const room = document.getElementById('mcp-room')?.value?.trim() || '';
+      const { server, room, token } = this._getInputs();
       createClientEndpoint(server, room);
-      const input = document.getElementById('mcp-token');
-      const token = input?.value?.trim() || '';
       const remember = document.getElementById('mcp-remember')?.checked;
-      if (!remember && input) input.value = '';
-      this.renderState('CONNECTING');
-
-      const lockRes = await this.monopoly.acquire({ server, room });
-      if (attempt !== this.connectionAttempt) {
-        this.monopoly.release();
-        return;
+      const autoStart = document.getElementById('mcp-auto-start')?.checked;
+      if (!remember) {
+        const input = document.getElementById('mcp-token');
+        if (input) input.value = '';
       }
-      if (!lockRes.acquired) throw new Error('另一个标签页正在为此房间提供 MCP，请先断开它');
-      this.releaseLock = lockRes.release;
+      this.renderState('ELECTING');
 
-      this.adapter.ledger.clear();
-      await this.transport.start({ server, room, token });
+      await this.monopoly.electLeader({
+        server, room, force,
+        onPromoted: async () => {
+          if (attempt !== this.connectionAttempt) return;
+          this.adapter.ledger.clear();
+          await this.transport.start({ server, room, token });
+        },
+        onDemoted: state => {
+          if (attempt !== this.connectionAttempt) return;
+          this.transport.stop();
+          this.renderState(state || 'STANDBY');
+        }
+      });
       if (attempt !== this.connectionAttempt) return;
 
-      if (remember) {
-        const savedOk = this.preferences.save({ server, room, token, rememberToken: true });
-        this.feedback(savedOk ? '已记住地址、房间与 Token' : '连接不受影响，但浏览器无法保存配置');
-      } else {
-        this.preferences.save({ server, room, rememberToken: false });
-        this.feedback('连接成功；本次 Token 未记住');
-      }
+      const savedOk = this.preferences.save(
+        remember
+          ? { server, room, token, rememberToken: true, autoStart }
+          : { server, room, rememberToken: false, autoStart: false }
+      );
+      this.feedback(remember ? (savedOk ? '已记住地址、房间与配置' : '连接不受影响，但浏览器无法保存配置') : '连接成功；本次 Token 未记住');
       this.updatePreview();
     } catch (error) {
       if (attempt !== this.connectionAttempt) return;
       this.connecting = false;
       this.transport.stop();
-      this.releaseLock?.();
-      this.releaseLock = null;
       this.monopoly?.release();
       const statusEl = document.getElementById('mcp-status');
       if (statusEl) statusEl.textContent = error.message;
     } finally {
-      if (attempt === this.connectionAttempt) {
-        this.connecting = false;
-      }
+      if (attempt === this.connectionAttempt) this.connecting = false;
     }
   }
 
@@ -177,9 +218,8 @@ export class McpBridgeController {
     ++this.connectionAttempt;
     this.connecting = false;
     this.transport.stop();
-    this.releaseLock?.();
-    this.releaseLock = null;
     this.monopoly?.release();
+    this.renderState('DISABLED');
     const remember = document.getElementById('mcp-remember')?.checked;
     if (!remember) {
       const token = document.getElementById('mcp-token');
@@ -194,8 +234,10 @@ export class McpBridgeController {
 
   forgetPreferences() {
     const cleared = this.preferences.clear();
-    const checkbox = document.getElementById('mcp-remember');
-    if (checkbox) checkbox.checked = false;
+    const rem = document.getElementById('mcp-remember');
+    if (rem) rem.checked = false;
+    const auto = document.getElementById('mcp-auto-start');
+    if (auto) auto.checked = false;
     const token = document.getElementById('mcp-token');
     if (token) token.value = '';
     this.feedback(cleared ? '已清除记住的地址、房间与 Token' : '浏览器无法清除保存的配置');
@@ -207,9 +249,7 @@ export class McpBridgeController {
     const copyEndpoint = document.getElementById('mcp-copy-endpoint');
     const copyConfig = document.getElementById('mcp-copy-config');
     const configBox = document.getElementById('mcp-client-config');
-    const server = document.getElementById('mcp-server')?.value?.trim() || '';
-    const room = document.getElementById('mcp-room')?.value?.trim() || '';
-    const token = document.getElementById('mcp-token')?.value?.trim() || '';
+    const { server, room, token } = this._getInputs();
     const includeToken = document.getElementById('mcp-include-token')?.checked ?? true;
 
     try {
@@ -217,21 +257,13 @@ export class McpBridgeController {
       if (endpoint) endpoint.value = url;
       if (copyEndpoint) copyEndpoint.disabled = false;
       if (copyConfig) copyConfig.disabled = false;
-      const generated = this.configRegistry.generate(this.activeClient, {
-        endpointUrl: url,
-        token,
-        includeToken
-      });
-      if (configBox) configBox.textContent = generated.code;
+      const gen = this.configRegistry.generate(this.activeClient, { endpointUrl: url, token, includeToken });
+      if (configBox) configBox.textContent = gen.code;
     } catch {
       if (endpoint) endpoint.value = '';
       if (copyEndpoint) copyEndpoint.disabled = true;
       if (copyConfig) copyConfig.disabled = true;
-      const fallback = this.configRegistry.generate(this.activeClient, {
-        endpointUrl: '',
-        token: '',
-        includeToken: false
-      });
+      const fallback = this.configRegistry.generate(this.activeClient, { endpointUrl: '', token: '', includeToken: false });
       if (configBox) configBox.textContent = fallback.code;
     }
   }

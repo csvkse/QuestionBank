@@ -19,24 +19,27 @@ export class McpPreferences {
       if (!value || typeof value.server !== 'string' || typeof value.room !== 'string') return null;
       bridgeConnectionUrl(value.server, value.room);
 
+      const autoStart = Boolean(value.autoStart);
       if (value.rememberToken && typeof value.tokenEnc === 'string') {
         const token = this._deobfuscate(value.tokenEnc);
-        if (token) return { server: value.server, room: value.room, token, rememberToken: true };
+        if (token) return { server: value.server, room: value.room, token, rememberToken: true, autoStart };
       }
-      return { server: value.server, room: value.room };
+      return { server: value.server, room: value.room, autoStart };
     } catch {
       return null;
     }
   }
 
-  save({ server, room, token, rememberToken }) {
+  save({ server, room, token, rememberToken, autoStart }) {
     try {
       bridgeConnectionUrl(server, room);
       const isRemember = Boolean(rememberToken);
+      const isAutoStart = Boolean(autoStart);
       const payload = {
         server,
         room,
         rememberToken: isRemember,
+        autoStart: isAutoStart,
         tokenEnc: isRemember && token ? this._obfuscate(token) : null
       };
       this.getStorage()?.setItem(MCP_PREFERENCES_KEY_V2, JSON.stringify(payload));
@@ -85,6 +88,8 @@ export function createClientEndpoint(server, room) {
 export function mcpPresentation(state) {
   const labels = {
     DISABLED: '未连接',
+    ELECTING: '正在参与跨标签单主竞选...',
+    STANDBY: '待命节点（另一标签页正在提供服务）',
     ACQUIRING_LOCK: '正在检查并获取本地独占锁',
     CONNECTING: '连接中',
     REGISTERING: '正在注册工具',
@@ -96,7 +101,8 @@ export function mcpPresentation(state) {
   };
   return {
     label: labels[state] || '未知状态',
-    locked: !['DISABLED', 'FAILED', 'DISPLACED'].includes(state),
-    connected: ['REGISTERED', 'READY'].includes(state)
+    locked: !['DISABLED', 'FAILED', 'DISPLACED', 'STANDBY'].includes(state),
+    connected: ['REGISTERED', 'READY'].includes(state),
+    standby: state === 'STANDBY'
   };
 }

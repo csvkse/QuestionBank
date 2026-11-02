@@ -1,10 +1,6 @@
 /**
  * MCP 桥接单主垄断协调器 (Monopoly Coordinator)
- * 职责：
- * 1. 保证同一浏览器实例、同一房间（Room）下仅有唯一的活跃 MCP Host
- * 2. 细粒度资源锁隔离（不同房间可并发独立运行，同房间绝对排他）
- * 3. 跨环境适配器模式：优先 Web Locks API，无原生锁时降级至 BroadcastChannel 单主心跳租约
- * 4. 主动释放与生命周期联动（如网关 4002 DISPLACED 时即时释放本地独占权）
+ * 职责：保证同浏览器同房间仅唯一活跃 Host；细粒度锁隔离；Web Locks / BroadcastChannel 降级适配；队列接管与生命周期联动。
  */
 
 export class WebLocksAdapter {
@@ -61,6 +57,7 @@ export class BroadcastChannelAdapter {
     }
 
     const channel = new globalThis.BroadcastChannel(`${this.channelName}:${lockKey}`);
+    channel.unref?.();
     const hostId = `host-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     let currentLeader = null;
 
@@ -133,34 +130,62 @@ export class MonopolyCoordinator {
     this.customAdapter = options.adapter;
     this.currentRelease = null;
     this.currentKey = null;
+    this._adapter = null;
   }
 
   get adapter() {
     if (this.customAdapter) return this.customAdapter;
-    const webLocks = new WebLocksAdapter();
-    if (webLocks.isSupported()) return webLocks;
-    return new BroadcastChannelAdapter();
+    if (!this._adapter) {
+      const webLocks = new WebLocksAdapter();
+      this._adapter = webLocks.isSupported() ? webLocks : new BroadcastChannelAdapter();
+    }
+    return this._adapter;
   }
 
   /**
-   * 构造房间级别细粒度锁键
-   * @param {string} [server]
-   * @param {string} [room]
-   * @returns {string}
+   * 初始化跨标签页抢占与协调控制通道
+   * @param {Function} onStepDown
    */
+  initControl(onStepDown) {
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        this._controlChannel = new BroadcastChannel('mcp-monopoly-control');
+        this._controlChannel.unref?.();
+        this._controlChannel.onmessage = ev => {
+          if (ev.data?.type === 'RESIGN' && ev.data?.key === this.currentKey && this.isHolding()) {
+            this.release();
+            onStepDown?.();
+          }
+        };
+      } catch {
+        // BroadcastChannel unavailable
+      }
+    }
+  }
+
+  /**
+   * 广播控制指令
+   * @param {Object} msg
+   */
+  sendControlMessage(msg) {
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const ch = new BroadcastChannel('mcp-monopoly-control');
+        ch.postMessage(msg);
+        ch.close();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  // 构造房间级别细粒度锁键
   buildLockKey(server = '', room = '') {
     if (!room) return this.lockPrefix;
     return `${this.lockPrefix}:${encodeURIComponent(server)}:${encodeURIComponent(room)}`;
   }
 
-  /**
-   * 申请独占垄断锁
-   * @param {Object} params
-   * @param {string} [params.server]
-   * @param {string} [params.room]
-   * @param {boolean} [params.ifAvailable=true]
-   * @returns {Promise<{ acquired: boolean, release: Function|null }>}
-   */
+  // 申请独占垄断锁
   async acquire({ server, room, ifAvailable = true } = {}) {
     this.release();
     const key = this.buildLockKey(server, room);
@@ -185,9 +210,55 @@ export class MonopolyCoordinator {
   }
 
   /**
+   * 参与房间单主选举（支持非阻塞即时当选与排队无感接管）
+   * @param {Object} params
+   * @param {string} params.server
+   * @param {string} params.room
+   * @param {Function} [params.onPromoted] 晋升为主节点 (Leader) 回调
+   * @param {Function} [params.onDemoted] 降级为待命节点 (Standby) 回调
+   * @returns {Promise<{ isLeader: boolean, release: Function }>}
+   */
+  async electLeader({ server, room, force = false, onPromoted, onDemoted } = {}) {
+    const key = this.buildLockKey(server, room);
+    if (force) {
+      this.sendControlMessage({ type: 'RESIGN', key });
+      await new Promise(r => setTimeout(r, 40));
+    }
+    const immediate = await this.acquire({ server, room, ifAvailable: true });
+    if (immediate.acquired) {
+      this._electionCancelled = false;
+      onPromoted?.();
+      return { isLeader: true, release: () => this.release() };
+    }
+
+    this._electionCancelled = false;
+    onDemoted?.('STANDBY');
+
+    if (this.adapter.locksApi?.request) {
+      void this.adapter.locksApi.request(key, { mode: 'exclusive' }, async () => {
+        if (this._electionCancelled) return;
+        this.isPromotedFromQueue = true;
+        onPromoted?.();
+        await new Promise(resolve => {
+          this.currentRelease = resolve;
+        });
+      }).catch(() => {});
+    }
+
+    return {
+      isLeader: false,
+      release: () => {
+        this._electionCancelled = true;
+        this.release();
+      }
+    };
+  }
+
+  /**
    * 主动释放垄断锁
    */
   release() {
+    this._electionCancelled = true;
     if (this.currentRelease) {
       try {
         this.currentRelease();

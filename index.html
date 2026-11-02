@@ -1220,6 +1220,7 @@
                 <p id="mcp-token-help" class="text-xs text-slate-500">用于 WebSocket 握手与客户端鉴权，勾选下方选项可持久化记住。</p>
                 <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <label class="flex items-center gap-2 text-slate-400 cursor-pointer"><input id="mcp-remember" type="checkbox" checked>记住地址、房间与 Token</label>
+                  <label class="flex items-center gap-2 text-slate-400 cursor-pointer"><input id="mcp-auto-start" type="checkbox">打开网页自动开启（单主多标签待命）</label>
                   <button id="mcp-forget" type="button" class="text-slate-400 hover:text-white underline underline-offset-4">清除记住的配置</button>
                 </div>
                 <div class="flex gap-3 pt-1">
@@ -10546,11 +10547,7 @@ class ConnectionWatchdog {
   // --- Module: platform/network/monopoly-coordinator.js ---
 /**
  * MCP 桥接单主垄断协调器 (Monopoly Coordinator)
- * 职责：
- * 1. 保证同一浏览器实例、同一房间（Room）下仅有唯一的活跃 MCP Host
- * 2. 细粒度资源锁隔离（不同房间可并发独立运行，同房间绝对排他）
- * 3. 跨环境适配器模式：优先 Web Locks API，无原生锁时降级至 BroadcastChannel 单主心跳租约
- * 4. 主动释放与生命周期联动（如网关 4002 DISPLACED 时即时释放本地独占权）
+ * 职责：保证同浏览器同房间仅唯一活跃 Host；细粒度锁隔离；Web Locks / BroadcastChannel 降级适配；队列接管与生命周期联动。
  */
 class WebLocksAdapter {
   constructor(locksApi) {
@@ -10605,6 +10602,7 @@ class BroadcastChannelAdapter {
     }
 
     const channel = new globalThis.BroadcastChannel(`${this.channelName}:${lockKey}`);
+    channel.unref?.();
     const hostId = `host-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     let currentLeader = null;
 
@@ -10676,34 +10674,62 @@ class MonopolyCoordinator {
     this.customAdapter = options.adapter;
     this.currentRelease = null;
     this.currentKey = null;
+    this._adapter = null;
   }
 
   get adapter() {
     if (this.customAdapter) return this.customAdapter;
-    const webLocks = new WebLocksAdapter();
-    if (webLocks.isSupported()) return webLocks;
-    return new BroadcastChannelAdapter();
+    if (!this._adapter) {
+      const webLocks = new WebLocksAdapter();
+      this._adapter = webLocks.isSupported() ? webLocks : new BroadcastChannelAdapter();
+    }
+    return this._adapter;
   }
 
   /**
-   * 构造房间级别细粒度锁键
-   * @param {string} [server]
-   * @param {string} [room]
-   * @returns {string}
+   * 初始化跨标签页抢占与协调控制通道
+   * @param {Function} onStepDown
    */
+  initControl(onStepDown) {
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        this._controlChannel = new BroadcastChannel('mcp-monopoly-control');
+        this._controlChannel.unref?.();
+        this._controlChannel.onmessage = ev => {
+          if (ev.data?.type === 'RESIGN' && ev.data?.key === this.currentKey && this.isHolding()) {
+            this.release();
+            onStepDown?.();
+          }
+        };
+      } catch {
+        // BroadcastChannel unavailable
+      }
+    }
+  }
+
+  /**
+   * 广播控制指令
+   * @param {Object} msg
+   */
+  sendControlMessage(msg) {
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const ch = new BroadcastChannel('mcp-monopoly-control');
+        ch.postMessage(msg);
+        ch.close();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  // 构造房间级别细粒度锁键
   buildLockKey(server = '', room = '') {
     if (!room) return this.lockPrefix;
     return `${this.lockPrefix}:${encodeURIComponent(server)}:${encodeURIComponent(room)}`;
   }
 
-  /**
-   * 申请独占垄断锁
-   * @param {Object} params
-   * @param {string} [params.server]
-   * @param {string} [params.room]
-   * @param {boolean} [params.ifAvailable=true]
-   * @returns {Promise<{ acquired: boolean, release: Function|null }>}
-   */
+  // 申请独占垄断锁
   async acquire({ server, room, ifAvailable = true } = {}) {
     this.release();
     const key = this.buildLockKey(server, room);
@@ -10728,9 +10754,55 @@ class MonopolyCoordinator {
   }
 
   /**
+   * 参与房间单主选举（支持非阻塞即时当选与排队无感接管）
+   * @param {Object} params
+   * @param {string} params.server
+   * @param {string} params.room
+   * @param {Function} [params.onPromoted] 晋升为主节点 (Leader) 回调
+   * @param {Function} [params.onDemoted] 降级为待命节点 (Standby) 回调
+   * @returns {Promise<{ isLeader: boolean, release: Function }>}
+   */
+  async electLeader({ server, room, force = false, onPromoted, onDemoted } = {}) {
+    const key = this.buildLockKey(server, room);
+    if (force) {
+      this.sendControlMessage({ type: 'RESIGN', key });
+      await new Promise(r => setTimeout(r, 40));
+    }
+    const immediate = await this.acquire({ server, room, ifAvailable: true });
+    if (immediate.acquired) {
+      this._electionCancelled = false;
+      onPromoted?.();
+      return { isLeader: true, release: () => this.release() };
+    }
+
+    this._electionCancelled = false;
+    onDemoted?.('STANDBY');
+
+    if (this.adapter.locksApi?.request) {
+      void this.adapter.locksApi.request(key, { mode: 'exclusive' }, async () => {
+        if (this._electionCancelled) return;
+        this.isPromotedFromQueue = true;
+        onPromoted?.();
+        await new Promise(resolve => {
+          this.currentRelease = resolve;
+        });
+      }).catch(() => {});
+    }
+
+    return {
+      isLeader: false,
+      release: () => {
+        this._electionCancelled = true;
+        this.release();
+      }
+    };
+  }
+
+  /**
    * 主动释放垄断锁
    */
   release() {
+    this._electionCancelled = true;
     if (this.currentRelease) {
       try {
         this.currentRelease();
@@ -10758,6 +10830,8 @@ class MonopolyCoordinator {
  */
 const BRIDGE_STATES = Object.freeze({
   DISABLED: 'DISABLED',
+  ELECTING: 'ELECTING',
+  STANDBY: 'STANDBY',
   ACQUIRING_LOCK: 'ACQUIRING_LOCK',
   CONNECTING: 'CONNECTING',
   REGISTERING: 'REGISTERING',
@@ -10797,28 +10871,33 @@ class BridgeStateMachine {
 
     switch (current) {
       case BRIDGE_STATES.DISABLED:
-        return [BRIDGE_STATES.ACQUIRING_LOCK, BRIDGE_STATES.CONNECTING, BRIDGE_STATES.FAILED].includes(targetState);
+        return [BRIDGE_STATES.ELECTING, BRIDGE_STATES.ACQUIRING_LOCK, BRIDGE_STATES.CONNECTING, BRIDGE_STATES.STANDBY, BRIDGE_STATES.FAILED].includes(targetState);
+
+      case BRIDGE_STATES.ELECTING:
+        return [BRIDGE_STATES.CONNECTING, BRIDGE_STATES.STANDBY, BRIDGE_STATES.DISABLED, BRIDGE_STATES.FAILED].includes(targetState);
+
+      case BRIDGE_STATES.STANDBY:
+        return [BRIDGE_STATES.ELECTING, BRIDGE_STATES.CONNECTING, BRIDGE_STATES.DISABLED, BRIDGE_STATES.FAILED].includes(targetState);
 
       case BRIDGE_STATES.ACQUIRING_LOCK:
-        return [BRIDGE_STATES.CONNECTING, BRIDGE_STATES.DISABLED, BRIDGE_STATES.FAILED].includes(targetState);
+        return [BRIDGE_STATES.CONNECTING, BRIDGE_STATES.STANDBY, BRIDGE_STATES.DISABLED, BRIDGE_STATES.FAILED].includes(targetState);
 
       case BRIDGE_STATES.CONNECTING:
-        return [BRIDGE_STATES.REGISTERING, BRIDGE_STATES.BACKOFF, BRIDGE_STATES.DISPLACED, BRIDGE_STATES.FAILED].includes(targetState);
+        return [BRIDGE_STATES.REGISTERING, BRIDGE_STATES.STANDBY, BRIDGE_STATES.BACKOFF, BRIDGE_STATES.DISPLACED, BRIDGE_STATES.FAILED].includes(targetState);
 
       case BRIDGE_STATES.REGISTERING:
-        return [BRIDGE_STATES.REGISTERED, BRIDGE_STATES.READY, BRIDGE_STATES.BACKOFF, BRIDGE_STATES.DISPLACED, BRIDGE_STATES.FAILED].includes(targetState);
+        return [BRIDGE_STATES.REGISTERED, BRIDGE_STATES.READY, BRIDGE_STATES.STANDBY, BRIDGE_STATES.BACKOFF, BRIDGE_STATES.DISPLACED, BRIDGE_STATES.FAILED].includes(targetState);
 
       case BRIDGE_STATES.REGISTERED:
       case BRIDGE_STATES.READY:
-        return [BRIDGE_STATES.READY, BRIDGE_STATES.BACKOFF, BRIDGE_STATES.DISPLACED, BRIDGE_STATES.FAILED].includes(targetState);
+        return [BRIDGE_STATES.READY, BRIDGE_STATES.STANDBY, BRIDGE_STATES.BACKOFF, BRIDGE_STATES.DISPLACED, BRIDGE_STATES.FAILED].includes(targetState);
 
       case BRIDGE_STATES.BACKOFF:
-        return [BRIDGE_STATES.CONNECTING, BRIDGE_STATES.FAILED, BRIDGE_STATES.DISPLACED].includes(targetState);
+        return [BRIDGE_STATES.CONNECTING, BRIDGE_STATES.STANDBY, BRIDGE_STATES.FAILED, BRIDGE_STATES.DISPLACED].includes(targetState);
 
       case BRIDGE_STATES.DISPLACED:
       case BRIDGE_STATES.FAILED:
-        // 终态，除非显式重置为 CONNECTING 或 DISABLED
-        return [BRIDGE_STATES.CONNECTING, BRIDGE_STATES.ACQUIRING_LOCK].includes(targetState);
+        return [BRIDGE_STATES.CONNECTING, BRIDGE_STATES.ACQUIRING_LOCK, BRIDGE_STATES.ELECTING, BRIDGE_STATES.STANDBY].includes(targetState);
 
       default:
         return false;
@@ -11256,24 +11335,27 @@ class McpPreferences {
       if (!value || typeof value.server !== 'string' || typeof value.room !== 'string') return null;
       bridgeConnectionUrl(value.server, value.room);
 
+      const autoStart = Boolean(value.autoStart);
       if (value.rememberToken && typeof value.tokenEnc === 'string') {
         const token = this._deobfuscate(value.tokenEnc);
-        if (token) return { server: value.server, room: value.room, token, rememberToken: true };
+        if (token) return { server: value.server, room: value.room, token, rememberToken: true, autoStart };
       }
-      return { server: value.server, room: value.room };
+      return { server: value.server, room: value.room, autoStart };
     } catch {
       return null;
     }
   }
 
-  save({ server, room, token, rememberToken }) {
+  save({ server, room, token, rememberToken, autoStart }) {
     try {
       bridgeConnectionUrl(server, room);
       const isRemember = Boolean(rememberToken);
+      const isAutoStart = Boolean(autoStart);
       const payload = {
         server,
         room,
         rememberToken: isRemember,
+        autoStart: isAutoStart,
         tokenEnc: isRemember && token ? this._obfuscate(token) : null
       };
       this.getStorage()?.setItem(MCP_PREFERENCES_KEY_V2, JSON.stringify(payload));
@@ -11320,6 +11402,8 @@ function createClientEndpoint(server, room) {
 function mcpPresentation(state) {
   const labels = {
     DISABLED: '未连接',
+    ELECTING: '正在参与跨标签单主竞选...',
+    STANDBY: '待命节点（另一标签页正在提供服务）',
     ACQUIRING_LOCK: '正在检查并获取本地独占锁',
     CONNECTING: '连接中',
     REGISTERING: '正在注册工具',
@@ -11331,8 +11415,9 @@ function mcpPresentation(state) {
   };
   return {
     label: labels[state] || '未知状态',
-    locked: !['DISABLED', 'FAILED', 'DISPLACED'].includes(state),
-    connected: ['REGISTERED', 'READY'].includes(state)
+    locked: !['DISABLED', 'FAILED', 'DISPLACED', 'STANDBY'].includes(state),
+    connected: ['REGISTERED', 'READY'].includes(state),
+    standby: state === 'STANDBY'
   };
 }
 
@@ -11345,6 +11430,7 @@ class McpBridgeController {
     this.monopoly = options.monopoly || new MonopolyCoordinator();
     this.activeClient = 'cursor';
     this.connectionAttempt = 0;
+    this.lastRenderedState = 'DISABLED';
     this.transport = new BrowserBridgeTransport({
       adapter: this.adapter,
       onState: state => this.renderState(state),
@@ -11353,19 +11439,53 @@ class McpBridgeController {
         if (target) target.textContent = `${name} · ${status}`;
       }
     });
+    this.monopoly.initControl?.(() => this.stepDownToStandby());
+  }
+
+  _getInputs() {
+    return {
+      server: document.getElementById('mcp-server')?.value?.trim() || '',
+      room: document.getElementById('mcp-room')?.value?.trim() || '',
+      token: document.getElementById('mcp-token')?.value?.trim() || ''
+    };
+  }
+
+  stepDownToStandby() {
+    this.transport.stop();
+    this.renderState('STANDBY');
+    const { server, room, token } = this._getInputs();
+    void this.monopoly.electLeader({
+      server, room,
+      onPromoted: async () => {
+        this.adapter.ledger.clear();
+        await this.transport.start({ server, room, token });
+      },
+      onDemoted: state => this.renderState(state || 'STANDBY')
+    });
   }
 
   init() {
     document.getElementById('mcp-bridge-form')?.addEventListener('submit', event => {
       event.preventDefault();
-      void this.connect();
+      const isStandby = this.lastRenderedState === 'STANDBY';
+      void this.connect({ force: isStandby });
     });
     document.getElementById('mcp-disconnect')?.addEventListener('click', () => this.disconnect());
     document.getElementById('mcp-copy-endpoint')?.addEventListener('click', () => { void this.copyEndpoint(); });
     document.getElementById('mcp-copy-config')?.addEventListener('click', () => { void this.copyConfig(); });
     document.getElementById('mcp-forget')?.addEventListener('click', () => this.forgetPreferences());
+    document.getElementById('mcp-auto-start')?.addEventListener('change', event => {
+      if (event.target.checked) {
+        const rem = document.getElementById('mcp-remember');
+        if (rem) rem.checked = true;
+      }
+    });
     document.getElementById('mcp-remember')?.addEventListener('change', event => {
-      if (!event.target.checked) this.forgetPreferences();
+      if (!event.target.checked) {
+        const auto = document.getElementById('mcp-auto-start');
+        if (auto) auto.checked = false;
+        this.forgetPreferences();
+      }
     });
     document.getElementById('mcp-include-token')?.addEventListener('change', () => this.updatePreview());
 
@@ -11386,14 +11506,14 @@ class McpBridgeController {
 
     const saved = this.preferences.load();
     if (saved) {
-      const serverEl = document.getElementById('mcp-server');
-      const roomEl = document.getElementById('mcp-room');
-      const tokenEl = document.getElementById('mcp-token');
+      for (const [id, val] of Object.entries({ 'mcp-server': saved.server, 'mcp-room': saved.room, 'mcp-token': saved.token })) {
+        const el = document.getElementById(id);
+        if (el && val) el.value = val;
+      }
       const rememberEl = document.getElementById('mcp-remember');
-      if (serverEl) serverEl.value = saved.server;
-      if (roomEl) roomEl.value = saved.room;
-      if (tokenEl && saved.token) tokenEl.value = saved.token;
       if (rememberEl) rememberEl.checked = Boolean(saved.rememberToken || saved.token);
+      const autoStartEl = document.getElementById('mcp-auto-start');
+      if (autoStartEl) autoStartEl.checked = Boolean(saved.autoStart);
     }
 
     const tools = this.adapter.listTools();
@@ -11418,7 +11538,12 @@ class McpBridgeController {
     window.addEventListener('pagehide', () => this.disconnect());
     this.renderClientTabs();
     this.updatePreview();
-    this.renderState('DISABLED');
+
+    if (saved?.autoStart && saved?.server && saved?.room && saved?.token) {
+      void this.connect();
+    } else {
+      this.renderState('DISABLED');
+    }
   }
 
   renderClientTabs() {
@@ -11432,6 +11557,7 @@ class McpBridgeController {
   }
 
   renderState(state) {
+    this.lastRenderedState = state;
     const target = document.getElementById('mcp-status');
     const presentation = mcpPresentation(this.connecting && state === 'DISABLED' ? 'CONNECTING' : state);
     if (target) target.textContent = presentation.label;
@@ -11443,66 +11569,66 @@ class McpBridgeController {
       if (input) input.disabled = busy;
     }
     const button = document.getElementById('mcp-connect');
-    if (button) button.disabled = busy;
+    if (button) {
+      button.disabled = busy;
+      button.textContent = state === 'STANDBY' ? '设为主节点 (抢占)' : '连接并启用全部工具';
+    }
     const disconnect = document.getElementById('mcp-disconnect');
-    if (disconnect) disconnect.disabled = !busy;
+    if (disconnect) disconnect.disabled = !busy && state !== 'STANDBY';
     if (['FAILED', 'DISPLACED'].includes(state)) {
-      this.releaseLock?.();
-      this.releaseLock = null;
       this.monopoly?.release();
     }
   }
 
-  async connect() {
-    if (this.connecting || mcpPresentation(this.transport.state).locked) return;
+  async connect({ force = false } = {}) {
+    if (this.connecting || (mcpPresentation(this.transport.state).locked && !force)) return;
     this.connecting = true;
     const attempt = ++this.connectionAttempt;
     try {
       if (!['https:', 'http:'].includes(location.protocol) || !globalThis.isSecureContext) {
         throw new Error('请从 HTTPS 或本机 localhost 页面连接桥接');
       }
-      const server = document.getElementById('mcp-server')?.value?.trim() || '';
-      const room = document.getElementById('mcp-room')?.value?.trim() || '';
+      const { server, room, token } = this._getInputs();
       createClientEndpoint(server, room);
-      const input = document.getElementById('mcp-token');
-      const token = input?.value?.trim() || '';
       const remember = document.getElementById('mcp-remember')?.checked;
-      if (!remember && input) input.value = '';
-      this.renderState('CONNECTING');
-
-      const lockRes = await this.monopoly.acquire({ server, room });
-      if (attempt !== this.connectionAttempt) {
-        this.monopoly.release();
-        return;
+      const autoStart = document.getElementById('mcp-auto-start')?.checked;
+      if (!remember) {
+        const input = document.getElementById('mcp-token');
+        if (input) input.value = '';
       }
-      if (!lockRes.acquired) throw new Error('另一个标签页正在为此房间提供 MCP，请先断开它');
-      this.releaseLock = lockRes.release;
+      this.renderState('ELECTING');
 
-      this.adapter.ledger.clear();
-      await this.transport.start({ server, room, token });
+      await this.monopoly.electLeader({
+        server, room, force,
+        onPromoted: async () => {
+          if (attempt !== this.connectionAttempt) return;
+          this.adapter.ledger.clear();
+          await this.transport.start({ server, room, token });
+        },
+        onDemoted: state => {
+          if (attempt !== this.connectionAttempt) return;
+          this.transport.stop();
+          this.renderState(state || 'STANDBY');
+        }
+      });
       if (attempt !== this.connectionAttempt) return;
 
-      if (remember) {
-        const savedOk = this.preferences.save({ server, room, token, rememberToken: true });
-        this.feedback(savedOk ? '已记住地址、房间与 Token' : '连接不受影响，但浏览器无法保存配置');
-      } else {
-        this.preferences.save({ server, room, rememberToken: false });
-        this.feedback('连接成功；本次 Token 未记住');
-      }
+      const savedOk = this.preferences.save(
+        remember
+          ? { server, room, token, rememberToken: true, autoStart }
+          : { server, room, rememberToken: false, autoStart: false }
+      );
+      this.feedback(remember ? (savedOk ? '已记住地址、房间与配置' : '连接不受影响，但浏览器无法保存配置') : '连接成功；本次 Token 未记住');
       this.updatePreview();
     } catch (error) {
       if (attempt !== this.connectionAttempt) return;
       this.connecting = false;
       this.transport.stop();
-      this.releaseLock?.();
-      this.releaseLock = null;
       this.monopoly?.release();
       const statusEl = document.getElementById('mcp-status');
       if (statusEl) statusEl.textContent = error.message;
     } finally {
-      if (attempt === this.connectionAttempt) {
-        this.connecting = false;
-      }
+      if (attempt === this.connectionAttempt) this.connecting = false;
     }
   }
 
@@ -11510,9 +11636,8 @@ class McpBridgeController {
     ++this.connectionAttempt;
     this.connecting = false;
     this.transport.stop();
-    this.releaseLock?.();
-    this.releaseLock = null;
     this.monopoly?.release();
+    this.renderState('DISABLED');
     const remember = document.getElementById('mcp-remember')?.checked;
     if (!remember) {
       const token = document.getElementById('mcp-token');
@@ -11527,8 +11652,10 @@ class McpBridgeController {
 
   forgetPreferences() {
     const cleared = this.preferences.clear();
-    const checkbox = document.getElementById('mcp-remember');
-    if (checkbox) checkbox.checked = false;
+    const rem = document.getElementById('mcp-remember');
+    if (rem) rem.checked = false;
+    const auto = document.getElementById('mcp-auto-start');
+    if (auto) auto.checked = false;
     const token = document.getElementById('mcp-token');
     if (token) token.value = '';
     this.feedback(cleared ? '已清除记住的地址、房间与 Token' : '浏览器无法清除保存的配置');
@@ -11540,9 +11667,7 @@ class McpBridgeController {
     const copyEndpoint = document.getElementById('mcp-copy-endpoint');
     const copyConfig = document.getElementById('mcp-copy-config');
     const configBox = document.getElementById('mcp-client-config');
-    const server = document.getElementById('mcp-server')?.value?.trim() || '';
-    const room = document.getElementById('mcp-room')?.value?.trim() || '';
-    const token = document.getElementById('mcp-token')?.value?.trim() || '';
+    const { server, room, token } = this._getInputs();
     const includeToken = document.getElementById('mcp-include-token')?.checked ?? true;
 
     try {
@@ -11550,21 +11675,13 @@ class McpBridgeController {
       if (endpoint) endpoint.value = url;
       if (copyEndpoint) copyEndpoint.disabled = false;
       if (copyConfig) copyConfig.disabled = false;
-      const generated = this.configRegistry.generate(this.activeClient, {
-        endpointUrl: url,
-        token,
-        includeToken
-      });
-      if (configBox) configBox.textContent = generated.code;
+      const gen = this.configRegistry.generate(this.activeClient, { endpointUrl: url, token, includeToken });
+      if (configBox) configBox.textContent = gen.code;
     } catch {
       if (endpoint) endpoint.value = '';
       if (copyEndpoint) copyEndpoint.disabled = true;
       if (copyConfig) copyConfig.disabled = true;
-      const fallback = this.configRegistry.generate(this.activeClient, {
-        endpointUrl: '',
-        token: '',
-        includeToken: false
-      });
+      const fallback = this.configRegistry.generate(this.activeClient, { endpointUrl: '', token: '', includeToken: false });
       if (configBox) configBox.textContent = fallback.code;
     }
   }

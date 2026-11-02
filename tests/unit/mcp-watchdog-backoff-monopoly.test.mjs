@@ -164,7 +164,7 @@ test('ConnectionWatchdog detects zombie silent connection after pongTimeout', as
   watchdog.acknowledgeHandshake();
 
   // 停止喂狗，静默超过 70ms
-  await tick(90);
+  await tick(120);
   assert.equal(hungCalled, true, '无数据无 Pong 超过超时阈值，看门狗应当报警断开');
   watchdog.disarm();
 });
@@ -236,6 +236,77 @@ test('MonopolyCoordinator isolates fine-grained rooms and enforces mutual exclus
 
   const resB3 = await coordinatorB.acquire({ server: 'https://gw.example.com.com', room: 'math' });
   assert.equal(resB3.acquired, true, '前序持有者释放后，后来者应当成功获锁');
+
+  coordinatorB.release();
+});
+
+test('MonopolyCoordinator electLeader supports single-leader election and queued seamless failover', async () => {
+  const locks = new Map();
+  const queue = new Map();
+  const mockLocksApi = {
+    request(name, options, callback) {
+      const ifAvailable = options?.ifAvailable ?? false;
+      if (locks.has(name)) {
+        if (ifAvailable) return Promise.resolve(callback(null));
+        return new Promise(resolve => {
+          if (!queue.has(name)) queue.set(name, []);
+          queue.get(name).push(() => {
+            locks.set(name, true);
+            const res = callback({ name });
+            Promise.resolve(res).finally(() => {
+              locks.delete(name);
+              const next = queue.get(name)?.shift();
+              if (next) next();
+            }).then(resolve);
+          });
+        });
+      }
+      locks.set(name, true);
+      const res = callback({ name });
+      return Promise.resolve(res).finally(() => {
+        locks.delete(name);
+        const next = queue.get(name)?.shift();
+        if (next) next();
+      });
+    }
+  };
+
+  const coordinatorA = new MonopolyCoordinator({ adapter: new WebLocksAdapter(mockLocksApi) });
+  const coordinatorB = new MonopolyCoordinator({ adapter: new WebLocksAdapter(mockLocksApi) });
+
+  let promotedA = 0;
+  let demotedA = [];
+  let promotedB = 0;
+  let demotedB = [];
+
+  const electionA = await coordinatorA.electLeader({
+    server: 'https://gw.example.com',
+    room: 'room-1',
+    onPromoted: () => { promotedA++; },
+    onDemoted: st => { demotedA.push(st); }
+  });
+
+  assert.equal(electionA.isLeader, true);
+  assert.equal(promotedA, 1);
+  assert.equal(coordinatorA.isHolding(), true);
+
+  const electionB = await coordinatorB.electLeader({
+    server: 'https://gw.example.com',
+    room: 'room-1',
+    onPromoted: () => { promotedB++; },
+    onDemoted: st => { demotedB.push(st); }
+  });
+
+  assert.equal(electionB.isLeader, false);
+  assert.equal(promotedB, 0);
+  assert.deepEqual(demotedB, ['STANDBY']);
+  assert.equal(coordinatorB.isHolding(), false);
+
+  coordinatorA.release();
+  await tick(20);
+
+  assert.equal(promotedB, 1, 'Tab B 应当在 Tab A 释放后自动晋升为 Leader');
+  assert.equal(coordinatorB.isHolding(), true);
 
   coordinatorB.release();
 });

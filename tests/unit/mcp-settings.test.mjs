@@ -7,22 +7,23 @@ test('remembered connection fields exclude tokens and tolerate unavailable stora
   const data = new Map(); const storage = { getItem: k => data.get(k), setItem: (k,v) => data.set(k,v), removeItem: k => data.delete(k) };
   const prefs = new McpPreferences(() => storage);
   prefs.save({server:'https://gateway.example.com.com',room:'my room',token:'secret'});
-  assert.deepEqual(prefs.load(), {server:'https://gateway.example.com.com',room:'my room'});
+  assert.deepEqual(prefs.load(), {server:'https://gateway.example.com.com',room:'my room',autoStart:false});
   assert.ok(![...data.values()].join('').includes('secret'));
   prefs.clear(); assert.equal(prefs.load(), null);
   const blocked = new McpPreferences(() => { throw new Error('blocked'); });
   assert.equal(blocked.load(), null); assert.equal(blocked.save({}), false);
 });
 
-test('persisting token when rememberToken is true obfuscates token and loads correctly', () => {
+test('persisting token when rememberToken is true obfuscates token and loads correctly including autoStart', () => {
   const data = new Map(); const storage = { getItem: k => data.get(k), setItem: (k,v) => data.set(k,v), removeItem: k => data.delete(k) };
   const prefs = new McpPreferences(() => storage);
-  prefs.save({server:'https://gateway.example.com.com',room:'my room',token:'sk-proj-test-secret-key-1234567890',rememberToken:true});
+  prefs.save({server:'https://gateway.example.com.com',room:'my room',token:'sk-proj-test-secret-key-1234567890',rememberToken:true,autoStart:true});
   const loaded = prefs.load();
   assert.equal(loaded.server, 'https://gateway.example.com.com');
   assert.equal(loaded.room, 'my room');
   assert.equal(loaded.token, 'sk-proj-test-secret-key-1234567890');
   assert.equal(loaded.rememberToken, true);
+  assert.equal(loaded.autoStart, true);
   // Ensure the raw secret token is never stored as plaintext in localStorage
   assert.ok(![...data.values()].join('').includes('sk-proj-test-secret-key-1234567890'));
   prefs.clear();
@@ -30,9 +31,10 @@ test('persisting token when rememberToken is true obfuscates token and loads cor
 });
 
 test('connection state derives field locking and endpoint generation never carries credentials', () => {
-  for (const state of ['CONNECTING','REGISTERING','REGISTERED','READY','BACKOFF']) assert.equal(mcpPresentation(state).locked, true);
-  for (const state of ['DISABLED','FAILED','DISPLACED']) assert.equal(mcpPresentation(state).locked, false);
-  assert.equal(createClientEndpoint('wss://gateway.example.com/bridge', 'a b'), 'https://gateway.example.com.com/mcp/sse?room=a+b');
+  for (const state of ['ELECTING','CONNECTING','REGISTERING','REGISTERED','READY','BACKOFF']) assert.equal(mcpPresentation(state).locked, true);
+  for (const state of ['DISABLED','FAILED','DISPLACED','STANDBY']) assert.equal(mcpPresentation(state).locked, false);
+  assert.equal(mcpPresentation('STANDBY').standby, true);
+  assert.equal(createClientEndpoint('wss://gateway.example.com/bridge', 'a b'), 'https://gateway.example.com/mcp/sse?room=a+b');
   assert.throws(() => createClientEndpoint('https://user:secret@gateway.example.com', 'a'));
 });
 
