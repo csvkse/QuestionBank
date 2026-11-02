@@ -25,8 +25,8 @@ console.log('='.repeat(74) + '\n');
 try {
   const allowedRoots = new Set([
     'app', 'features', 'shared', 'design-system', 'platform', 'vendor',
-    'gates', 'tests', 'scripts', 'docs', 'archive', 'dist',
-    'index.html', 'favicon.svg', 'binding.yaml', 'package.json', 'package-lock.json', 'node_modules', 'README.md', '.git', '.gitignore',
+    'gates', 'tests', 'scripts', 'docs', 'archive', 'dist', 'docs_secret',
+    'index.html', 'favicon.svg', 'binding.yaml', 'package.json', 'package-lock.json', 'node_modules', 'README.md', 'AGENTS.md', '.git', '.gitignore',
     'start-dev.bat', 'run.bat'
   ]);
   
@@ -715,6 +715,31 @@ try {
   recordResult('FE-CHAT-PERF-001', 'Long Conversation Streaming Budget', 'FAIL', err.message);
 }
 
+// 10. FE-SEC-001: 凭据安全红线与脱敏规范门禁 (Security & Credential Governance)
+try {
+  const { evaluateQualityGate } = await import(pathToFileURL(path.join(ROOT_DIR, 'gates/security-guard.mjs')).href);
+  const gateResult = evaluateQualityGate();
+  if (gateResult.passed) {
+    const isBaselineTolerated = gateResult.toleratedErrors.length > 0;
+    recordResult(
+      'FE-SEC-001',
+      'Credential Governance & Desensitization',
+      'PASS',
+      gateResult.summary,
+      isBaselineTolerated
+    );
+  } else {
+    recordResult(
+      'FE-SEC-001',
+      'Credential Governance & Desensitization',
+      'FAIL',
+      gateResult.summary + ' Violations: ' + gateResult.activeErrors.map(e => `${e.file}:${e.line}`).join(', ')
+    );
+  }
+} catch (err) {
+  recordResult('FE-SEC-001', 'Credential Governance & Desensitization', 'FAIL', err.message);
+}
+
 // 11. 自动执行全量单元测试
 try {
   const tests = [
@@ -734,14 +759,15 @@ try {
     'tests/unit/deck-versioning.test.mjs',
     'tests/unit/write-scheduler.test.mjs',
     'tests/unit/remote-storage-adapter.test.mjs',
-    'tests/unit/webdav-backup-restore.test.mjs'
+    'tests/unit/webdav-backup-restore.test.mjs',
+    'tests/unit/security-guard.test.mjs'
   ];
   let allTestsPassed = true;
   for (const t of tests) {
     const testPath = path.join(ROOT_DIR, t);
     await import(pathToFileURL(testPath).href);
   }
-  recordResult('FE-TEST-001', 'Automated Unit Test Suite', 'PASS', `All ${tests.length} unit tests (SM-2, Distractor, AST, Validator, AgentLoop, ArenaModes, QuestionStrategies, JevRecommender, SpeechSynth, DevProxy, PanoramaCollapsible, Favorites, DeckGuide, DeckVersioning, WriteScheduler, RemoteAdapter, WebDavBackup) passed`);
+  recordResult('FE-TEST-001', 'Automated Unit Test Suite', 'PASS', `All ${tests.length} unit tests (SM-2, Distractor, AST, Validator, AgentLoop, ArenaModes, QuestionStrategies, JevRecommender, SpeechSynth, DevProxy, PanoramaCollapsible, Favorites, DeckGuide, DeckVersioning, WriteScheduler, RemoteAdapter, WebDavBackup, SecurityGuard) passed`);
 } catch (err) {
   recordResult('FE-TEST-001', 'Automated Unit Test Suite', 'FAIL', err.message);
 }

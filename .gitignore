@@ -29,4 +29,15 @@ build/
 .env
 .env.*
 *.local
+env/
+/env/
+.envdev
+*.envdev
+/env/.envdev
+
+# Uncommitted secret & triage documentation
+docs_secret/
+/docs_secret/
+*.secret.md
+
 

@@ -3,7 +3,8 @@
   "updatedAt": "2026-10-08T20:30:00Z",
   "ratchetPolicy": "strictly-decreasing",
   "toleratedDebts": {
-    "FE-QUALITY-001": []
+    "FE-QUALITY-001": [],
+    "FE-SEC-001": []
   },
-  "notes": "Monolithic debt fully resolved: All source code modularized into 21 ES modules (<300 lines each). index.html is generated via scripts/bundler.mjs."
+  "notes": "Credential governance fully resolved: Zero unsanitized secrets or legacy test fixture debts across entire codebase."
 }
