@@ -176,7 +176,7 @@ export class DeckToolExecutor {
         const entity = (deck.entities || []).find(e => e.id === args.entityId);
         if (!entity) throw new ToolReferenceError(`考点词条 "${args.entityId}" 在题库 "${args.deckId}" 中不存在`, 'ENTITY_NOT_FOUND', '请核对考点 ID', { deckId: args.deckId, entityId: args.entityId });
         const patch = args.updates || args.patch || {};
-        const fields = ['title', 'prompt', 'answer', 'explanation', 'pitfalls', 'categoryId', 'layer', 'subtitle'];
+        const fields = ['title', 'prompt', 'answer', 'explanation', 'pitfalls', 'categoryId', 'layer', 'subtitle', 'lang', 'phonetics', 'confusedWith'];
         if (Object.keys(patch).some(key => !fields.includes(key))) throw new ToolFormatError('包含不可修改的考点字段', 'INVALID_FIELD');
         Object.assign(entity, patch);
         this._saveAndRender();

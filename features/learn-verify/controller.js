@@ -247,13 +247,13 @@ export class LearnVerifyController {
     }
   }
 
-  speakWord(text) {
+  speakWord(text, lang) {
     if (!text) return;
     if (this.app?.speakWord) {
-      this.app.speakWord(text);
+      this.app.speakWord(text, lang);
     } else {
       const deck = this.app?.getActiveDeck ? this.app.getActiveDeck() : null;
-      speechSynth.speak(text, deck ? getDeckLangCode(deck) : 'en-US');
+      speechSynth.speak(text, lang || (deck ? getDeckLangCode(deck) : 'en-US'));
     }
   }
 

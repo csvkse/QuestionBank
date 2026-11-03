@@ -60,7 +60,7 @@ export class LearnVerifyView {
         <div class="space-y-1">
           <div class="flex items-center gap-3">
             <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">${node.title}</h2>
-            <button onclick="app.learnVerifyController.speakWord('${node.title.replace(/'/g, "\\'")}')" class="p-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-slate-700 transition" title="朗读发音 (快捷键 P)">
+            <button onclick="app.learnVerifyController.speakWord('${(node.phonetics?.tts_clean || node.title).replace(/'/g, "\\'")}', '${node.lang || ''}')" class="p-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-slate-700 transition" title="朗读发音 (快捷键 P)">
               <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
             </button>
           </div>

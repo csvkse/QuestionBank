@@ -170,9 +170,10 @@ export class DeckVersionController {
     updates.forEach(u => {
       const ent = entityMap.get(u.id);
       if (ent) {
-        ['prompt', 'answer', 'explanation', 'pitfalls', 'title', 'categoryId'].forEach(f => {
-          if (u[f] !== undefined) ent[f] = String(u[f]);
+        ['prompt', 'answer', 'explanation', 'pitfalls', 'title', 'categoryId', 'subtitle', 'lang', 'confusedWith'].forEach(f => {
+          if (u[f] !== undefined) ent[f] = u[f];
         });
+        if (u.phonetics !== undefined && typeof u.phonetics === 'object') ent.phonetics = u.phonetics;
         if (u.layer !== undefined && [1, 2, 3].includes(Number(u.layer))) ent.layer = Number(u.layer);
         updatedCount++;
       }

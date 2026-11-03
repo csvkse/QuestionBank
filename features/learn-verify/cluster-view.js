@@ -71,7 +71,7 @@ export class LearnVerifyClusterView {
                   <span class="w-5 h-5 rounded-full bg-indigo-600/30 text-indigo-300 flex items-center justify-center text-xs font-mono font-bold">${idx + 1}</span>
                   <h3 class="text-lg font-bold text-white">${item.title}</h3>
                 </div>
-                <button onclick="app.learnVerifyController.speakWord('${item.title.replace(/'/g, "\\'")}')" class="p-1 rounded bg-slate-800 text-slate-400 hover:text-white transition" title="朗读纯净发音">
+                <button onclick="app.learnVerifyController.speakWord('${(item.phonetics?.tts_clean || item.title).replace(/'/g, "\\'")}', '${item.lang || ''}')" class="p-1 rounded bg-slate-800 text-slate-400 hover:text-white transition" title="朗读纯净发音">
                   <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
                 </button>
               </div>
