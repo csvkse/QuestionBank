@@ -75,7 +75,7 @@ graph TD
 
 ```json
 {
-  "$schema": "https://knowledge-arena.org/schemas/v3/edugraph.schema.json",
+  "$schema": "https://example.com/schemas/v3/edugraph.schema.json",
   "id": "graph_computer_network_v3",
   "title": "计算机网络与通信协议核心图谱",
   "version": "3.0.0",
