@@ -3,7 +3,7 @@
  * Core 2.1: features/ai-agent/agent-loop.js
  */
 
-import { DECK_TOOL_DEFINITIONS } from './tool-definitions.js';
+import { ALL_TOOL_DEFINITIONS } from './tool-definitions.js';
 import { toToolErrorPayload } from './tool-errors.js';
 
 export class AgentLoopEngine {
@@ -73,7 +73,7 @@ export class AgentLoopEngine {
 
     await this.client.sendChatStream({
       messages: contextMessages,
-      tools: DECK_TOOL_DEFINITIONS,
+      tools: ALL_TOOL_DEFINITIONS,
       step: this.currentStep,
       callbacks: {
         onReasoning: (accumulated) => {

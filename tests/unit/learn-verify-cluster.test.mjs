@@ -17,6 +17,8 @@ import {
   TopicClusterStateMachine,
   ClusterState
 } from '../../features/learn-verify/index.js';
+import { getCapsuleMasteryStatus, renderCapsuleCatalogModal } from '../../features/learn-verify/cluster-catalog-view.js';
+import { LearnVerifyClusterController } from '../../features/learn-verify/cluster-controller.js';
 
 const mockDeck = {
   id: 'test_deck_cluster',
@@ -152,5 +154,75 @@ test('Learn & Verify Micro-Topic Cluster Suite', async (t) => {
     const fsm = new TopicClusterStateMachine({ capsules: [] });
     assert.throws(() => fsm.startInterleavedQuiz(), /Illegal state transition/);
     assert.throws(() => fsm.submitInterleavedAnswer(0), /Cannot submit quiz/);
+  });
+
+  await t.test('Capsule Navigator: getCapsuleMasteryStatus evaluates unlearned, review and mastered', () => {
+    const httpEntities = mockDeck.entities.slice(0, 2);
+    const capsule = TopicCapsuleAdapter.adapt('HTTP状态码', 1, httpEntities, { cards: {} }, []);
+
+    // 1. 没有任何做题记录 -> 未学习
+    const status1 = getCapsuleMasteryStatus(capsule, { cards: {} });
+    assert.equal(status1.label, '未学习');
+    assert.equal(status1.color, 'slate');
+    assert.equal(status1.isMastered, false);
+
+    // 2. 有做题记录但间隔 < 2 -> 待巩固
+    const status2 = getCapsuleMasteryStatus(capsule, {
+      cards: { http_200: { totalAttempts: 1, interval: 1 } }
+    });
+    assert.equal(status2.label, '待巩固');
+    assert.equal(status2.color, 'amber');
+
+    // 3. 全员掌握 (interval >= 2) -> 已掌握
+    const status3 = getCapsuleMasteryStatus(capsule, {
+      cards: {
+        http_200: { totalAttempts: 2, interval: 3 },
+        http_301: { totalAttempts: 2, interval: 4 }
+      }
+    });
+    assert.equal(status3.label, '已掌握');
+    assert.equal(status3.color, 'emerald');
+    assert.equal(status3.isMastered, true);
+
+    // 4. renderCapsuleCatalogModal 能够生成包含全部考点的 HTML
+    const html = renderCapsuleCatalogModal([capsule], capsule.id, { cards: {} });
+    assert.ok(html.includes('Capsule Navigator'));
+    assert.ok(html.includes('HTTP状态码'));
+    assert.ok(html.includes('正在研读'));
+  });
+
+  await t.test('LearnVerifyClusterController: toggleCatalog and jumpToCapsule functionality', () => {
+    let navigatedTo = null;
+    let saved = false;
+    const mockApp = {
+      getActiveDeck: () => mockDeck,
+      getDeckState: () => ({ totalAttempts: 0, totalCorrect: 0, cards: {} }),
+      navigate: (v) => { navigatedTo = v; },
+      saveUserData: () => { saved = true; }
+    };
+
+    // 模拟 DOM
+    global.document = {
+      getElementById: () => ({ innerHTML: '' })
+    };
+
+    const ctrl = new LearnVerifyClusterController(mockApp);
+    ctrl.startCapsuleSession(1);
+    assert.equal(ctrl.totalCapsulesCount >= 2, true);
+    assert.equal(ctrl.isCatalogOpen, false);
+
+    // 打开目录选单
+    ctrl.toggleCatalog(true);
+    assert.equal(ctrl.isCatalogOpen, true);
+
+    // 手动选课：跳入第 2 个胶囊
+    const secondCap = ctrl.allCapsules[1];
+    ctrl.jumpToCapsule(secondCap.id);
+    assert.equal(ctrl.currentCapsuleIndex, 1);
+    assert.equal(ctrl.isCatalogOpen, false);
+    assert.equal(ctrl.fsm.getCurrentCapsule().id, secondCap.id);
+    assert.equal(ctrl.fsm.getCurrentState(), ClusterState.CAPSULE_ENCODING);
+
+    delete global.document;
   });
 });

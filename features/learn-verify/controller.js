@@ -93,6 +93,9 @@ export class LearnVerifyController {
   resolveRemediationStep() { this.clusterController.resolveRemediationStep(); }
   advanceToCheckpoint() { this.clusterController.advanceToCheckpoint(); }
   nextCapsule() { this.clusterController.nextCapsule(); }
+  toggleCatalog(open) { this.clusterController.toggleCatalog(open); }
+  jumpToCapsule(capsuleId) { this.clusterController.jumpToCapsule(capsuleId); }
+  get allCapsules() { return this.clusterController.allCapsules; }
 
   startHierarchicalSession(layerNum = 1) {
     this.currentTier = layerNum;

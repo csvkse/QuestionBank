@@ -9,6 +9,7 @@
 import { TopicClusterStateMachine, ClusterState } from './cluster-state-machine.js';
 import { TaxonomyCapsuleProgressionStrategy } from './cluster-strategies.js';
 import { LearnVerifyClusterView } from './cluster-view.js';
+import { renderCapsuleCatalogModal } from './cluster-catalog-view.js';
 import { calculateNextReview } from '../../shared/sm2-scheduler.js';
 import { isLanguageDeck, speechSynth, getDeckLangCode } from '../../platform/audio/speech-synth.js';
 
@@ -22,6 +23,8 @@ export class LearnVerifyClusterController {
     this.selectedOptionIndex = null;
     this.totalCapsulesCount = 0;
     this.currentCapsuleIndex = 0;
+    this.allCapsules = [];
+    this.isCatalogOpen = false;
   }
 
   startCapsuleSession(layerNum = 1) {
@@ -38,9 +41,11 @@ export class LearnVerifyClusterController {
       return;
     }
 
+    this.allCapsules = capsules;
     this.totalCapsulesCount = capsules.length;
     this.currentCapsuleIndex = 0;
     this.selectedOptionIndex = null;
+    this.isCatalogOpen = false;
 
     this.fsm = new TopicClusterStateMachine({
       capsules,
@@ -95,12 +100,41 @@ export class LearnVerifyClusterController {
       bodyHtml = this.view.renderCapsuleCheckpoint(capsule, {}, hasNext);
     }
 
+    const modalHtml = this.isCatalogOpen
+      ? renderCapsuleCatalogModal(this.allCapsules, capsule?.id, this.app.getDeckState(deck.id))
+      : '';
+
     container.innerHTML = `
       <div class="space-y-4 max-w-2xl mx-auto">
         ${headerHtml}
         <div id="learn-verify-card-slot">${bodyHtml}</div>
       </div>
+      ${modalHtml}
     `;
+  }
+
+  toggleCatalog(open) {
+    this.isCatalogOpen = (open !== undefined) ? !!open : !this.isCatalogOpen;
+    if (this.fsm) {
+      this.render(this.fsm.currentState);
+    }
+  }
+
+  jumpToCapsule(capsuleId) {
+    const idx = this.allCapsules.findIndex(c => c.id === capsuleId);
+    if (idx === -1) return;
+
+    this.currentCapsuleIndex = idx;
+    this.selectedOptionIndex = null;
+    this.isCatalogOpen = false;
+
+    const remaining = this.allCapsules.slice(idx);
+    this.fsm = new TopicClusterStateMachine({
+      capsules: remaining,
+      onTransition: (state) => this.render(state),
+      onCapsuleComplete: (capsule, stats) => this.batchUpdateMastery(capsule, stats)
+    });
+    this.fsm.start();
   }
 
   startInterleavedQuiz() {

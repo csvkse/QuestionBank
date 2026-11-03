@@ -22,12 +22,16 @@ export class LearnVerifyClusterView {
           <div class="flex items-center gap-2">
             <button onclick="app.learnVerifyController.exitSession()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1 font-medium">
               ${renderIcon('arrowLeft', 'w-3 h-3')}
-              <span>退出考点</span>
+              <span>退出</span>
+            </button>
+            <button onclick="app.learnVerifyController.toggleCatalog()" class="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 hover:text-white border border-indigo-500/30 transition flex items-center gap-1 font-medium font-mono">
+              ${renderIcon('layers', 'w-3 h-3')}
+              <span>考点目录</span>
             </button>
             <div class="h-3.5 w-px bg-slate-800"></div>
             <span class="text-indigo-400 font-mono font-bold">微考点 ${currentCapsuleIndex + 1}/${totalCapsules}</span>
             <span class="text-slate-500">/</span>
-            <span class="text-slate-300 font-medium truncate max-w-[160px] sm:max-w-[260px]">${capsule ? `${capsule.groupName} · ${capsule.categoryName}` : ''}</span>
+            <span class="text-slate-300 font-medium truncate max-w-[140px] sm:max-w-[240px]">${capsule ? `${capsule.groupName} · ${capsule.categoryName}` : ''}</span>
           </div>
           <div class="flex items-center gap-3 font-mono">
             <span class="text-slate-400">正确率: <span class="text-emerald-400 font-bold">${accuracy}%</span></span>
@@ -67,11 +71,9 @@ export class LearnVerifyClusterView {
                   <span class="w-5 h-5 rounded-full bg-indigo-600/30 text-indigo-300 flex items-center justify-center text-xs font-mono font-bold">${idx + 1}</span>
                   <h3 class="text-lg font-bold text-white">${item.title}</h3>
                 </div>
-                ${isLanguageDeck ? `
-                  <button onclick="app.learnVerifyController.speakWord('${item.title.replace(/'/g, "\\'")}')" class="p-1 rounded bg-slate-800 text-slate-400 hover:text-white transition">
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                  </button>
-                ` : ''}
+                <button onclick="app.learnVerifyController.speakWord('${item.title.replace(/'/g, "\\'")}')" class="p-1 rounded bg-slate-800 text-slate-400 hover:text-white transition" title="朗读纯净发音">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                </button>
               </div>
               <div class="text-sm font-bold text-emerald-400 font-mono">${item.answer}</div>
               <div class="text-xs text-slate-300 leading-relaxed">${item.explanation || item.prompt}</div>

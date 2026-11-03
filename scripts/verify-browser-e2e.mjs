@@ -67,7 +67,8 @@ class CDPPage {
       awaitPromise: true
     });
     if (res.exceptionDetails) {
-      throw new Error(res.exceptionDetails.text || 'Runtime.evaluate exception');
+      const desc = res.exceptionDetails.exception?.description || res.exceptionDetails.text || 'Runtime.evaluate exception';
+      throw new Error(desc);
     }
     return res.result?.value;
   }
@@ -158,6 +159,33 @@ async function run() {
     const conceptCount = await page.eval('document.querySelectorAll("#view-learn .surface-inset").length');
     console.log(`   ✓ Micro-Topic Capsule Rendered: Title="${capsuleTitle}", ConceptsCount=${conceptCount}`);
     await page.screenshot('docs/screenshots/02_capsule_matrix.png');
+
+    console.log('📸 Test 2.1: Verifying Capsule Navigator (Manual Progress Selector Modal)...');
+    await page.eval('window.app.learnVerifyController.toggleCatalog(true)');
+    await page.waitSelector('#capsule-catalog-modal');
+    const catalogItemCount = await page.eval('document.querySelectorAll("#capsule-catalog-modal button[onclick*=\\"jumpToCapsule\\"], #capsule-catalog-modal span:has(svg)").length');
+    console.log(`   ✓ Capsule Navigator Modal Displayed with ${catalogItemCount} capsules`);
+    await page.screenshot('docs/screenshots/02b_capsule_catalog.png');
+
+    // 测试手动点播选课：跳入第 2 个胶囊
+    const targetCapsuleId = await page.eval('window.app.learnVerifyController.allCapsules[1]?.id');
+    if (targetCapsuleId) {
+      await page.eval(`window.app.learnVerifyController.jumpToCapsule("${targetCapsuleId}")`);
+      await new Promise(r => setTimeout(r, 300));
+      const jumpedTitle = await page.eval('document.querySelector("#view-learn h2")?.innerText');
+      console.log(`   ✓ Jumped to Capsule via Navigator: Title="${jumpedTitle}"`);
+    }
+
+    console.log('📸 Test 2.2: Verifying Multi-Modal Pronunciation & Agent Runtime Telemetry...');
+    const teleRes = await page.eval(`
+      (async () => {
+        const executor = window.app.agentUI?.executor || window.app.mcpBridge?.adapter?.executor;
+        if (!executor) throw new Error('Agent/MCP executor not found on window.app');
+        const res = await executor.execute('tool_get_runtime_context');
+        return res;
+      })()
+    `);
+    console.log(`   ✓ Agent Runtime Context Introspected: ActiveMode="${teleRes?.runtime?.activeMode}", Accuracy="${teleRes?.runtime?.telemetry?.accuracyRate}"`);
 
     console.log('📸 Test 3: Advancing to Interleaved Quiz Sprint (Phase 2: Verifying)...');
     await page.eval('window.app.learnVerifyController.startInterleavedQuiz()');

@@ -763,7 +763,9 @@ try {
     'tests/unit/deck-tool-persistence.test.mjs',
     'tests/unit/security-guard.test.mjs',
     'tests/unit/learn-verify.test.mjs',
-    'tests/unit/learn-verify-cluster.test.mjs'
+    'tests/unit/learn-verify-cluster.test.mjs',
+    'tests/unit/agent-runtime-context.test.mjs',
+    'tests/unit/edugraph-core.test.mjs'
   ];
   let allTestsPassed = true;
   for (const t of tests) {

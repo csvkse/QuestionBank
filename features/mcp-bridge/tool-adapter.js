@@ -1,4 +1,4 @@
-import { DECK_TOOL_DEFINITIONS, toToolErrorPayload } from '../ai-agent/index.js';
+import { ALL_TOOL_DEFINITIONS, DECK_TOOL_DEFINITIONS, toToolErrorPayload } from '../ai-agent/index.js';
 
 // Implements the schema keywords used by the shared Agent catalog, without coercion.
 export function validateToolValue(value, schema, path = 'arguments', depth = 0) {
@@ -22,7 +22,8 @@ export function validateToolValue(value, schema, path = 'arguments', depth = 0) 
 export class McpToolAdapter {
   constructor(executor) {
     this.executor = executor;
-    this.catalog = new Map(DECK_TOOL_DEFINITIONS.map(({ function: f }) => [f.name, f]));
+    const toolList = ALL_TOOL_DEFINITIONS || DECK_TOOL_DEFINITIONS;
+    this.catalog = new Map(toolList.map(({ function: f }) => [f.name, f]));
     this.ledger = new Map();
   }
   listTools() {

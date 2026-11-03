@@ -5,9 +5,27 @@
 
 import assert from 'assert';
 import { BUILTIN_DECKS } from '../../shared/builtin-decks.js';
-import { isLanguageDeck, getDeckLangCode, SpeechSynthService } from '../../platform/audio/speech-synth.js';
+import { isLanguageDeck, getDeckLangCode, SpeechSynthService, sanitizePronunciation, detectLocale } from '../../platform/audio/speech-synth.js';
 
 console.log('🧪 Testing speech-synth.js and language classifier...');
+
+// 0. 测试 sanitizePronunciation 发音清洗引擎
+assert.strictEqual(sanitizePronunciation('【ね 的读音】'), 'ね', '粗括号与说明标签必须彻底清洗，只保留核心读音');
+assert.strictEqual(sanitizePronunciation('ね【读音：ne】'), 'ね', '主体外置粗括号说明必须清洗');
+assert.strictEqual(sanitizePronunciation('write (wrote)'), 'write', '圆括号说明必须过滤');
+assert.strictEqual(sanitizePronunciation('apple [ˈæpl]'), 'apple', '音标中括号说明必须过滤');
+assert.strictEqual(sanitizePronunciation('cat /kæt/'), 'cat', '音标斜杠说明必须过滤');
+assert.strictEqual(sanitizePronunciation('**become** (became)'), 'become', 'Markdown 加粗语法必须去除');
+assert.strictEqual(sanitizePronunciation('[bonjour]'), 'bonjour', '整体方括号必须去除外层保留核心');
+assert.strictEqual(sanitizePronunciation(''), '', '空文本必须安全返回空字符串');
+
+// 0.1 测试 detectLocale 字符集自适应语种探测
+assert.strictEqual(detectLocale('ね'), 'ja-JP', '平假名必须判定为 ja-JP');
+assert.strictEqual(detectLocale('カタカナ'), 'ja-JP', '片假名必须判定为 ja-JP');
+assert.strictEqual(detectLocale('안녕하세요'), 'ko-KR', '韩文谚文必须判定为 ko-KR');
+assert.strictEqual(detectLocale('计算机网络'), 'zh-CN', '纯中文必须判定为 zh-CN');
+assert.strictEqual(detectLocale('TCP', 'zh-CN'), 'zh-CN', '显式非默认语言保留');
+assert.strictEqual(detectLocale('become'), 'en-US', '纯英文必须判定为 en-US');
 
 // 1. 测试内置题库的语言类型判定
 const verbDeck = BUILTIN_DECKS.find(d => d.id === 'deck_verbs');
@@ -121,6 +139,18 @@ assert.strictEqual(ignored, false, '关闭自动发音时自动朗读必须返�
 // 手动点播 (isAuto = false) 依然可以朗读
 const manualSpoken = browserService.speakEntity(entity, verbDeck, false);
 assert.strictEqual(manualSpoken, true, '关闭自动发音时手动点播依然可以朗读');
+
+// 测试非语言题库手动点播可以发音
+const manualNonLangSpoken = browserService.speakEntity(nonLangEntity, httpDeck, false);
+assert.strictEqual(manualNonLangSpoken, true, '非语言题库手动点击扬声器必须允许朗读');
+
+// 测试日语题库中带粗括号文本的发音：【ね 的读音】自动清洗为 ね 且使用 ja-JP
+const jaEntity = { id: 'ja1', title: '【ね 的读音】' };
+const jaSpoken = browserService.speakEntity(jaEntity, customJapanese, false);
+assert.strictEqual(jaSpoken, true, '日语词条手动点播成功');
+assert.strictEqual(lastSpokenUtterance.text, 'ね', '发音文本必须纯净化为 ね');
+assert.strictEqual(lastSpokenUtterance.lang, 'ja-JP', '语言必须被自适应探测为 ja-JP');
+assert.strictEqual(lastSpokenUtterance.voice.lang, 'ja-JP', '语音库必须匹配 ja-JP');
 
 // 清理 mock
 delete global.window;

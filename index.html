@@ -3401,6 +3401,311 @@ function validateDeckHealth(draft) {
   };
 }
 
+  // --- Module: shared/edugraph/edugraph-model.js ---
+/**
+ * EduGraph-Native 3.0: First-Principles Educational Property Graph Engine
+ * Core 2.1: shared/edugraph/edugraph-model.js
+ * 
+ * In-memory heterogenous directed property graph with:
+ * - O(1) bi-directional adjacency hash maps
+ * - Kahn's Algorithm DAG cycle prevention guard (PREREQUISITE_OF)
+ * - Cascading mutation policy preventing dangling edges
+ * - Visitor Pattern support for dynamic assessment probes
+ * 
+ * Strict compliance with FE-QUALITY-001: <= 300 lines.
+ */
+class ConceptNode {
+  constructor({ id, name, definition, phonetics = {}, layer = 1, taxonomyId = null, properties = {} }) {
+    if (!id || !name) throw new Error('ConceptNode requires id and name');
+    this.id = String(id);
+    this.name = String(name);
+    this.definition = String(definition || '');
+    this.phonetics = {
+      text: phonetics.text || name,
+      ipa: phonetics.ipa || '',
+      lang: phonetics.lang || 'en-US',
+      tts_clean: phonetics.tts_clean || name
+    };
+    this.layer = Number(layer) || 1;
+    this.taxonomyId = taxonomyId ? String(taxonomyId) : null;
+    this.properties = { ...properties };
+  }
+}
+class CapsuleNode {
+  constructor({ id, title, taxonomyId, layer = 1, conceptIds = [], properties = {} }) {
+    if (!id || !title) throw new Error('CapsuleNode requires id and title');
+    this.id = String(id);
+    this.title = String(title);
+    this.taxonomyId = taxonomyId ? String(taxonomyId) : null;
+    this.layer = Number(layer) || 1;
+    this.conceptIds = Array.isArray(conceptIds) ? conceptIds.map(String) : [];
+    this.properties = { ...properties };
+  }
+}
+class EduGraphEdge {
+  constructor({ id, source, target, type, properties = {} }) {
+    if (!source || !target || !type) throw new Error('EduGraphEdge requires source, target, and type');
+    this.id = id ? String(id) : `${source}_${type}_${target}`;
+    this.source = String(source);
+    this.target = String(target);
+    this.type = String(type); // 'CONTRASTS_WITH' | 'PREREQUISITE_OF'
+    this.properties = { ...properties };
+  }
+}
+class EduGraph {
+  constructor({ id = 'default_graph', title = 'EduGraph', defaultLocale = 'zh-CN' } = {}) {
+    this.id = id;
+    this.title = title;
+    this.defaultLocale = defaultLocale;
+    this.nodes = new Map();
+    this.capsules = new Map();
+    this.outgoing = new Map(); // nodeId -> Array<EduGraphEdge>
+    this.incoming = new Map(); // nodeId -> Array<EduGraphEdge>
+  }
+
+  addNode(nodeData) {
+    const node = nodeData instanceof ConceptNode ? nodeData : new ConceptNode(nodeData);
+    this.nodes.set(node.id, node);
+    if (!this.outgoing.has(node.id)) this.outgoing.set(node.id, []);
+    if (!this.incoming.has(node.id)) this.incoming.set(node.id, []);
+    return node;
+  }
+
+  getNode(nodeId) {
+    return this.nodes.get(String(nodeId)) || null;
+  }
+
+  addCapsule(capsuleData) {
+    const capsule = capsuleData instanceof CapsuleNode ? capsuleData : new CapsuleNode(capsuleData);
+    this.capsules.set(capsule.id, capsule);
+    return capsule;
+  }
+
+  getCapsule(capsuleId) {
+    return this.capsules.get(String(capsuleId)) || null;
+  }
+
+  addEdge(edgeData) {
+    const edge = edgeData instanceof EduGraphEdge ? edgeData : new EduGraphEdge(edgeData);
+    if (!this.nodes.has(edge.source) || !this.nodes.has(edge.target)) {
+      throw new Error(`悬垂边拒绝: 节点 "${edge.source}" 或 "${edge.target}" 不存在于图谱中`);
+    }
+
+    // 拓扑无环强校验门禁：对 PREREQUISITE_OF 关系执行环路侦测
+    if (edge.type === 'PREREQUISITE_OF') {
+      if (edge.source === edge.target) {
+        throw new Error(`拓扑死锁: 节点 "${edge.source}" 不能以前置依赖指向自身`);
+      }
+      if (this._wouldCreateCycle(edge.source, edge.target)) {
+        throw new Error(`拓扑死锁: 添加前置依赖 ${edge.source} -> ${edge.target} 会在知识图谱中形成环路闭环`);
+      }
+    }
+
+    // O(1) 索引注入
+    const outList = this.outgoing.get(edge.source) || [];
+    outList.push(edge);
+    this.outgoing.set(edge.source, outList);
+
+    const inList = this.incoming.get(edge.target) || [];
+    inList.push(edge);
+    this.incoming.set(edge.target, inList);
+
+    return edge;
+  }
+
+  _wouldCreateCycle(source, target) {
+    // 检查从 target 顺着 PREREQUISITE_OF 是否能够反向到达 source
+    const visited = new Set();
+    const queue = [target];
+
+    while (queue.length > 0) {
+      const curr = queue.shift();
+      if (curr === source) return true;
+      if (!visited.has(curr)) {
+        visited.add(curr);
+        const nextEdges = this.outgoing.get(curr) || [];
+        for (const e of nextEdges) {
+          if (e.type === 'PREREQUISITE_OF') {
+            queue.push(e.target);
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  removeNode(nodeId) {
+    const id = String(nodeId);
+    if (!this.nodes.has(id)) return false;
+
+    // 级联变更管理：熔断所有出入度边
+    const outEdges = this.outgoing.get(id) || [];
+    for (const e of outEdges) {
+      const inList = this.incoming.get(e.target) || [];
+      this.incoming.set(e.target, inList.filter(x => x.id !== e.id));
+    }
+    this.outgoing.delete(id);
+
+    const inEdges = this.incoming.get(id) || [];
+    for (const e of inEdges) {
+      const outList = this.outgoing.get(e.source) || [];
+      this.outgoing.set(e.source, outList.filter(x => x.id !== e.id));
+    }
+    this.incoming.delete(id);
+
+    // 级联清理胶囊内的节点引用
+    for (const capsule of this.capsules.values()) {
+      capsule.conceptIds = capsule.conceptIds.filter(cid => cid !== id);
+    }
+
+    this.nodes.delete(id);
+    return true;
+  }
+
+  getContrastSiblings(nodeId) {
+    const id = String(nodeId);
+    const edges = this.outgoing.get(id) || [];
+    const contrastIds = edges.filter(e => e.type === 'CONTRASTS_WITH').map(e => e.target);
+    return contrastIds.map(cid => this.nodes.get(cid)).filter(Boolean);
+  }
+
+  getPrerequisites(nodeId) {
+    const id = String(nodeId);
+    const edges = this.incoming.get(id) || [];
+    const prereqIds = edges.filter(e => e.type === 'PREREQUISITE_OF').map(e => e.source);
+    return prereqIds.map(pid => this.nodes.get(pid)).filter(Boolean);
+  }
+
+  accept(visitor) {
+    if (!visitor || typeof visitor.visitGraph !== 'function') {
+      throw new Error('Visitor must implement visitGraph method');
+    }
+    return visitor.visitGraph(this);
+  }
+}
+
+  // --- Module: shared/edugraph/edugraph-visitors.js ---
+/**
+ * EduGraph-Native 3.0: Assessment Probe Visitor Engine
+ * Core 2.1: shared/edugraph/edugraph-visitors.js
+ * 
+ * Compiles dynamic cognitive probes (quizzes) directly from graph topology:
+ * - InterleavedSprintVisitor: CapsuleNode -> Interleaved Verification Probe Batch
+ * - DiscriminationProbeVisitor: CONTRASTS_WITH Edge -> High-Discrimination Probe
+ * 
+ * Strict compliance with FE-QUALITY-001: <= 300 lines.
+ */
+class AssessmentProbeVisitor {
+  visitGraph(graph) {
+    throw new Error('visitGraph must be implemented by subclass');
+  }
+}
+class InterleavedSprintVisitor extends AssessmentProbeVisitor {
+  constructor(capsuleId) {
+    super();
+    this.capsuleId = String(capsuleId);
+  }
+
+  visitGraph(graph) {
+    const capsule = graph.getCapsule(this.capsuleId);
+    if (!capsule) {
+      throw new Error(`微考点胶囊 "${this.capsuleId}" 不存在于知识图谱中`);
+    }
+
+    const concepts = capsule.conceptIds.map(id => graph.getNode(id)).filter(Boolean);
+    if (concepts.length < 2) {
+      throw new Error(`微考点胶囊 "${this.capsuleId}" 内有效概念不足 2 个，无法编译交错微测`);
+    }
+
+    const probes = [];
+
+    for (let i = 0; i < concepts.length; i++) {
+      const target = concepts[i];
+      // 干扰项优先取同一胶囊内的其他同胞概念
+      let siblingCandidates = concepts.filter(c => c.id !== target.id);
+
+      // 若同胞少于 3 个，通过 CONTRASTS_WITH 出度边进一步丰富干扰项
+      if (siblingCandidates.length < 3) {
+        const contrastSiblings = graph.getContrastSiblings(target.id);
+        for (const cs of contrastSiblings) {
+          if (!siblingCandidates.some(s => s.id === cs.id) && cs.id !== target.id) {
+            siblingCandidates.push(cs);
+          }
+        }
+      }
+
+      const distractorNames = siblingCandidates.map(c => c.name);
+      // 选取最多 3 个干扰项
+      const chosenDistractors = distractorNames.slice(0, 3);
+      const options = [target.name, ...chosenDistractors];
+
+      // Fisher-Yates 伪随机洗牌 (保留正确答案索引)
+      for (let j = options.length - 1; j > 0; j--) {
+        const rand = Math.floor(Math.random() * (j + 1));
+        [options[j], options[rand]] = [options[rand], options[j]];
+      }
+
+      const correctIndex = options.indexOf(target.name);
+
+      probes.push({
+        id: `probe_${capsule.id}_${target.id}`,
+        targetId: target.id,
+        targetName: target.name,
+        prompt: `【微考点微测】以下哪一项是关于“${target.definition}”的核心概念？`,
+        definition: target.definition,
+        options,
+        correctAnswer: target.name,
+        correctIndex,
+        layer: target.layer,
+        dimension: target.properties?.dimension || '概念定义辨析'
+      });
+    }
+
+    return probes;
+  }
+}
+class DiscriminationProbeVisitor extends AssessmentProbeVisitor {
+  constructor(sourceId, targetId) {
+    super();
+    this.sourceId = String(sourceId);
+    this.targetId = String(targetId);
+  }
+
+  visitGraph(graph) {
+    const source = graph.getNode(this.sourceId);
+    const target = graph.getNode(this.targetId);
+    if (!source || !target) {
+      throw new Error(`对偶概念节点不存在: ${this.sourceId} 或 ${this.targetId}`);
+    }
+
+    const outEdges = graph.outgoing.get(this.sourceId) || [];
+    const contrastEdge = outEdges.find(e => e.type === 'CONTRASTS_WITH' && e.target === this.targetId);
+
+    const dimension = contrastEdge?.properties?.dimension || '核心区别与应用边界';
+
+    return {
+      id: `probe_contrast_${this.sourceId}_${this.targetId}`,
+      sourceId: this.sourceId,
+      targetId: this.targetId,
+      type: 'DISCRIMINATION_PROBE',
+      dimension,
+      prompt: `【对偶深度辨析】在维度 [${dimension}] 上，关于“${source.name}”与“${target.name}”的本质区别，以下表述正确的是？`,
+      sourceDefinition: source.definition,
+      targetDefinition: target.definition,
+      sourceName: source.name,
+      targetName: target.name,
+      phoneticsSource: source.phonetics,
+      phoneticsTarget: target.phonetics
+    };
+  }
+}
+
+  // --- Module: shared/edugraph/index.js ---
+/**
+ * EduGraph-Native 3.0 Module Public Entry
+ * Core 2.1: shared/edugraph/index.js
+ */
+
   // --- Module: platform/audio/web-audio-synth.js ---
 /**
  * Web Audio API 8-Bit Synthesizer Sound Engine
@@ -3490,9 +3795,86 @@ const soundSynth = new WebAudioSynth();
 
   // --- Module: platform/audio/speech-synth.js ---
 /**
- * Web Speech API Speech Synthesis Engine & Language Classifier
+ * Web Speech API Speech Synthesis Engine & Multi-Modal Phonetic Sanitizer
  * Core: platform/audio/speech-synth.js
+ * Strict compliance with FE-QUALITY-001: <= 300 lines.
  */
+
+/**
+ * 清洗发音文本：去除 Markdown 标记、括号注解、元说明词及标点干扰
+ * 彻底解决形如 "【ね 的读音】"、"apple [ˈæpl]"、"write (wrote)" 导致的读音污染
+ * @param {string} text - 原始词条文本
+ * @returns {string} 纯净可发音文本
+ */
+function sanitizePronunciation(text) {
+  if (!text || typeof text !== 'string') return '';
+
+  let cleaned = text.trim();
+
+  // 1. 去除 Markdown 格式 (如 **word**, `code`, *emphasis*, # heading)
+  cleaned = cleaned.replace(/[*_`#]/g, '');
+
+  // 2. 如果文本包含外部主体内容与附加括号说明 (如 "write (wrote)", "apple [ˈæpl]", "ね【读音：ne】")
+  // 提取括号外的核心文本
+  const bracketRegex = /[\(（\[【「『<][^\)）\]】」』>]*[\)）\]】」』>]/g;
+  const ipaRegex = /\/[^\/]{2,}\//g;
+
+  const withoutBrackets = cleaned.replace(bracketRegex, ' ').replace(ipaRegex, ' ').trim();
+
+  if (withoutBrackets.length > 0) {
+    cleaned = withoutBrackets;
+  } else {
+    // 3. 若全部内容都被包裹在括号内 (例如 "【ね 的读音】", "[apple]", "(bonjour)")
+    // 则去除最外层括号符号，保留内部实质内容
+    cleaned = cleaned.replace(/^[【\[（\(「『<]+|[】\]）\)」』>]+$/g, '').trim();
+  }
+
+  // 4. 去除多余的辅助元信息标签词 (如 "的读音", "读音：", "发音：", "注音：", "音标：")
+  cleaned = cleaned.replace(/(?:的)?(?:读音|发音|音标|注音|释义|假名)[:：]?/g, '').trim();
+
+  // 5. 规范化空白字符与多余标点
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+  return cleaned;
+}
+
+/**
+ * 依据字符集特征自适应探测文本适用的 BCP 47 语言代码
+ * @param {string} text - 待测文本
+ * @param {string} defaultLang - 兜底语言代码 (默认 'en-US')
+ * @returns {string} BCP 47 代码 (如 'ja-JP', 'zh-CN', 'ko-KR', 'en-US')
+ */
+function detectLocale(text, defaultLang = 'en-US') {
+  if (!text) return defaultLang || 'en-US';
+
+  // 1. 日文假名 (平假名 / 片假名)
+  if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) {
+    return 'ja-JP';
+  }
+
+  // 2. 韩文谚文
+  if (/[\uAC00-\uD7AF]/.test(text)) {
+    return 'ko-KR';
+  }
+
+  // 3. 西里尔字母 (俄语)
+  if (/[\u0400-\u04FF]/.test(text)) {
+    return 'ru-RU';
+  }
+
+  // 4. 纯汉字 (中文)
+  if (/[\u4E00-\u9FA5]/.test(text)) {
+    return 'zh-CN';
+  }
+
+  // 5. 若 defaultLang 已有明确非英文设定 (例如 'fr-FR', 'de-DE', 'es-ES')
+  if (defaultLang && defaultLang !== 'en-US') {
+    return defaultLang;
+  }
+
+  // 6. 默认英文/拉丁语系
+  return 'en-US';
+}
 
 /**
  * 判断指定题库是否属于语言学习类型 (显式标记 + 启发式多维推导)
@@ -3509,7 +3891,7 @@ function isLanguageDeck(deck) {
   const text = `${title} ${desc} ${id}`;
 
   // 1. 关键词语义匹配 (包含各种语言与动词考点)
-  const langKeywords = /(英语|英文|动词|词汇|单词|语法|时态|english|verb|vocabulary|grammar|日语|法语|德语|西语|俄语|韩语|语言|japanese|french|german|spanish|korean)/i;
+  const langKeywords = /(英语|英文|动词|词汇|单词|语法|时态|english|verb|vocabulary|grammar|日语|法语|德语|西语|俄语|韩语|语言|japanese|french|german|spanish|korean|五十音)/i;
   if (langKeywords.test(text)) return true;
 
   // 2. 词条内容启发式抽样检查 (检查前 5 条概念)
@@ -3519,10 +3901,11 @@ function isLanguageDeck(deck) {
     const hasPhoneticOrWestern = sample.some(e => {
       const sub = e.subtitle || '';
       const t = (e.title || '').trim();
-      // 是否包含国际音标格式 (/.../) 或 纯英文/拉丁词干
+      // 是否包含国际音标格式 (/.../) 或 纯英文/拉丁词干 或 日文假名 / 韩文
       const hasIpa = /\/[^\/]{2,}\//.test(sub);
       const isLatinWord = /^[a-zA-Z\s'-]+$/.test(t);
-      return hasIpa || isLatinWord;
+      const isEastAsianKana = /[\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF]/.test(t);
+      return hasIpa || isLatinWord || isEastAsianKana;
     });
     if (hasPhoneticOrWestern) return true;
   }
@@ -3540,7 +3923,7 @@ function getDeckLangCode(deck) {
   if (deck.lang) return deck.lang;
 
   const text = `${deck.title || ''} ${deck.description || ''} ${deck.id || ''}`.toLowerCase();
-  if (/日语|日本语|日文|japanese/i.test(text)) return 'ja-JP';
+  if (/日语|日本语|日文|japanese|五十音/i.test(text)) return 'ja-JP';
   if (/法语|法文|french/i.test(text)) return 'fr-FR';
   if (/德语|德文|german/i.test(text)) return 'de-DE';
   if (/西语|西班牙语|西班牙|spanish/i.test(text)) return 'es-ES';
@@ -3612,22 +3995,27 @@ class SpeechSynthService {
     }
   }
 
-  speak(text, lang = 'en-US', options = {}) {
+  speak(text, lang = null, options = {}) {
     if (!this.isSupported() || !text) return false;
 
-    // 清洗文本：去除括号说明与标点干扰 (如 "write (wrote)" -> "write")
-    const cleanText = text.replace(/[\(（].*?[\)）]/g, '').trim();
+    // 清洗文本：去除括号说明与标点干扰
+    const cleanText = sanitizePronunciation(text);
     if (!cleanText) return false;
+
+    // 智能探测语言 (若未显式指定，或显式传入为 en-US 但文本具有明确非英文特征)
+    const effectiveLang = (!lang || (lang === 'en-US' && /[\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF\u4E00-\u9FA5]/.test(cleanText)))
+      ? detectLocale(cleanText, lang || 'en-US')
+      : lang;
 
     try {
       this.cancel();
 
       const utterance = new window.SpeechSynthesisUtterance(cleanText);
-      utterance.lang = lang;
+      utterance.lang = effectiveLang;
       utterance.rate = options.rate || this.rate;
       utterance.pitch = options.pitch || this.pitch;
 
-      const voice = this.getBestVoice(lang);
+      const voice = this.getBestVoice(effectiveLang);
       if (voice) utterance.voice = voice;
 
       window.speechSynthesis.speak(utterance);
@@ -3640,10 +4028,14 @@ class SpeechSynthService {
   speakEntity(entity, deck, isAuto = false) {
     if (!entity || !deck) return false;
     if (isAuto && !this.isAutoSpeechEnabled()) return false;
-    if (!isLanguageDeck(deck)) return false;
+    // 自动播放时仅在语言题库生效；手动播放（isAuto=false）在所有题库均可触发
+    if (isAuto && !isLanguageDeck(deck)) return false;
 
-    const lang = getDeckLangCode(deck);
-    return this.speak(entity.title, lang);
+    const deckLang = getDeckLangCode(deck);
+    const targetText = (entity.phonetics && entity.phonetics.tts_clean) || entity.title;
+    const targetLang = entity.lang || detectLocale(targetText, deckLang);
+
+    return this.speak(targetText, targetLang);
   }
 }
 const speechSynth = new SpeechSynthService();
@@ -9172,6 +9564,117 @@ class TopicClusterStateMachine {
   }
 }
 
+  // --- Module: features/learn-verify/cluster-catalog-view.js ---
+/**
+ * Learn & Verify Topic Cluster Catalog & Navigation Drawer
+ * Core 2.1: features/learn-verify/cluster-catalog-view.js
+ * 
+ * Strict compliance with FE-ICON-002: Zero emojis in UI chrome (all monochrome SVG).
+ * Strict compliance with FE-QUALITY-001: <= 300 lines.
+ */
+function getCapsuleMasteryStatus(capsule, deckState = {}) {
+  const cards = (deckState && deckState.cards) || {};
+  const entities = capsule.entities || [];
+  if (entities.length === 0) return { label: '未学习', color: 'slate', isMastered: false };
+
+  let totalAttempts = 0;
+  let masteredCount = 0;
+
+  for (const ent of entities) {
+    const card = cards[ent.id];
+    if (card) {
+      totalAttempts += (card.totalAttempts || 0);
+      if ((card.interval || 0) >= 2) {
+        masteredCount++;
+      }
+    }
+  }
+
+  if (masteredCount === entities.length) {
+    return { label: '已掌握', color: 'emerald', isMastered: true };
+  }
+  if (totalAttempts > 0) {
+    return { label: '待巩固', color: 'amber', isMastered: false };
+  }
+  return { label: '未学习', color: 'slate', isMastered: false };
+}
+function renderCapsuleCatalogModal(capsules = [], currentCapsuleId = null, deckState = {}) {
+  return `
+    <div id="capsule-catalog-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" onclick="if (event.target === this) app.learnVerifyController.toggleCatalog(false)">
+      <div class="surface-card rounded-2xl border border-slate-750 p-5 sm:p-6 shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col space-y-4">
+        
+        <!-- 弹窗标题栏 -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="text-indigo-400 font-bold">${renderIcon('layers', 'w-4 h-4')}</span>
+            <h3 class="text-base font-bold text-white">微考点目录选单 (Capsule Navigator)</h3>
+          </div>
+          <button onclick="app.learnVerifyController.toggleCatalog(false)" class="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition">
+            ${renderIcon('x', 'w-4 h-4')}
+          </button>
+        </div>
+
+        <p class="text-xs text-slate-400 leading-relaxed">
+          双轨制自主学习：点击任意微考点即可立即跳入该胶囊进行对比研读与微测，便于定向回顾与薄弱点加练。
+        </p>
+
+        <!-- 考点胶囊列表 (滚动区) -->
+        <div class="flex-1 overflow-y-auto space-y-2.5 pr-1">
+          ${capsules.map((cap, idx) => {
+            const status = getCapsuleMasteryStatus(cap, deckState);
+            const isCurrent = cap.id === currentCapsuleId;
+            const badgeBg = status.color === 'emerald' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+              : status.color === 'amber' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+              : 'bg-slate-800 text-slate-400 border-slate-700';
+
+            return `
+              <div class="p-3.5 rounded-xl border ${isCurrent ? 'border-indigo-500 bg-indigo-950/20 shadow-md' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'} flex items-center justify-between gap-3 transition">
+                <div class="space-y-1 min-w-0">
+                  <div class="flex items-center gap-2 text-xs">
+                    <span class="font-mono text-indigo-400 font-bold">#${idx + 1}</span>
+                    <span class="font-bold text-white truncate text-sm">${cap.title}</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono border ${badgeBg}">
+                      ${status.label}
+                    </span>
+                  </div>
+                  <div class="text-xs text-slate-400 flex items-center gap-2">
+                    <span>${cap.groupName} · ${cap.categoryName}</span>
+                    <span class="text-slate-600">|</span>
+                    <span class="font-mono text-slate-400">Layer ${cap.layer} · ${(cap.entities || []).length} 个概念</span>
+                  </div>
+                </div>
+
+                <div class="shrink-0">
+                  ${isCurrent ? `
+                    <span class="px-3 py-1.5 rounded-lg text-xs font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 flex items-center gap-1 font-mono">
+                      ${renderIcon('sparkles', 'w-3 h-3')}
+                      <span>正在研读</span>
+                    </span>
+                  ` : `
+                    <button onclick="app.learnVerifyController.jumpToCapsule('${cap.id}')" class="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 transition shadow flex items-center gap-1">
+                      <span>研读此考点</span>
+                      ${renderIcon('arrowRight', 'w-3 h-3')}
+                    </button>
+                  `}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <!-- 底部说明与操作栏 -->
+        <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-500">
+          <span>共 ${capsules.length} 个微考点胶囊</span>
+          <button onclick="app.learnVerifyController.toggleCatalog(false)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition">
+            关闭目录
+          </button>
+        </div>
+
+      </div>
+    </div>
+  `;
+}
+
   // --- Module: features/learn-verify/cluster-view.js ---
 /**
  * Learn & Verify Topic Cluster View Renderer (DOM Componentry)
@@ -9194,12 +9697,16 @@ class LearnVerifyClusterView {
           <div class="flex items-center gap-2">
             <button onclick="app.learnVerifyController.exitSession()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1 font-medium">
               ${renderIcon('arrowLeft', 'w-3 h-3')}
-              <span>退出考点</span>
+              <span>退出</span>
+            </button>
+            <button onclick="app.learnVerifyController.toggleCatalog()" class="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 hover:text-white border border-indigo-500/30 transition flex items-center gap-1 font-medium font-mono">
+              ${renderIcon('layers', 'w-3 h-3')}
+              <span>考点目录</span>
             </button>
             <div class="h-3.5 w-px bg-slate-800"></div>
             <span class="text-indigo-400 font-mono font-bold">微考点 ${currentCapsuleIndex + 1}/${totalCapsules}</span>
             <span class="text-slate-500">/</span>
-            <span class="text-slate-300 font-medium truncate max-w-[160px] sm:max-w-[260px]">${capsule ? `${capsule.groupName} · ${capsule.categoryName}` : ''}</span>
+            <span class="text-slate-300 font-medium truncate max-w-[140px] sm:max-w-[240px]">${capsule ? `${capsule.groupName} · ${capsule.categoryName}` : ''}</span>
           </div>
           <div class="flex items-center gap-3 font-mono">
             <span class="text-slate-400">正确率: <span class="text-emerald-400 font-bold">${accuracy}%</span></span>
@@ -9239,11 +9746,9 @@ class LearnVerifyClusterView {
                   <span class="w-5 h-5 rounded-full bg-indigo-600/30 text-indigo-300 flex items-center justify-center text-xs font-mono font-bold">${idx + 1}</span>
                   <h3 class="text-lg font-bold text-white">${item.title}</h3>
                 </div>
-                ${isLanguageDeck ? `
-                  <button onclick="app.learnVerifyController.speakWord('${item.title.replace(/'/g, "\\'")}')" class="p-1 rounded bg-slate-800 text-slate-400 hover:text-white transition">
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                  </button>
-                ` : ''}
+                <button onclick="app.learnVerifyController.speakWord('${item.title.replace(/'/g, "\\'")}')" class="p-1 rounded bg-slate-800 text-slate-400 hover:text-white transition" title="朗读纯净发音">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                </button>
               </div>
               <div class="text-sm font-bold text-emerald-400 font-mono">${item.answer}</div>
               <div class="text-xs text-slate-300 leading-relaxed">${item.explanation || item.prompt}</div>
@@ -9474,6 +9979,8 @@ class LearnVerifyClusterController {
     this.selectedOptionIndex = null;
     this.totalCapsulesCount = 0;
     this.currentCapsuleIndex = 0;
+    this.allCapsules = [];
+    this.isCatalogOpen = false;
   }
 
   startCapsuleSession(layerNum = 1) {
@@ -9490,9 +9997,11 @@ class LearnVerifyClusterController {
       return;
     }
 
+    this.allCapsules = capsules;
     this.totalCapsulesCount = capsules.length;
     this.currentCapsuleIndex = 0;
     this.selectedOptionIndex = null;
+    this.isCatalogOpen = false;
 
     this.fsm = new TopicClusterStateMachine({
       capsules,
@@ -9547,12 +10056,41 @@ class LearnVerifyClusterController {
       bodyHtml = this.view.renderCapsuleCheckpoint(capsule, {}, hasNext);
     }
 
+    const modalHtml = this.isCatalogOpen
+      ? renderCapsuleCatalogModal(this.allCapsules, capsule?.id, this.app.getDeckState(deck.id))
+      : '';
+
     container.innerHTML = `
       <div class="space-y-4 max-w-2xl mx-auto">
         ${headerHtml}
         <div id="learn-verify-card-slot">${bodyHtml}</div>
       </div>
+      ${modalHtml}
     `;
+  }
+
+  toggleCatalog(open) {
+    this.isCatalogOpen = (open !== undefined) ? !!open : !this.isCatalogOpen;
+    if (this.fsm) {
+      this.render(this.fsm.currentState);
+    }
+  }
+
+  jumpToCapsule(capsuleId) {
+    const idx = this.allCapsules.findIndex(c => c.id === capsuleId);
+    if (idx === -1) return;
+
+    this.currentCapsuleIndex = idx;
+    this.selectedOptionIndex = null;
+    this.isCatalogOpen = false;
+
+    const remaining = this.allCapsules.slice(idx);
+    this.fsm = new TopicClusterStateMachine({
+      capsules: remaining,
+      onTransition: (state) => this.render(state),
+      onCapsuleComplete: (capsule, stats) => this.batchUpdateMastery(capsule, stats)
+    });
+    this.fsm.start();
   }
 
   startInterleavedQuiz() {
@@ -9733,6 +10271,9 @@ class LearnVerifyController {
   resolveRemediationStep() { this.clusterController.resolveRemediationStep(); }
   advanceToCheckpoint() { this.clusterController.advanceToCheckpoint(); }
   nextCapsule() { this.clusterController.nextCapsule(); }
+  toggleCatalog(open) { this.clusterController.toggleCatalog(open); }
+  jumpToCapsule(capsuleId) { this.clusterController.jumpToCapsule(capsuleId); }
+  get allCapsules() { return this.clusterController.allCapsules; }
 
   startHierarchicalSession(layerNum = 1) {
     this.currentTier = layerNum;
@@ -10016,6 +10557,238 @@ function toToolErrorPayload(err, toolCall = null) {
   };
 }
 
+  // --- Module: features/ai-agent/runtime-tool-definitions.js ---
+/**
+ * AI Agent Runtime Telemetry & Game Mode Specifications Tool Schemas
+ * Core 2.1: features/ai-agent/runtime-tool-definitions.js
+ * Strict compliance with FE-QUALITY-001: <= 300 lines.
+ */
+const RUNTIME_TOOL_DEFINITIONS = [
+  {
+    type: 'function',
+    function: {
+      name: 'tool_get_runtime_context',
+      description: '获取当前前端运行时的全景态势（当前激活的视图、游戏模式/学练模式、当前题库信息、薄弱考点遥测及各分类健康度）。用于感知学习者当前处于哪种游戏模式（天梯、微考点冲关、沙盒等），以便更有针对性地构建或补充题库。',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: []
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'tool_get_mode_specifications',
+      description: '查询前端所有竞技试炼模式与知识库模式的数据契约与结构要求（例如微考点学练需要 3~5 个同胞实体且具备对偶差异；天梯模式需要 Layer 1/2/3 认知梯度；自由沙盒需要 group 分组）。',
+      parameters: {
+        type: 'object',
+        properties: {
+          mode: {
+            type: 'string',
+            enum: ['ALL', 'CLUSTER_LEARN_VERIFY', 'LADDER', 'BLITZ', 'SURVIVAL', 'STEPPED', 'WEAKNESS', 'FREE_LAB', 'KNOWLEDGE_GUIDE'],
+            description: '可选，查询指定模式的代码契约。默认返回全部'
+          }
+        },
+        required: []
+      }
+    }
+  }
+];
+
+  // --- Module: features/ai-agent/runtime-tool-executor.js ---
+/**
+ * AI Agent Runtime Telemetry & Game Mode Specifications Executor
+ * Core 2.1: features/ai-agent/runtime-tool-executor.js
+ * Strict compliance with FE-QUALITY-001: <= 300 lines.
+ */
+function isRuntimeTool(toolName) {
+  return toolName === 'tool_get_runtime_context' || toolName === 'tool_get_mode_specifications';
+}
+
+const MODE_CONTRACTS = {
+  CLUSTER_LEARN_VERIFY: {
+    name: '微考点胶囊化·学练一体模式',
+    category: '新知学练与深度研读',
+    structureRequirements: {
+      clusterSize: '每个分类推荐包含 3~5 个同胞考点实体，构成完整的微考点胶囊',
+      contrastNUANCE: '同胞考点之间应具备显式对偶差异（如 301 永久 vs 302 临时），便于矩阵对比研读',
+      layers: '支持 Layer 1（基础）、Layer 2（进阶）、Layer 3（高阶）按层学练',
+      anchorAndPitfall: '考点实体推荐包含 prompt（记忆锚点）与 pitfalls（易混淆陷阱），用于交错微测'
+    },
+    quizMechanism: '全同胞实体互斥伪随机交错微测（Interleaved Verification），就地靶向对偶纠偏'
+  },
+  LADDER: {
+    name: '天梯排位模式 (Ladder Progression)',
+    category: '竞技试炼',
+    structureRequirements: {
+      layers: '题库必须包含明确的 Layer 1/2/3 认知梯度分层',
+      distractorPool: '每个分类必须 >= 4 个实体，确保 4 选 1 同胞干扰项不降级'
+    },
+    quizMechanism: '从基础到高阶梯度晋级，胜率加星，错题扣星'
+  },
+  BLITZ: {
+    name: '极速狂飙模式 (Speed Sprint)',
+    category: '竞技试炼',
+    structureRequirements: {
+      conciseness: '题干 (title/prompt) 宜简练，答案 (answer) 明确，适合 10 秒倒计时'
+    },
+    quizMechanism: '限时 10 秒，快速提取，连击 Combo 积分倍增'
+  },
+  SURVIVAL: {
+    name: '生存死斗模式 (Hardcore Survival)',
+    category: '竞技试炼',
+    structureRequirements: {
+      discriminability: '干扰项需具备强混淆性，避免明显常识破绽'
+    },
+    quizMechanism: '一命通关或固定血量，错误立即扣除生命值'
+  },
+  STEPPED: {
+    name: '分层递进试炼 (Stepped Practice)',
+    category: '专项进阶',
+    structureRequirements: {
+      layers: '每个层级题量均匀分布，推荐 Layer 1 (50%) + Layer 2 (35%) + Layer 3 (15%)'
+    },
+    quizMechanism: '按认知层级线性解锁，稳扎稳打'
+  },
+  WEAKNESS: {
+    name: '弱点攻坚模式 (Targeted Weakness Focus)',
+    category: '错题复习',
+    structureRequirements: {
+      pitfalls: '考点建议填充 pitfalls 与 explanation，强化错题反思'
+    },
+    quizMechanism: '优先调度历史错题与 SM-2 稳定度最低的边缘实体'
+  },
+  FREE_LAB: {
+    name: '自由沙盒工作台 (Free Sandbox)',
+    category: '自由试炼',
+    structureRequirements: {
+      groupTaxonomy: '分类需包含清晰的 group 大组标签，支持大组级批量勾选'
+    },
+    quizMechanism: '支持自由多选分类、调节题量、切换自测/攻坚/极速'
+  },
+  KNOWLEDGE_GUIDE: {
+    name: '体系知识导读 (Systemic Knowledge Guide)',
+    category: '导学心智',
+    structureRequirements: {
+      guideMarkdown: '题库需包含 guide 导学文本，含高阶上位先行组织者（Advance Organizer）与体系图'
+    },
+    quizMechanism: '研读图式心智模型，并可一键跳转考点针对性试炼'
+  }
+};
+function executeRuntimeTool(app, toolName, args = {}) {
+  if (toolName === 'tool_get_mode_specifications') {
+    const requestedMode = (args.mode || 'ALL').toUpperCase();
+    if (requestedMode === 'ALL') {
+      return { status: 'success', modes: MODE_CONTRACTS };
+    }
+    const found = MODE_CONTRACTS[requestedMode];
+    if (!found) {
+      return {
+        status: 'error',
+        message: `未知模式 "${args.mode}"。可用模式: ${Object.keys(MODE_CONTRACTS).join(', ')}`
+      };
+    }
+    return { status: 'success', mode: requestedMode, specification: found };
+  }
+
+  if (toolName === 'tool_get_runtime_context') {
+    const currentView = app.currentView || (app.router && app.router.currentView) || 'dashboard';
+    const activeDeck = app.getActiveDeck ? app.getActiveDeck() : null;
+    const deckState = activeDeck && app.getDeckState ? app.getDeckState(activeDeck.id) : null;
+
+    // 推断当前游戏/研读模式
+    let activeMode = 'DEFAULT';
+    let capsuleDetails = null;
+
+    if (app.clusterController && app.clusterController.fsm) {
+      activeMode = 'CLUSTER_LEARN_VERIFY';
+      const cap = app.clusterController.fsm.getCurrentCapsule?.();
+      if (cap) {
+        capsuleDetails = {
+          capsuleId: cap.id,
+          title: cap.title,
+          categoryName: cap.categoryName,
+          groupName: cap.groupName,
+          layer: cap.layer,
+          conceptCount: (cap.entities || []).length,
+          currentQuestionIndex: app.clusterController.fsm.currentQuestionIndex || 0
+        };
+      }
+    } else if (app.currentView === 'quiz' || app.currentView === 'arena') {
+      activeMode = app.quizRunner?.mode || (app.arena && app.arena.mode) || 'LADDER';
+    } else if (app.currentView === 'sandbox') {
+      activeMode = 'FREE_LAB';
+    } else if (app.currentView === 'guide') {
+      activeMode = 'KNOWLEDGE_GUIDE';
+    }
+
+    // 统计弱点遥测与分类健康度
+    const thinCategories = [];
+    let unmasteredCount = 0;
+    let totalAttempts = 0;
+    let totalCorrect = 0;
+
+    if (activeDeck) {
+      const catCountMap = {};
+      (activeDeck.entities || []).forEach(e => {
+        catCountMap[e.categoryId] = (catCountMap[e.categoryId] || 0) + 1;
+      });
+
+      (activeDeck.categories || []).forEach(cat => {
+        const count = catCountMap[cat.id] || 0;
+        if (count < 4) {
+          thinCategories.push({ id: cat.id, name: cat.name, count, gap: 4 - count });
+        }
+      });
+
+      if (deckState) {
+        totalAttempts = deckState.totalAttempts || 0;
+        totalCorrect = deckState.totalCorrect || 0;
+        const cards = deckState.cards || {};
+        (activeDeck.entities || []).forEach(e => {
+          const card = cards[e.id];
+          if (!card || (card.interval || 0) < 2) {
+            unmasteredCount++;
+          }
+        });
+      }
+    }
+
+    const accuracyRate = totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : 0;
+
+    return {
+      status: 'success',
+      runtime: {
+        currentView,
+        activeMode,
+        activeDeck: activeDeck ? {
+          id: activeDeck.id,
+          title: activeDeck.title,
+          categoriesCount: (activeDeck.categories || []).length,
+          entitiesCount: (activeDeck.entities || []).length
+        } : null,
+        activeCapsule: capsuleDetails,
+        telemetry: {
+          totalAttempts,
+          totalCorrect,
+          accuracyRate: `${accuracyRate}%`,
+          unmasteredCount,
+          thinCategoriesCount: thinCategories.length,
+          thinCategoriesNotice: thinCategories.slice(0, 5)
+        },
+        recommendedNextStep: thinCategories.length > 0
+          ? `当前题库有 ${thinCategories.length} 个分类实体少于 4 个，建议为分类补充考点以满足四选题干扰项契约。`
+          : activeMode === 'CLUSTER_LEARN_VERIFY'
+            ? '学习者正在微考点学练冲关，可为其提供对偶概念对比提示或生成针对性胶囊。'
+            : '当前题库健康度良好，可根据模式生成进阶考点。'
+      }
+    };
+  }
+
+  throw new Error(`未知运行时工具: ${toolName}`);
+}
+
   // --- Module: features/ai-agent/tool-definitions.js ---
 /**
  * AI Agent Knowledge Deck Tool Schemas (10 CRUD Tools)
@@ -10297,6 +11070,7 @@ const DECK_TOOL_DEFINITIONS = [
     }
   }
 ];
+const ALL_TOOL_DEFINITIONS = [...DECK_TOOL_DEFINITIONS, ...RUNTIME_TOOL_DEFINITIONS];
 
   // --- Module: features/ai-agent/tool-executor.js ---
 /**
@@ -10334,7 +11108,7 @@ class DeckToolExecutor {
 
   async execute(toolName, args = {}) {
     const reads = ['tool_list_decks', 'tool_get_deck', 'tool_search_entities', 'tool_get_deck_guide', 'tool_list_deck_versions'];
-    if (reads.includes(toolName)) return this._execute(toolName, args);
+    if (reads.includes(toolName) || isRuntimeTool(toolName)) return this._execute(toolName, args);
     const before = structuredClone(this.app.state);
     const versions = this.app.deckVersioning;
     const oldVersions = versions ? structuredClone(versions.versionsMap) : null;
@@ -10367,6 +11141,7 @@ class DeckToolExecutor {
   }
 
   _execute(toolName, args = {}) {
+    if (isRuntimeTool(toolName)) return executeRuntimeTool(this.app, toolName, args);
     switch (toolName) {
       case 'tool_list_decks': {
         return this.app.getAllDecks().map(d => {
@@ -11663,7 +12438,7 @@ class AgentLoopEngine {
 
     await this.client.sendChatStream({
       messages: contextMessages,
-      tools: DECK_TOOL_DEFINITIONS,
+      tools: ALL_TOOL_DEFINITIONS,
       step: this.currentStep,
       callbacks: {
         onReasoning: (accumulated) => {
@@ -13204,7 +13979,8 @@ function validateToolValue(value, schema, path = 'arguments', depth = 0) {
 class McpToolAdapter {
   constructor(executor) {
     this.executor = executor;
-    this.catalog = new Map(DECK_TOOL_DEFINITIONS.map(({ function: f }) => [f.name, f]));
+    const toolList = ALL_TOOL_DEFINITIONS || DECK_TOOL_DEFINITIONS;
+    this.catalog = new Map(toolList.map(({ function: f }) => [f.name, f]));
     this.ledger = new Map();
   }
   listTools() {

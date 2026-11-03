@@ -6,6 +6,7 @@
 import { validateDeckHealth } from '../../shared/deck-validator.js';
 import { parseMarkdownToDeck } from '../../shared/markdown-ast.js';
 import { ToolFormatError, ToolReferenceError, ToolPermissionError, ToolExecutionError } from './tool-errors.js';
+import { isRuntimeTool, executeRuntimeTool } from './runtime-tool-executor.js';
 
 export class DeckToolExecutor {
   constructor(app) {
@@ -38,7 +39,7 @@ export class DeckToolExecutor {
 
   async execute(toolName, args = {}) {
     const reads = ['tool_list_decks', 'tool_get_deck', 'tool_search_entities', 'tool_get_deck_guide', 'tool_list_deck_versions'];
-    if (reads.includes(toolName)) return this._execute(toolName, args);
+    if (reads.includes(toolName) || isRuntimeTool(toolName)) return this._execute(toolName, args);
     const before = structuredClone(this.app.state);
     const versions = this.app.deckVersioning;
     const oldVersions = versions ? structuredClone(versions.versionsMap) : null;
@@ -71,6 +72,7 @@ export class DeckToolExecutor {
   }
 
   _execute(toolName, args = {}) {
+    if (isRuntimeTool(toolName)) return executeRuntimeTool(this.app, toolName, args);
     switch (toolName) {
       case 'tool_list_decks': {
         return this.app.getAllDecks().map(d => {

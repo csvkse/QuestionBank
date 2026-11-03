@@ -280,3 +280,8 @@ export const DECK_TOOL_DEFINITIONS = [
   }
 ];
 
+import { RUNTIME_TOOL_DEFINITIONS } from './runtime-tool-definitions.js';
+
+export { RUNTIME_TOOL_DEFINITIONS };
+export const ALL_TOOL_DEFINITIONS = [...DECK_TOOL_DEFINITIONS, ...RUNTIME_TOOL_DEFINITIONS];
+
