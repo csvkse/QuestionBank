@@ -1,7 +1,12 @@
 /**
- * AI Agent Knowledge Deck Tool Schemas (10 CRUD Tools)
+ * AI Agent Knowledge Deck Tool Schemas & Canonical MCP Catalog
  * Core 2.1: features/ai-agent/tool-definitions.js
+ * Strict compliance with FE-QUALITY-001: <= 300 lines.
  */
+
+import { ENTITY_ITEM_SCHEMA, ENTITY_PATCH_PROPS, CANONICAL_TOOL_MAP, normalizeToolName, adaptEntityInput, adaptToolArgs } from './tool-schemas.js';
+
+export { ENTITY_ITEM_SCHEMA, ENTITY_PATCH_PROPS, CANONICAL_TOOL_MAP, normalizeToolName, adaptEntityInput, adaptToolArgs };
 
 export const DECK_TOOL_DEFINITIONS = [
   {
@@ -35,7 +40,8 @@ export const DECK_TOOL_DEFINITIONS = [
         type: 'object',
         properties: {
           title: { type: 'string', description: '题库名称' },
-          icon: { type: 'string', description: '题库 Emoji 图标' },
+          icon: { type: 'string', description: '题库单色/Emoji图标' },
+          lang: { type: 'string', description: '主语种BCP 47代码 (如 zh-CN, en-US, ja-JP)' },
           description: { type: 'string', description: '简要描述' },
           categories: {
             type: 'array',
@@ -53,23 +59,7 @@ export const DECK_TOOL_DEFINITIONS = [
               required: ['level', 'name']
             }
           },
-          entities: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                id: { type: 'string' },
-                categoryId: { type: 'string' },
-                layer: { type: 'integer' },
-                title: { type: 'string' },
-                prompt: { type: 'string' },
-                answer: { type: 'string' },
-                explanation: { type: 'string' },
-                pitfalls: { type: 'string' }
-              },
-              required: ['id', 'categoryId', 'layer', 'title', 'prompt', 'answer']
-            }
-          }
+          entities: { type: 'array', description: '考点实体列表', items: ENTITY_ITEM_SCHEMA }
         },
         required: ['title', 'categories', 'entities']
       }
@@ -99,10 +89,13 @@ export const DECK_TOOL_DEFINITIONS = [
     type: 'function',
     function: {
       name: 'tool_add_entities',
-      description: '向指定题库中批量追加新考点词条。',
+      description: '向指定题库中批量追加新考点词条。每个分类推荐 >=4 条以满足同胞池契约。',
       parameters: {
         type: 'object',
-        properties: { deckId: { type: 'string' }, entities: { type: 'array' } },
+        properties: {
+          deckId: { type: 'string', description: '目标题库ID' },
+          entities: { type: 'array', description: '待追加的考点实体列表', items: ENTITY_ITEM_SCHEMA }
+        },
         required: ['deckId', 'entities']
       }
     }
@@ -111,10 +104,14 @@ export const DECK_TOOL_DEFINITIONS = [
     type: 'function',
     function: {
       name: 'tool_update_entity',
-      description: '修改指定题库中特定词条的内容（题干、标准答案、易错陷阱说明或解析）。',
+      description: '修改指定题库中特定词条的内容（题干、标准答案、易错陷阱、分层或多模态语音）。',
       parameters: {
         type: 'object',
-        properties: { deckId: { type: 'string' }, entityId: { type: 'string' }, updates: { type: 'object' } },
+        properties: {
+          deckId: { type: 'string', description: '目标题库ID' },
+          entityId: { type: 'string', description: '目标考点ID' },
+          updates: { type: 'object', description: '待更新的字段集', properties: ENTITY_PATCH_PROPS }
+        },
         required: ['deckId', 'entityId', 'updates']
       }
     }
@@ -162,10 +159,7 @@ export const DECK_TOOL_DEFINITIONS = [
       description: '获取指定题库的系统化知识导学图与核心全景概览。',
       parameters: {
         type: 'object',
-        properties: {
-          deckId: { type: 'string', description: '题库唯一标识符或完整名称' },
-          title: { type: 'string', description: '可选，题库名称' }
-        }
+        properties: { deckId: { type: 'string' }, title: { type: 'string' } }
       }
     }
   },
@@ -177,13 +171,12 @@ export const DECK_TOOL_DEFINITIONS = [
       parameters: {
         type: 'object',
         properties: {
-          deckId: { type: 'string', description: '题库唯一标识符或完整名称' },
-          title: { type: 'string', description: '可选，题库名称' },
+          deckId: { type: 'string' }, title: { type: 'string' },
           guide: {
             type: 'object',
             properties: {
-              summary: { type: 'string', description: '先行组织者 · 核心心智模型一句话概要' },
-              markdown: { type: 'string', description: '系统化 Markdown 导学知识内容，支持考点链接与分类图解' }
+              summary: { type: 'string', description: '核心心智模型一句话概要' },
+              markdown: { type: 'string', description: '系统化 Markdown 导学知识内容' }
             },
             required: ['summary', 'markdown']
           }
@@ -204,15 +197,13 @@ export const DECK_TOOL_DEFINITIONS = [
     type: 'function',
     function: {
       name: 'tool_patch_deck_guide',
-      description: '对题库导学大纲进行增量修补（追加板块、替换指定章节或更新一句话认知摘要）。',
+      description: '对题库导学大纲进行增量修补（追加板块、替换指定章节或更新摘要）。',
       parameters: {
         type: 'object',
         properties: {
           deckId: { type: 'string' },
           operation: { type: 'string', enum: ['append_section', 'replace_section', 'update_summary'] },
-          heading: { type: 'string', description: '章节标题' },
-          content: { type: 'string', description: 'Markdown 章节内容' },
-          summary: { type: 'string', description: '一句话认知图式摘要' }
+          heading: { type: 'string' }, content: { type: 'string' }, summary: { type: 'string' }
         },
         required: ['deckId', 'operation']
       }
@@ -222,12 +213,16 @@ export const DECK_TOOL_DEFINITIONS = [
     type: 'function',
     function: {
       name: 'tool_batch_update_entities',
-      description: '原子批量更新题库中的考点词条属性（题干、答案、解析、陷阱、层级）。',
+      description: '原子批量更新题库中的考点词条属性（题干、答案、解析、陷阱、层级、多模态注音）。',
       parameters: {
         type: 'object',
         properties: {
           deckId: { type: 'string' },
-          updates: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
+          updates: {
+            type: 'array',
+            description: '更新列表',
+            items: { type: 'object', properties: { id: { type: 'string' }, ...ENTITY_PATCH_PROPS }, required: ['id'] }
+          },
           mode: { type: 'string', enum: ['atomic_strict', 'best_effort'] }
         },
         required: ['deckId', 'updates']
@@ -284,4 +279,3 @@ import { RUNTIME_TOOL_DEFINITIONS } from './runtime-tool-definitions.js';
 
 export { RUNTIME_TOOL_DEFINITIONS };
 export const ALL_TOOL_DEFINITIONS = [...DECK_TOOL_DEFINITIONS, ...RUNTIME_TOOL_DEFINITIONS];
-

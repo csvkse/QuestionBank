@@ -102,6 +102,7 @@ try {
     'features/ai-agent/tool-errors.js',
     'features/ai-agent/runtime-tool-definitions.js',
     'features/ai-agent/runtime-tool-executor.js',
+    'features/ai-agent/tool-schemas.js',
     'features/ai-agent/tool-definitions.js',
     'features/ai-agent/tool-executor.js',
     'features/ai-agent/provider-presets.js',

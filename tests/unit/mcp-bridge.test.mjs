@@ -16,7 +16,7 @@ export function bridgeFixture() {
   return { app, adapter: new McpToolAdapter(new DeckToolExecutor(app)) };
 }
 
-test('all 19 tools execute real business paths without an AI session or approval', async () => {
+test('all 21 tools execute real business paths with canonical aliases and auto-healing', async () => {
   const { app, adapter } = bridgeFixture();
   const covered = new Set();
   const call = async (name, args = {}) => {
@@ -24,7 +24,7 @@ test('all 19 tools execute real business paths without an AI session or approval
     assert.notEqual(result.isError, true, JSON.stringify(result));
     covered.add(name); return JSON.parse(result.content[0].text);
   };
-  assert.equal(adapter.listTools().length, 19);
+  assert.equal(adapter.listTools().length, 21);
   await call('tool_list_decks');
   await call('tool_get_deck', { deckId: 'custom' });
   await call('tool_search_entities', { query: '知识' });
@@ -45,8 +45,23 @@ test('all 19 tools execute real business paths without an AI session or approval
   await call('tool_list_deck_versions', { deckId: 'custom' });
   await call('tool_rollback_deck_version', { deckId: 'custom', versionId: snap.versionId });
   await call('tool_delete_deck', { deckId: created.deckId });
-  assert.equal(covered.size, 19);
+  await call('tool_get_runtime_context');
+  await call('tool_get_mode_specifications', { mode: 'ALL' });
+  assert.equal(covered.size, 21);
   assert.equal(app.state.customDecks[0].entities.length, 5);
+
+  // 验证 Canonical 别名调用与标题脏字符自愈
+  const canonicalRes = await adapter.callTool('list_decks', {});
+  assert.notEqual(canonicalRes.isError, true);
+  const addRes = await adapter.callTool('add_entities', {
+    deckId: 'custom',
+    entities: [{ id: 'kana_ne', categoryId: 'c', layer: 1, title: '【ね 的读音 】', prompt: '问', answer: '答' }]
+  });
+  assert.notEqual(addRes.isError, true);
+  const parsedAdd = JSON.parse(addRes.content[0].text);
+  assert.ok(parsedAdd.suggestedNextActions, '应包含 suggestedNextActions 行动建议');
+  const addedKana = app.state.customDecks[0].entities.find(e => e.id === 'kana_ne');
+  assert.equal(addedKana.title, 'ね', '标题噪音应自动剥离为纯净词干');
 });
 
 test('invalid edits roll back and operation IDs deduplicate only the same intent', async () => {

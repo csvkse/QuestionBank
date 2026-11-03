@@ -1,4 +1,4 @@
-import { ALL_TOOL_DEFINITIONS, DECK_TOOL_DEFINITIONS, toToolErrorPayload } from '../ai-agent/index.js';
+import { ALL_TOOL_DEFINITIONS, DECK_TOOL_DEFINITIONS, toToolErrorPayload, adaptToolArgs } from '../ai-agent/index.js';
 
 // Implements the schema keywords used by the shared Agent catalog, without coercion.
 export function validateToolValue(value, schema, path = 'arguments', depth = 0) {
@@ -23,20 +23,31 @@ export class McpToolAdapter {
   constructor(executor) {
     this.executor = executor;
     const toolList = ALL_TOOL_DEFINITIONS || DECK_TOOL_DEFINITIONS;
-    this.catalog = new Map(toolList.map(({ function: f }) => [f.name, f]));
+    this.catalog = new Map();
+    for (const { function: f } of toolList) {
+      this.catalog.set(f.name, f);
+      if (f.name.startsWith('tool_')) {
+        this.catalog.set(f.name.slice(5), { ...f, name: f.name.slice(5) });
+      }
+    }
     this.ledger = new Map();
   }
   listTools() {
-    return [...this.catalog.values()].map(f => ({ name: f.name, description: f.description, inputSchema: structuredClone(f.parameters) }));
+    const list = ALL_TOOL_DEFINITIONS || DECK_TOOL_DEFINITIONS;
+    return list.map(({ function: f }) => {
+      const canonicalName = f.name.startsWith('tool_') ? f.name.slice(5) : f.name;
+      return { name: canonicalName, description: f.description, inputSchema: structuredClone(f.parameters) };
+    });
   }
   async callTool(name, args = {}, { operationId } = {}) {
     try {
-      const tool = this.catalog.get(name);
+      const tool = this.catalog.get(name) || (name.startsWith('tool_') ? this.catalog.get(name.slice(5)) : this.catalog.get('tool_' + name));
       if (!tool) throw new Error('未知工具');
-      validateToolValue(args, tool.parameters);
+      const safeArgs = adaptToolArgs ? adaptToolArgs(name, args) : args;
+      validateToolValue(safeArgs, tool.parameters);
       const canonical = value => value && typeof value === 'object'
         ? Array.isArray(value) ? value.map(canonical) : Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
-      const signature = JSON.stringify([name, canonical(args)]);
+      const signature = JSON.stringify([name, canonical(safeArgs)]);
       if (operationId !== undefined && (typeof operationId !== 'string' || !operationId || operationId.length > 128)) throw new Error('operationId 无效');
       if (operationId && this.ledger.has(operationId)) {
         const entry = this.ledger.get(operationId);
@@ -45,10 +56,11 @@ export class McpToolAdapter {
       }
       const result = (async () => {
         try {
-          const value = await this.executor.execute(name, structuredClone(args));
+          const execName = name.startsWith('tool_') ? name : ('tool_' + name);
+          const value = await this.executor.execute(execName, structuredClone(safeArgs));
           const text = JSON.stringify(value ?? null);
           if (new TextEncoder().encode(text).length > 256 * 1024) {
-            if (['tool_list_decks', 'tool_get_deck', 'tool_search_entities', 'tool_get_deck_guide', 'tool_list_deck_versions'].includes(name)) throw new Error('RESULT_TOO_LARGE：结果超过 256KiB，请缩小查询范围');
+            if (['tool_list_decks', 'tool_get_deck', 'tool_search_entities', 'tool_get_deck_guide', 'tool_list_deck_versions'].includes(execName)) throw new Error('RESULT_TOO_LARGE：结果超过 256KiB，请缩小查询范围');
             return { content: [{ type: 'text', text: JSON.stringify({ success: true, deckId: value?.deckId || args.deckId, versionId: value?.versionId, message: '操作已完成并保存；结果过大，仅返回成功回执' }) }] };
           }
           return { content: [{ type: 'text', text }] };

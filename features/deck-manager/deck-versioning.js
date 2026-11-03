@@ -182,7 +182,15 @@ export class DeckVersionController {
     const health = validateDeckHealth(deck);
     this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
-    return { success: true, deckId, title: deck.title, updatedCount, warnings: health.warnings };
+    return {
+      success: true, deckId, title: deck.title, updatedCount, warnings: health.warnings,
+      healthStatus: health.valid ? (health.warnings.length > 0 ? '需补充' : '健壮') : '异常',
+      suggestedNextActions: health.thinCategories.length > 0 ? [
+        { tool: 'add_entities', args: { deckId }, reason: `存在 ${health.thinCategories.length} 个薄弱分类，建议补充同胞项` }
+      ] : [
+        { tool: 'get_runtime_context', args: {}, reason: '题库已充盈，建议确认当前学练试炼态势' }
+      ]
+    };
   }
 
   batchDeleteEntities(deckId, entityIds, { author = 'agent' } = {}) {

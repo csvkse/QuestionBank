@@ -7745,7 +7745,15 @@ class DeckVersionController {
     const health = validateDeckHealth(deck);
     this.app.saveUserData({ immediate: true });
     this.app.renderAllViews();
-    return { success: true, deckId, title: deck.title, updatedCount, warnings: health.warnings };
+    return {
+      success: true, deckId, title: deck.title, updatedCount, warnings: health.warnings,
+      healthStatus: health.valid ? (health.warnings.length > 0 ? '需补充' : '健壮') : '异常',
+      suggestedNextActions: health.thinCategories.length > 0 ? [
+        { tool: 'add_entities', args: { deckId }, reason: `存在 ${health.thinCategories.length} 个薄弱分类，建议补充同胞项` }
+      ] : [
+        { tool: 'get_runtime_context', args: {}, reason: '题库已充盈，建议确认当前学练试炼态势' }
+      ]
+    };
   }
 
   batchDeleteEntities(deckId, entityIds, { author = 'agent' } = {}) {
@@ -10897,10 +10905,150 @@ function executeRuntimeTool(app, toolName, args = {}) {
   throw new Error(`未知运行时工具: ${toolName}`);
 }
 
+  // --- Module: features/ai-agent/tool-schemas.js ---
+/**
+ * AI Agent Knowledge Deck Tool Schemas & Reusable Property Definitions
+ * Core 2.1: features/ai-agent/tool-schemas.js
+ * Strict compliance with FE-QUALITY-001: <= 300 lines.
+ */
+const ENTITY_ITEM_SCHEMA = {
+  type: 'object',
+  description: '考点实体定义 (遵循同胞池充盈与四选一干扰项规范)',
+  properties: {
+    id: { type: 'string', description: '考点唯一标识符 (如 ja_ne 或 v_picnic)' },
+    categoryId: { type: 'string', description: '所属分类ID (必须已在 categories 中声明)' },
+    layer: { type: 'integer', enum: [1, 2, 3], description: '认知层级: 1基础直变/2规律运用/3反直觉陷阱' },
+    title: { type: 'string', description: '纯净考点展示标题，切勿包含【】括号注解 (如 ね)' },
+    subtitle: { type: 'string', description: '辅助说明或音标注音 (如 /ne/ · 罗马音 ne · 猫 neko)' },
+    lang: { type: 'string', description: 'BCP 47 语言代码 (如 ja-JP, en-US, zh-CN, ko-KR)' },
+    phonetics: {
+      type: 'object',
+      description: '多模态语音与注音元数据',
+      properties: {
+        ipa: { type: 'string', description: '国际音标' },
+        romaji: { type: 'string', description: '罗马音/拼音' },
+        tts_clean: { type: 'string', description: '纯净TTS发音词干' }
+      }
+    },
+    prompt: { type: 'string', description: '题干设问指令 (如 转化为过去式：)' },
+    answer: { type: 'string', description: '标准参考答案' },
+    explanation: { type: 'string', description: '考点原理深度精析' },
+    pitfalls: { type: 'string', description: '高频易错陷阱警示' },
+    confusedWith: { type: 'string', description: '对偶混淆考点ID (如 ja_re)' }
+  },
+  required: ['id', 'categoryId', 'layer', 'title', 'prompt', 'answer']
+};
+const ENTITY_PATCH_PROPS = {
+  title: { type: 'string', description: '纯净展示标题 (不含括号注解)' },
+  subtitle: { type: 'string', description: '辅助说明与音标' },
+  prompt: { type: 'string', description: '设问指令' },
+  answer: { type: 'string', description: '标准参考答案' },
+  explanation: { type: 'string', description: '原理精析' },
+  pitfalls: { type: 'string', description: '易错陷阱' },
+  categoryId: { type: 'string', description: '所属分类ID' },
+  layer: { type: 'integer', enum: [1, 2, 3], description: '认知层级1/2/3' },
+  lang: { type: 'string', description: 'BCP 47语言代码' },
+  phonetics: { type: 'object', description: '发音元数据 { ipa, romaji, tts_clean }' },
+  confusedWith: { type: 'string', description: '对偶混淆考点ID' }
+};
+const CANONICAL_TOOL_MAP = {
+  list_decks: 'tool_list_decks',
+  get_deck: 'tool_get_deck',
+  create_deck: 'tool_create_deck',
+  update_deck_meta: 'tool_update_deck_meta',
+  delete_deck: 'tool_delete_deck',
+  add_entities: 'tool_add_entities',
+  update_entity: 'tool_update_entity',
+  delete_entity: 'tool_delete_entity',
+  search_entities: 'tool_search_entities',
+  import_markdown_deck: 'tool_import_markdown_deck',
+  get_deck_guide: 'tool_get_deck_guide',
+  update_deck_guide: 'tool_update_deck_guide',
+  delete_deck_guide: 'tool_delete_deck_guide',
+  patch_deck_guide: 'tool_patch_deck_guide',
+  batch_update_entities: 'tool_batch_update_entities',
+  batch_delete_entities: 'tool_batch_delete_entities',
+  list_deck_versions: 'tool_list_deck_versions',
+  rollback_deck_version: 'tool_rollback_deck_version',
+  create_deck_snapshot: 'tool_create_deck_snapshot',
+  get_runtime_context: 'tool_get_runtime_context',
+  get_mode_specifications: 'tool_get_mode_specifications'
+};
+function normalizeToolName(name) {
+  if (!name || typeof name !== 'string') return '';
+  return CANONICAL_TOOL_MAP[name] || (name.startsWith('tool_') ? name : 'tool_' + name);
+}
+
+/**
+ * 语义自愈适配器：对考点输入执行多态别名兼容与标题噪声清洗
+ */
+function adaptEntityInput(raw) {
+  if (!raw || typeof raw !== 'object') return raw;
+  const e = { ...raw };
+  if (e.question && !e.prompt) e.prompt = String(e.question);
+  if (e.category && !e.categoryId) e.categoryId = String(e.category);
+  if (e.title && typeof e.title === 'string') {
+    const clean = sanitizePronunciation(e.title);
+    if (clean && clean !== e.title) {
+      if (!e.subtitle) e.subtitle = e.title;
+      e.title = clean;
+      e.phonetics = e.phonetics || {};
+      if (!e.phonetics.tts_clean) e.phonetics.tts_clean = clean;
+    }
+  }
+  return e;
+}
+
+/**
+ * 工具入参自愈门面：在入参校验前执行别名兼容与噪声剥离
+ */
+function adaptToolArgs(toolName, args) {
+  if (!args || typeof args !== 'object') return args;
+  const norm = normalizeToolName(toolName);
+  const adapted = { ...args };
+  if (norm === 'tool_add_entities' && Array.isArray(adapted.entities)) {
+    adapted.entities = adapted.entities.map(adaptEntityInput);
+  }
+  if (norm === 'tool_update_entity' && adapted.updates) {
+    adapted.updates = adaptEntityInput(adapted.updates);
+  }
+  if (norm === 'tool_batch_update_entities' && Array.isArray(adapted.updates)) {
+    adapted.updates = adapted.updates.map(adaptEntityInput);
+  }
+  if (norm === 'tool_create_deck') {
+    if (adapted.title && typeof adapted.title === 'string') {
+      const clean = sanitizePronunciation(adapted.title);
+      if (clean && clean !== adapted.title) adapted.title = clean;
+    }
+    if (Array.isArray(adapted.entities)) {
+      adapted.entities = adapted.entities.map(adaptEntityInput);
+    }
+  }
+  return adapted;
+}
+
+/**
+ * ReAct 响应策略增强：为执行结果注入健康度态势快照与下一步行动建议
+ */
+function enrichActionableResult(result, deck) {
+  if (!deck || typeof result !== 'object') return result;
+  const health = validateDeckHealth(deck);
+  result.healthStatus = health.valid ? (health.warnings.length > 0 ? '需补充' : '健壮') : '异常';
+  result.thinCategoriesNotice = health.thinCategories;
+  result.suggestedNextActions = health.thinCategories.length > 0 ? [
+    { tool: 'add_entities', args: { deckId: deck.id }, reason: `仍有 ${health.thinCategories.length} 个分类考点不足4条，建议继续补充` }
+  ] : [
+    { tool: 'get_deck_guide', args: { deckId: deck.id }, reason: '题库同胞池充盈健康，建议检查或配置导学大纲' },
+    { tool: 'get_runtime_context', args: {}, reason: '确认当前学练试炼模式与学习队列' }
+  ];
+  return result;
+}
+
   // --- Module: features/ai-agent/tool-definitions.js ---
 /**
- * AI Agent Knowledge Deck Tool Schemas (10 CRUD Tools)
+ * AI Agent Knowledge Deck Tool Schemas & Canonical MCP Catalog
  * Core 2.1: features/ai-agent/tool-definitions.js
+ * Strict compliance with FE-QUALITY-001: <= 300 lines.
  */
 const DECK_TOOL_DEFINITIONS = [
   {
@@ -10934,7 +11082,8 @@ const DECK_TOOL_DEFINITIONS = [
         type: 'object',
         properties: {
           title: { type: 'string', description: '题库名称' },
-          icon: { type: 'string', description: '题库 Emoji 图标' },
+          icon: { type: 'string', description: '题库单色/Emoji图标' },
+          lang: { type: 'string', description: '主语种BCP 47代码 (如 zh-CN, en-US, ja-JP)' },
           description: { type: 'string', description: '简要描述' },
           categories: {
             type: 'array',
@@ -10952,23 +11101,7 @@ const DECK_TOOL_DEFINITIONS = [
               required: ['level', 'name']
             }
           },
-          entities: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                id: { type: 'string' },
-                categoryId: { type: 'string' },
-                layer: { type: 'integer' },
-                title: { type: 'string' },
-                prompt: { type: 'string' },
-                answer: { type: 'string' },
-                explanation: { type: 'string' },
-                pitfalls: { type: 'string' }
-              },
-              required: ['id', 'categoryId', 'layer', 'title', 'prompt', 'answer']
-            }
-          }
+          entities: { type: 'array', description: '考点实体列表', items: ENTITY_ITEM_SCHEMA }
         },
         required: ['title', 'categories', 'entities']
       }
@@ -10998,10 +11131,13 @@ const DECK_TOOL_DEFINITIONS = [
     type: 'function',
     function: {
       name: 'tool_add_entities',
-      description: '向指定题库中批量追加新考点词条。',
+      description: '向指定题库中批量追加新考点词条。每个分类推荐 >=4 条以满足同胞池契约。',
       parameters: {
         type: 'object',
-        properties: { deckId: { type: 'string' }, entities: { type: 'array' } },
+        properties: {
+          deckId: { type: 'string', description: '目标题库ID' },
+          entities: { type: 'array', description: '待追加的考点实体列表', items: ENTITY_ITEM_SCHEMA }
+        },
         required: ['deckId', 'entities']
       }
     }
@@ -11010,10 +11146,14 @@ const DECK_TOOL_DEFINITIONS = [
     type: 'function',
     function: {
       name: 'tool_update_entity',
-      description: '修改指定题库中特定词条的内容（题干、标准答案、易错陷阱说明或解析）。',
+      description: '修改指定题库中特定词条的内容（题干、标准答案、易错陷阱、分层或多模态语音）。',
       parameters: {
         type: 'object',
-        properties: { deckId: { type: 'string' }, entityId: { type: 'string' }, updates: { type: 'object' } },
+        properties: {
+          deckId: { type: 'string', description: '目标题库ID' },
+          entityId: { type: 'string', description: '目标考点ID' },
+          updates: { type: 'object', description: '待更新的字段集', properties: ENTITY_PATCH_PROPS }
+        },
         required: ['deckId', 'entityId', 'updates']
       }
     }
@@ -11061,10 +11201,7 @@ const DECK_TOOL_DEFINITIONS = [
       description: '获取指定题库的系统化知识导学图与核心全景概览。',
       parameters: {
         type: 'object',
-        properties: {
-          deckId: { type: 'string', description: '题库唯一标识符或完整名称' },
-          title: { type: 'string', description: '可选，题库名称' }
-        }
+        properties: { deckId: { type: 'string' }, title: { type: 'string' } }
       }
     }
   },
@@ -11076,13 +11213,12 @@ const DECK_TOOL_DEFINITIONS = [
       parameters: {
         type: 'object',
         properties: {
-          deckId: { type: 'string', description: '题库唯一标识符或完整名称' },
-          title: { type: 'string', description: '可选，题库名称' },
+          deckId: { type: 'string' }, title: { type: 'string' },
           guide: {
             type: 'object',
             properties: {
-              summary: { type: 'string', description: '先行组织者 · 核心心智模型一句话概要' },
-              markdown: { type: 'string', description: '系统化 Markdown 导学知识内容，支持考点链接与分类图解' }
+              summary: { type: 'string', description: '核心心智模型一句话概要' },
+              markdown: { type: 'string', description: '系统化 Markdown 导学知识内容' }
             },
             required: ['summary', 'markdown']
           }
@@ -11103,15 +11239,13 @@ const DECK_TOOL_DEFINITIONS = [
     type: 'function',
     function: {
       name: 'tool_patch_deck_guide',
-      description: '对题库导学大纲进行增量修补（追加板块、替换指定章节或更新一句话认知摘要）。',
+      description: '对题库导学大纲进行增量修补（追加板块、替换指定章节或更新摘要）。',
       parameters: {
         type: 'object',
         properties: {
           deckId: { type: 'string' },
           operation: { type: 'string', enum: ['append_section', 'replace_section', 'update_summary'] },
-          heading: { type: 'string', description: '章节标题' },
-          content: { type: 'string', description: 'Markdown 章节内容' },
-          summary: { type: 'string', description: '一句话认知图式摘要' }
+          heading: { type: 'string' }, content: { type: 'string' }, summary: { type: 'string' }
         },
         required: ['deckId', 'operation']
       }
@@ -11121,12 +11255,16 @@ const DECK_TOOL_DEFINITIONS = [
     type: 'function',
     function: {
       name: 'tool_batch_update_entities',
-      description: '原子批量更新题库中的考点词条属性（题干、答案、解析、陷阱、层级）。',
+      description: '原子批量更新题库中的考点词条属性（题干、答案、解析、陷阱、层级、多模态注音）。',
       parameters: {
         type: 'object',
         properties: {
           deckId: { type: 'string' },
-          updates: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
+          updates: {
+            type: 'array',
+            description: '更新列表',
+            items: { type: 'object', properties: { id: { type: 'string' }, ...ENTITY_PATCH_PROPS }, required: ['id'] }
+          },
           mode: { type: 'string', enum: ['atomic_strict', 'best_effort'] }
         },
         required: ['deckId', 'updates']
@@ -11202,28 +11340,23 @@ class DeckToolExecutor {
   _resolveDeck(queryId, queryTitle, customOnly = false) {
     const list = customOnly ? (this.app.state.customDecks || []) : this.app.getAllDecks();
     if (queryId) {
-      const byId = list.find(d => d.id === queryId);
-      if (byId) return byId;
-      const byTitleAsId = list.find(d => d.title === queryId);
-      if (byTitleAsId) return byTitleAsId;
+      const found = list.find(d => d.id === queryId || d.title === queryId);
+      if (found) return found;
     }
-    if (queryTitle) {
-      const byTitle = list.find(d => d.title === queryTitle || d.title.includes(queryTitle));
-      if (byTitle) return byTitle;
-    }
-    return null;
+    return queryTitle ? list.find(d => d.title === queryTitle || d.title.includes(queryTitle)) || null : null;
   }
 
   async execute(toolName, args = {}) {
+    const canonicalName = normalizeToolName(toolName);
     const reads = ['tool_list_decks', 'tool_get_deck', 'tool_search_entities', 'tool_get_deck_guide', 'tool_list_deck_versions'];
-    if (reads.includes(toolName) || isRuntimeTool(toolName)) return this._execute(toolName, args);
+    if (reads.includes(canonicalName) || isRuntimeTool(canonicalName)) return this._execute(canonicalName, args);
     const before = structuredClone(this.app.state);
     const versions = this.app.deckVersioning;
     const oldVersions = versions ? structuredClone(versions.versionsMap) : null;
     const oldTrash = versions ? structuredClone(versions.recycleBin) : null;
     const perform = () => {
-      const result = this._execute(toolName, args);
-      if (['tool_create_deck', 'tool_add_entities', 'tool_update_entity', 'tool_delete_entity', 'tool_import_markdown_deck', 'tool_batch_update_entities', 'tool_batch_delete_entities'].includes(toolName)) {
+      const result = this._execute(canonicalName, args);
+      if (['tool_create_deck', 'tool_add_entities', 'tool_update_entity', 'tool_delete_entity', 'tool_import_markdown_deck', 'tool_batch_update_entities', 'tool_batch_delete_entities'].includes(canonicalName)) {
         const targetId = result.deckId || args.deckId;
         const deck = (this.app.state.customDecks || []).find(d => d.id === targetId);
         const health = validateDeckHealth(deck);
@@ -11275,18 +11408,20 @@ class DeckToolExecutor {
         if (!Array.isArray(args.categories) || args.categories.length === 0) throw new ToolFormatError('categories 必须是非空数组', 'INVALID_FIELD', '请至少提供一个分类对象 [{ id, name, group }]');
         if (!Array.isArray(args.entities) || args.entities.length === 0) throw new ToolFormatError('entities 必须是非空数组', 'INVALID_FIELD', '请至少提供考点列表');
 
+        const entities = args.entities.map(adaptEntityInput);
         const categoryIds = new Set(args.categories.map(c => c.id));
-        const orphan = args.entities.find(e => !categoryIds.has(e.categoryId));
+        const orphan = entities.find(e => !categoryIds.has(e.categoryId));
         if (orphan) throw new ToolReferenceError(`考点 "${orphan.title || orphan.id}" 引用的分类 "${orphan.categoryId}" 未声明`, 'ORPHAN_CATEGORY_REFERENCE', '请确保所有考点的 categoryId 均已在 categories 中声明');
 
         const newDeck = {
           id: 'deck_' + crypto.randomUUID(),
           title: args.title.trim(),
           icon: args.icon || '📚',
+          lang: args.lang || 'zh-CN',
           description: args.description || '',
           categories: args.categories,
           layers: args.layers || [{ level: 1, name: 'Layer 1: 基础认知' }, { level: 2, name: 'Layer 2: 规律运用' }, { level: 3, name: 'Layer 3: 陷阱特例' }],
-          entities: args.entities,
+          entities,
           guide: args.guide ? { summary: String(args.guide.summary || '').trim(), markdown: String(args.guide.markdown || '').trim() } : undefined
         };
 
@@ -11297,11 +11432,11 @@ class DeckToolExecutor {
         this.app.state.customDecks.push(newDeck);
         if (args.activateImmediately !== false) this.app.state.activeDeckId = newDeck.id;
         this._saveAndRender();
-        return {
+        return enrichActionableResult({
           success: true, deckId: newDeck.id, title: newDeck.title, entitiesCount: newDeck.entities.length,
           active: this.app.state.activeDeckId === newDeck.id, persistence: { persisted: true, storage: 'localStorage', committedAt: Date.now() },
           message: `题库《${newDeck.title}》已成功落库保存${this.app.state.activeDeckId === newDeck.id ? '，并设为当前激活题库！' : '！'}`
-        };
+        }, newDeck);
       }
 
       case 'tool_update_deck_meta': {
@@ -11331,10 +11466,11 @@ class DeckToolExecutor {
         if (!args?.deckId || !Array.isArray(args.entities) || args.entities.length === 0) throw new ToolFormatError('缺少 deckId 或 entities 数组', 'MISSING_FIELD', '必须传入 deckId 与实体数组');
         const deck = (this.app.state.customDecks || []).find(d => d.id === args.deckId);
         if (!deck) throw new ToolReferenceError(`未找到自定义题库 "${args.deckId}"`, 'DECK_NOT_FOUND', '只能向自定义题库追加实体');
+        const adapted = args.entities.map(adaptEntityInput);
         deck.entities = deck.entities || [];
-        deck.entities.push(...args.entities);
+        deck.entities.push(...adapted);
         this._saveAndRender();
-        return { success: true, addedCount: args.entities.length, total: deck.entities.length };
+        return enrichActionableResult({ success: true, deckId: deck.id, addedCount: adapted.length, total: deck.entities.length }, deck);
       }
 
       case 'tool_update_entity': {
@@ -11352,12 +11488,12 @@ class DeckToolExecutor {
         }
         const entity = (deck.entities || []).find(e => e.id === args.entityId);
         if (!entity) throw new ToolReferenceError(`考点词条 "${args.entityId}" 在题库 "${args.deckId}" 中不存在`, 'ENTITY_NOT_FOUND', '请核对考点 ID', { deckId: args.deckId, entityId: args.entityId });
-        const patch = args.updates || args.patch || {};
+        const patch = adaptEntityInput(args.updates || args.patch || {});
         const fields = ['title', 'prompt', 'answer', 'explanation', 'pitfalls', 'categoryId', 'layer', 'subtitle', 'lang', 'phonetics', 'confusedWith'];
         if (Object.keys(patch).some(key => !fields.includes(key))) throw new ToolFormatError('包含不可修改的考点字段', 'INVALID_FIELD');
         Object.assign(entity, patch);
         this._saveAndRender();
-        return { success: true, updatedEntity: entity };
+        return enrichActionableResult({ success: true, deckId: deck.id, updatedEntity: entity }, deck);
       }
 
       case 'tool_delete_entity': {
@@ -14088,20 +14224,31 @@ class McpToolAdapter {
   constructor(executor) {
     this.executor = executor;
     const toolList = ALL_TOOL_DEFINITIONS || DECK_TOOL_DEFINITIONS;
-    this.catalog = new Map(toolList.map(({ function: f }) => [f.name, f]));
+    this.catalog = new Map();
+    for (const { function: f } of toolList) {
+      this.catalog.set(f.name, f);
+      if (f.name.startsWith('tool_')) {
+        this.catalog.set(f.name.slice(5), { ...f, name: f.name.slice(5) });
+      }
+    }
     this.ledger = new Map();
   }
   listTools() {
-    return [...this.catalog.values()].map(f => ({ name: f.name, description: f.description, inputSchema: structuredClone(f.parameters) }));
+    const list = ALL_TOOL_DEFINITIONS || DECK_TOOL_DEFINITIONS;
+    return list.map(({ function: f }) => {
+      const canonicalName = f.name.startsWith('tool_') ? f.name.slice(5) : f.name;
+      return { name: canonicalName, description: f.description, inputSchema: structuredClone(f.parameters) };
+    });
   }
   async callTool(name, args = {}, { operationId } = {}) {
     try {
-      const tool = this.catalog.get(name);
+      const tool = this.catalog.get(name) || (name.startsWith('tool_') ? this.catalog.get(name.slice(5)) : this.catalog.get('tool_' + name));
       if (!tool) throw new Error('未知工具');
-      validateToolValue(args, tool.parameters);
+      const safeArgs = adaptToolArgs ? adaptToolArgs(name, args) : args;
+      validateToolValue(safeArgs, tool.parameters);
       const canonical = value => value && typeof value === 'object'
         ? Array.isArray(value) ? value.map(canonical) : Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
-      const signature = JSON.stringify([name, canonical(args)]);
+      const signature = JSON.stringify([name, canonical(safeArgs)]);
       if (operationId !== undefined && (typeof operationId !== 'string' || !operationId || operationId.length > 128)) throw new Error('operationId 无效');
       if (operationId && this.ledger.has(operationId)) {
         const entry = this.ledger.get(operationId);
@@ -14110,10 +14257,11 @@ class McpToolAdapter {
       }
       const result = (async () => {
         try {
-          const value = await this.executor.execute(name, structuredClone(args));
+          const execName = name.startsWith('tool_') ? name : ('tool_' + name);
+          const value = await this.executor.execute(execName, structuredClone(safeArgs));
           const text = JSON.stringify(value ?? null);
           if (new TextEncoder().encode(text).length > 256 * 1024) {
-            if (['tool_list_decks', 'tool_get_deck', 'tool_search_entities', 'tool_get_deck_guide', 'tool_list_deck_versions'].includes(name)) throw new Error('RESULT_TOO_LARGE：结果超过 256KiB，请缩小查询范围');
+            if (['tool_list_decks', 'tool_get_deck', 'tool_search_entities', 'tool_get_deck_guide', 'tool_list_deck_versions'].includes(execName)) throw new Error('RESULT_TOO_LARGE：结果超过 256KiB，请缩小查询范围');
             return { content: [{ type: 'text', text: JSON.stringify({ success: true, deckId: value?.deckId || args.deckId, versionId: value?.versionId, message: '操作已完成并保存；结果过大，仅返回成功回执' }) }] };
           }
           return { content: [{ type: 'text', text }] };

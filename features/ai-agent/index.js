@@ -5,7 +5,7 @@
 
 export { AiAgentUIController } from './agent-ui.js';
 export { AgentWorkspaceNavigation } from './workspace-navigation.js';
-export { DECK_TOOL_DEFINITIONS, RUNTIME_TOOL_DEFINITIONS, ALL_TOOL_DEFINITIONS } from './tool-definitions.js';
+export { DECK_TOOL_DEFINITIONS, RUNTIME_TOOL_DEFINITIONS, ALL_TOOL_DEFINITIONS, CANONICAL_TOOL_MAP, normalizeToolName, adaptEntityInput, adaptToolArgs } from './tool-definitions.js';
 export { DeckToolExecutor } from './tool-executor.js';
 export { SessionStore, DEFAULT_AI_CONFIG } from './session-store.js';
 export { REFERENCE_PRESET_PROVIDERS, DEFAULT_PROVIDERS, API_PROTOCOLS } from './provider-presets.js';

@@ -7,6 +7,7 @@ import { validateDeckHealth } from '../../shared/deck-validator.js';
 import { parseMarkdownToDeck } from '../../shared/markdown-ast.js';
 import { ToolFormatError, ToolReferenceError, ToolPermissionError, ToolExecutionError } from './tool-errors.js';
 import { isRuntimeTool, executeRuntimeTool } from './runtime-tool-executor.js';
+import { normalizeToolName, adaptEntityInput, enrichActionableResult } from './tool-schemas.js';
 
 export class DeckToolExecutor {
   constructor(app) {
@@ -25,28 +26,23 @@ export class DeckToolExecutor {
   _resolveDeck(queryId, queryTitle, customOnly = false) {
     const list = customOnly ? (this.app.state.customDecks || []) : this.app.getAllDecks();
     if (queryId) {
-      const byId = list.find(d => d.id === queryId);
-      if (byId) return byId;
-      const byTitleAsId = list.find(d => d.title === queryId);
-      if (byTitleAsId) return byTitleAsId;
+      const found = list.find(d => d.id === queryId || d.title === queryId);
+      if (found) return found;
     }
-    if (queryTitle) {
-      const byTitle = list.find(d => d.title === queryTitle || d.title.includes(queryTitle));
-      if (byTitle) return byTitle;
-    }
-    return null;
+    return queryTitle ? list.find(d => d.title === queryTitle || d.title.includes(queryTitle)) || null : null;
   }
 
   async execute(toolName, args = {}) {
+    const canonicalName = normalizeToolName(toolName);
     const reads = ['tool_list_decks', 'tool_get_deck', 'tool_search_entities', 'tool_get_deck_guide', 'tool_list_deck_versions'];
-    if (reads.includes(toolName) || isRuntimeTool(toolName)) return this._execute(toolName, args);
+    if (reads.includes(canonicalName) || isRuntimeTool(canonicalName)) return this._execute(canonicalName, args);
     const before = structuredClone(this.app.state);
     const versions = this.app.deckVersioning;
     const oldVersions = versions ? structuredClone(versions.versionsMap) : null;
     const oldTrash = versions ? structuredClone(versions.recycleBin) : null;
     const perform = () => {
-      const result = this._execute(toolName, args);
-      if (['tool_create_deck', 'tool_add_entities', 'tool_update_entity', 'tool_delete_entity', 'tool_import_markdown_deck', 'tool_batch_update_entities', 'tool_batch_delete_entities'].includes(toolName)) {
+      const result = this._execute(canonicalName, args);
+      if (['tool_create_deck', 'tool_add_entities', 'tool_update_entity', 'tool_delete_entity', 'tool_import_markdown_deck', 'tool_batch_update_entities', 'tool_batch_delete_entities'].includes(canonicalName)) {
         const targetId = result.deckId || args.deckId;
         const deck = (this.app.state.customDecks || []).find(d => d.id === targetId);
         const health = validateDeckHealth(deck);
@@ -98,18 +94,20 @@ export class DeckToolExecutor {
         if (!Array.isArray(args.categories) || args.categories.length === 0) throw new ToolFormatError('categories 必须是非空数组', 'INVALID_FIELD', '请至少提供一个分类对象 [{ id, name, group }]');
         if (!Array.isArray(args.entities) || args.entities.length === 0) throw new ToolFormatError('entities 必须是非空数组', 'INVALID_FIELD', '请至少提供考点列表');
 
+        const entities = args.entities.map(adaptEntityInput);
         const categoryIds = new Set(args.categories.map(c => c.id));
-        const orphan = args.entities.find(e => !categoryIds.has(e.categoryId));
+        const orphan = entities.find(e => !categoryIds.has(e.categoryId));
         if (orphan) throw new ToolReferenceError(`考点 "${orphan.title || orphan.id}" 引用的分类 "${orphan.categoryId}" 未声明`, 'ORPHAN_CATEGORY_REFERENCE', '请确保所有考点的 categoryId 均已在 categories 中声明');
 
         const newDeck = {
           id: 'deck_' + crypto.randomUUID(),
           title: args.title.trim(),
           icon: args.icon || '📚',
+          lang: args.lang || 'zh-CN',
           description: args.description || '',
           categories: args.categories,
           layers: args.layers || [{ level: 1, name: 'Layer 1: 基础认知' }, { level: 2, name: 'Layer 2: 规律运用' }, { level: 3, name: 'Layer 3: 陷阱特例' }],
-          entities: args.entities,
+          entities,
           guide: args.guide ? { summary: String(args.guide.summary || '').trim(), markdown: String(args.guide.markdown || '').trim() } : undefined
         };
 
@@ -120,11 +118,11 @@ export class DeckToolExecutor {
         this.app.state.customDecks.push(newDeck);
         if (args.activateImmediately !== false) this.app.state.activeDeckId = newDeck.id;
         this._saveAndRender();
-        return {
+        return enrichActionableResult({
           success: true, deckId: newDeck.id, title: newDeck.title, entitiesCount: newDeck.entities.length,
           active: this.app.state.activeDeckId === newDeck.id, persistence: { persisted: true, storage: 'localStorage', committedAt: Date.now() },
           message: `题库《${newDeck.title}》已成功落库保存${this.app.state.activeDeckId === newDeck.id ? '，并设为当前激活题库！' : '！'}`
-        };
+        }, newDeck);
       }
 
       case 'tool_update_deck_meta': {
@@ -154,10 +152,11 @@ export class DeckToolExecutor {
         if (!args?.deckId || !Array.isArray(args.entities) || args.entities.length === 0) throw new ToolFormatError('缺少 deckId 或 entities 数组', 'MISSING_FIELD', '必须传入 deckId 与实体数组');
         const deck = (this.app.state.customDecks || []).find(d => d.id === args.deckId);
         if (!deck) throw new ToolReferenceError(`未找到自定义题库 "${args.deckId}"`, 'DECK_NOT_FOUND', '只能向自定义题库追加实体');
+        const adapted = args.entities.map(adaptEntityInput);
         deck.entities = deck.entities || [];
-        deck.entities.push(...args.entities);
+        deck.entities.push(...adapted);
         this._saveAndRender();
-        return { success: true, addedCount: args.entities.length, total: deck.entities.length };
+        return enrichActionableResult({ success: true, deckId: deck.id, addedCount: adapted.length, total: deck.entities.length }, deck);
       }
 
       case 'tool_update_entity': {
@@ -175,12 +174,12 @@ export class DeckToolExecutor {
         }
         const entity = (deck.entities || []).find(e => e.id === args.entityId);
         if (!entity) throw new ToolReferenceError(`考点词条 "${args.entityId}" 在题库 "${args.deckId}" 中不存在`, 'ENTITY_NOT_FOUND', '请核对考点 ID', { deckId: args.deckId, entityId: args.entityId });
-        const patch = args.updates || args.patch || {};
+        const patch = adaptEntityInput(args.updates || args.patch || {});
         const fields = ['title', 'prompt', 'answer', 'explanation', 'pitfalls', 'categoryId', 'layer', 'subtitle', 'lang', 'phonetics', 'confusedWith'];
         if (Object.keys(patch).some(key => !fields.includes(key))) throw new ToolFormatError('包含不可修改的考点字段', 'INVALID_FIELD');
         Object.assign(entity, patch);
         this._saveAndRender();
-        return { success: true, updatedEntity: entity };
+        return enrichActionableResult({ success: true, deckId: deck.id, updatedEntity: entity }, deck);
       }
 
       case 'tool_delete_entity': {

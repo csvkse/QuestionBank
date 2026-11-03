@@ -765,7 +765,8 @@ try {
     'tests/unit/learn-verify.test.mjs',
     'tests/unit/learn-verify-cluster.test.mjs',
     'tests/unit/agent-runtime-context.test.mjs',
-    'tests/unit/edugraph-core.test.mjs'
+    'tests/unit/edugraph-core.test.mjs',
+    'tests/unit/mcp-bridge.test.mjs'
   ];
   let allTestsPassed = true;
   for (const t of tests) {

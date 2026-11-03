@@ -187,6 +187,57 @@ async function run() {
     `);
     console.log(`   ✓ Agent Runtime Context Introspected: ActiveMode="${teleRes?.runtime?.activeMode}", Accuracy="${teleRes?.runtime?.telemetry?.accuracyRate}"`);
 
+    console.log('📸 Test 2.3: Verifying Semantic MCP Tool Calling, Input Elasticity & ReAct Actions...');
+    const mcpTestRes = await page.eval(`
+      (async () => {
+        const adapter = window.app.mcpBridge?.adapter;
+        if (!adapter) throw new Error('mcpBridge adapter not found');
+        const tools = adapter.listTools();
+        const hasCanonicalListDecks = tools.some(t => t.name === 'list_decks');
+        const canCall = await adapter.callTool('list_decks');
+        const legacyCall = await adapter.callTool('tool_list_decks');
+
+        const created = await adapter.callTool('create_deck', {
+          title: '【ね 的读音 】',
+          categories: [{ id: 'kana', name: '假名', group: '日语' }],
+          entities: [
+            { id: 'k1', categoryId: 'kana', layer: 1, title: 'あ', prompt: 'a', answer: 'a' },
+            { id: 'k2', categoryId: 'kana', layer: 1, title: 'い', prompt: 'i', answer: 'i' },
+            { id: 'k3', categoryId: 'kana', layer: 1, title: 'う', prompt: 'u', answer: 'u' },
+            { id: 'k4', categoryId: 'kana', layer: 1, title: 'え', prompt: 'e', answer: 'e' }
+          ]
+        });
+        const createdData = JSON.parse(created.content[0].text);
+
+        const added = await adapter.callTool('add_entities', {
+          deckId: createdData.deckId,
+          entities: [{ id: 'k_ne', category: 'kana', layer: 1, title: '【ね 的读音 】', question: '读音为ne的是？', answer: 'ね' }]
+        });
+        const addedData = JSON.parse(added.content[0].text);
+        const deck = window.app.state.customDecks.find(d => d.id === createdData.deckId);
+        const addedEntity = deck?.entities.find(e => e.id === 'k_ne');
+
+        await adapter.callTool('delete_deck', { deckId: createdData.deckId });
+
+        return {
+          toolsCount: tools.length,
+          hasCanonicalListDecks,
+          canCallOk: !canCall.isError,
+          legacyCallOk: !legacyCall.isError,
+          sanitizedTitle: createdData.title,
+          createdActionsCount: createdData.suggestedNextActions?.length || 0,
+          addedEntityTitle: addedEntity?.title,
+          addedEntityPrompt: addedEntity?.prompt,
+          addedEntityTtsClean: addedEntity?.phonetics?.tts_clean,
+          addedActionsCount: addedData.suggestedNextActions?.length || 0
+        };
+      })()
+    `);
+    console.log(`   ✓ Canonical Tools Available: ${mcpTestRes.hasCanonicalListDecks} (${mcpTestRes.toolsCount} tools)`);
+    console.log(`   ✓ Dual Invocation (Canonical & Legacy): ${mcpTestRes.canCallOk && mcpTestRes.legacyCallOk}`);
+    console.log(`   ✓ Deck Title Auto-Sanitized: "${mcpTestRes.sanitizedTitle}" with ${mcpTestRes.createdActionsCount} suggested actions`);
+    console.log(`   ✓ Entity Input Elasticity: Title="${mcpTestRes.addedEntityTitle}", Prompt="${mcpTestRes.addedEntityPrompt}", TTS="${mcpTestRes.addedEntityTtsClean}"`);
+
     console.log('📸 Test 3: Advancing to Interleaved Quiz Sprint (Phase 2: Verifying)...');
     await page.eval('window.app.learnVerifyController.startInterleavedQuiz()');
     await page.waitSelector('#view-learn button[onclick*="selectInterleavedOption"]');
