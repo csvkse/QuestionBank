@@ -141,11 +141,9 @@ export class FocusReaderController {
           <div class="mt-4 mb-5">
             <h3 class="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
               <span>${entity.title}</span>
-              ${isLanguageDeck(deck) ? `
-                <button onclick="app.speakWord('${entity.title.replace(/'/g, "\\'")}')" class="p-1 rounded-lg bg-slate-800 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-slate-700 transition" title="朗读发音">
-                  <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                </button>
-              ` : ''}
+              <button onclick="app.speakWord('${entity.title.replace(/'/g, "\\'")}')" class="p-1 rounded-lg bg-slate-800 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-slate-700 transition" title="朗读纯净发音">
+                <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+              </button>
             </h3>
             ${entity.subtitle ? `<p class="text-xs text-slate-400 mt-1 font-mono">${entity.subtitle}</p>` : ''}
           </div>

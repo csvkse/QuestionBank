@@ -12,71 +12,28 @@
  */
 export function sanitizePronunciation(text) {
   if (!text || typeof text !== 'string') return '';
+  let cleaned = text.trim().replace(/[*_`#]/g, '');
 
-  let cleaned = text.trim();
-
-  // 1. 去除 Markdown 格式 (如 **word**, `code`, *emphasis*, # heading)
-  cleaned = cleaned.replace(/[*_`#]/g, '');
-
-  // 2. 如果文本包含外部主体内容与附加括号说明 (如 "write (wrote)", "apple [ˈæpl]", "ね【读音：ne】")
-  // 提取括号外的核心文本
   const bracketRegex = /[\(（\[【「『<][^\)）\]】」』>]*[\)）\]】」』>]/g;
   const ipaRegex = /\/[^\/]{2,}\//g;
-
   const withoutBrackets = cleaned.replace(bracketRegex, ' ').replace(ipaRegex, ' ').trim();
 
   if (withoutBrackets.length > 0) {
     cleaned = withoutBrackets;
   } else {
-    // 3. 若全部内容都被包裹在括号内 (例如 "【ね 的读音】", "[apple]", "(bonjour)")
-    // 则去除最外层括号符号，保留内部实质内容
     cleaned = cleaned.replace(/^[【\[（\(「『<]+|[】\]）\)」』>]+$/g, '').trim();
   }
-
-  // 4. 去除多余的辅助元信息标签词 (如 "的读音", "读音：", "发音：", "注音：", "音标：")
   cleaned = cleaned.replace(/(?:的)?(?:读音|发音|音标|注音|释义|假名)[:：]?/g, '').trim();
-
-  // 5. 规范化空白字符与多余标点
-  cleaned = cleaned.replace(/\s+/g, ' ').trim();
-
-  return cleaned;
+  return cleaned.replace(/\s+/g, ' ').trim();
 }
 
-/**
- * 依据字符集特征自适应探测文本适用的 BCP 47 语言代码
- * @param {string} text - 待测文本
- * @param {string} defaultLang - 兜底语言代码 (默认 'en-US')
- * @returns {string} BCP 47 代码 (如 'ja-JP', 'zh-CN', 'ko-KR', 'en-US')
- */
 export function detectLocale(text, defaultLang = 'en-US') {
   if (!text) return defaultLang || 'en-US';
-
-  // 1. 日文假名 (平假名 / 片假名)
-  if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) {
-    return 'ja-JP';
-  }
-
-  // 2. 韩文谚文
-  if (/[\uAC00-\uD7AF]/.test(text)) {
-    return 'ko-KR';
-  }
-
-  // 3. 西里尔字母 (俄语)
-  if (/[\u0400-\u04FF]/.test(text)) {
-    return 'ru-RU';
-  }
-
-  // 4. 纯汉字 (中文)
-  if (/[\u4E00-\u9FA5]/.test(text)) {
-    return 'zh-CN';
-  }
-
-  // 5. 若 defaultLang 已有明确非英文设定 (例如 'fr-FR', 'de-DE', 'es-ES')
-  if (defaultLang && defaultLang !== 'en-US') {
-    return defaultLang;
-  }
-
-  // 6. 默认英文/拉丁语系
+  if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) return 'ja-JP';
+  if (/[\uAC00-\uD7AF]/.test(text)) return 'ko-KR';
+  if (/[\u0400-\u04FF]/.test(text)) return 'ru-RU';
+  if (/[\u4E00-\u9FA5]/.test(text)) return 'zh-CN';
+  if (defaultLang && defaultLang !== 'en-US') return defaultLang;
   return 'en-US';
 }
 
@@ -133,18 +90,21 @@ export function getDeckLangCode(deck) {
   if (/西语|西班牙语|西班牙|spanish/i.test(text)) return 'es-ES';
   if (/韩语|朝鲜语|韩文|korean/i.test(text)) return 'ko-KR';
   if (/俄语|俄文|russian/i.test(text)) return 'ru-RU';
+  if (/中文|汉语|常识|网络|计算机|协议|算法|哲学|历史|地理|python/i.test(text)) return 'zh-CN';
 
   return 'en-US';
 }
 
 /**
- * 纯前端原生语音合成服务
+ * 纯前端原生语音合成服务 (具备在线高保真音频与 Web Speech 双引擎自愈回退)
  */
 export class SpeechSynthService {
   constructor() {
     this.storageKey = 'knowledge_arena_auto_speech';
     this.rate = 0.95;
     this.pitch = 1.0;
+    this._activeUtterance = null;
+    this._activeAudio = null;
   }
 
   isSupported() {
@@ -176,13 +136,13 @@ export class SpeechSynthService {
   }
 
   cancel() {
-    if (this.isSupported()) {
-      try {
-        window.speechSynthesis.cancel();
-      } catch (e) {
-        // 容错降级
-      }
+    if (this._activeAudio) {
+      try { this._activeAudio.pause(); this._activeAudio = null; } catch (_) {}
     }
+    if (this.isSupported()) {
+      try { window.speechSynthesis.cancel(); } catch (_) {}
+    }
+    this._activeUtterance = null;
   }
 
   getBestVoice(lang = 'en-US') {
@@ -199,8 +159,42 @@ export class SpeechSynthService {
     }
   }
 
+  playAudioFallback(cleanText, lang) {
+    if (typeof window === 'undefined' || typeof window.Audio === 'undefined') return false;
+    try {
+      if (this._activeAudio) {
+        this._activeAudio.pause();
+        this._activeAudio = null;
+      }
+      const enc = encodeURIComponent(cleanText);
+      let url = `https://dict.youdao.com/dictvoice?audio=${enc}&type=2`;
+      if (lang === 'ja-JP' || lang?.startsWith('ja')) {
+        url = `https://dict.youdao.com/dictvoice?audio=${enc}&le=jap`;
+      } else if (lang === 'ko-KR' || lang?.startsWith('ko')) {
+        url = `https://dict.youdao.com/dictvoice?audio=${enc}&le=ko`;
+      } else if (lang === 'zh-CN' || lang?.startsWith('zh')) {
+        url = `https://dict.youdao.com/dictvoice?audio=${enc}&le=zh`;
+      }
+
+      const audio = new window.Audio(url);
+      this._activeAudio = audio;
+      audio.play().catch(() => {
+        // 若网络音频失败，降级为默认本地声音
+        const fallbackVoice = (window.speechSynthesis?.getVoices?.() || [])[0];
+        if (fallbackVoice && this.isSupported()) {
+          const fallbackUtt = new window.SpeechSynthesisUtterance(cleanText);
+          fallbackUtt.voice = fallbackVoice;
+          window.speechSynthesis.speak(fallbackUtt);
+        }
+      });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   speak(text, lang = null, options = {}) {
-    if (!this.isSupported() || !text) return false;
+    if (!text) return false;
 
     // 清洗文本：去除括号说明与标点干扰
     const cleanText = sanitizePronunciation(text);
@@ -208,25 +202,54 @@ export class SpeechSynthService {
 
     // 智能探测语言 (若未显式指定，或显式传入为 en-US 但文本具有明确非英文特征)
     const effectiveLang = (!lang || (lang === 'en-US' && /[\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF\u4E00-\u9FA5]/.test(cleanText)))
-      ? detectLocale(cleanText, lang || 'en-US')
+      ? detectLocale(cleanText, lang || 'zh-CN')
       : lang;
 
-    try {
-      this.cancel();
+    this.cancel();
 
-      const utterance = new window.SpeechSynthesisUtterance(cleanText);
-      utterance.lang = effectiveLang;
-      utterance.rate = options.rate || this.rate;
-      utterance.pitch = options.pitch || this.pitch;
+    // 1. 如果浏览器原生支持且存在该语种的语音库，优先使用原生 SpeechSynthesis
+    const voice = this.getBestVoice(effectiveLang);
+    if (this.isSupported() && voice) {
+      try {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        const utterance = new window.SpeechSynthesisUtterance(cleanText);
+        utterance.lang = effectiveLang;
+        utterance.rate = options.rate || this.rate;
+        utterance.pitch = options.pitch || this.pitch;
+        utterance.voice = voice;
 
-      const voice = this.getBestVoice(effectiveLang);
-      if (voice) utterance.voice = voice;
+        // 保持对象全局引用，防止 Chromium V8 GC 导致中途静音崩溃
+        this._activeUtterance = utterance;
+        utterance.onend = () => { if (this._activeUtterance === utterance) this._activeUtterance = null; };
+        utterance.onerror = () => { if (this._activeUtterance === utterance) this._activeUtterance = null; };
 
-      window.speechSynthesis.speak(utterance);
-      return true;
-    } catch (e) {
-      return false;
+        window.speechSynthesis.speak(utterance);
+        return true;
+      } catch (e) {
+        return this.playAudioFallback(cleanText, effectiveLang);
+      }
     }
+
+    // 2. 本地系统无目标语种语音库 (如 Windows 无日文/韩文语音包)，自适应切换为高保真在线发音
+    const audioOk = this.playAudioFallback(cleanText, effectiveLang);
+    if (audioOk) return true;
+
+    // 3. 兜底回退：若无网络音频可用 (如纯离线或测试夹具)，但 Web Speech 支持，使用系统可用声音尝试朗读
+    if (this.isSupported()) {
+      try {
+        const fallbackVoice = (window.speechSynthesis.getVoices() || [])[0];
+        const utterance = new window.SpeechSynthesisUtterance(cleanText);
+        utterance.lang = fallbackVoice ? fallbackVoice.lang : effectiveLang;
+        if (fallbackVoice) utterance.voice = fallbackVoice;
+        this._activeUtterance = utterance;
+        window.speechSynthesis.speak(utterance);
+        return true;
+      } catch (_) {}
+    }
+
+    return false;
   }
 
   speakEntity(entity, deck, isAuto = false) {

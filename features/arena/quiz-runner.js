@@ -104,12 +104,13 @@ export class QuizRunner {
     const promptText = document.getElementById('arena-prompt-text');
     if (promptText) promptText.innerText = currentEntity.prompt || '请选择最准确的含义或目标对应项：';
 
-    // 语言题库与自动发音联动
+    // 语言题库与自动发音联动 (点播按钮对全学科开放，自动播放遵循题库类型)
     const isLang = isLanguageDeck(deck);
     const btnReplay = document.getElementById('btn-replay-speech');
     const speechToggle = document.getElementById('arena-auto-speech-toggle');
     const shortcutHint = document.getElementById('arena-speech-shortcut-hint');
-    [btnReplay, speechToggle, shortcutHint].forEach(el => el && el.classList.toggle('hidden', !isLang));
+    if (btnReplay) btnReplay.classList.remove('hidden');
+    [speechToggle, shortcutHint].forEach(el => el && el.classList.toggle('hidden', !isLang));
     if (isLang && this.app.speechSynth) this.app.speechSynth.speakEntity(currentEntity, deck, true);
 
     // 收藏状态联动
