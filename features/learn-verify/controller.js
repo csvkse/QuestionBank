@@ -9,6 +9,7 @@
 import { LearnVerifyStateMachine, LearnVerifyState } from './state-machine.js';
 import { HierarchicalLayerProgressionStrategy, CategoryMasteryProgressionStrategy, SiblingChoiceVerificationStrategy } from './strategies.js';
 import { LearnVerifyView } from './view.js';
+import { LearnVerifyClusterController } from './cluster-controller.js';
 import { calculateNextReview } from '../../shared/sm2-scheduler.js';
 import { isLanguageDeck, speechSynth, getDeckLangCode } from '../../platform/audio/speech-synth.js';
 
@@ -16,12 +17,13 @@ export class LearnVerifyController {
   constructor(app) {
     this.app = app;
     this.view = new LearnVerifyView(app);
+    this.clusterController = new LearnVerifyClusterController(app);
     this.stateMachine = null;
     this.strategy = null;
     this.quizStrategy = new SiblingChoiceVerificationStrategy();
     this.currentTier = 1;
     this.selectedOptionIndex = null;
-    this.sessionMode = 'HIERARCHICAL';
+    this.sessionMode = 'CAPSULE';
     this.lastWrongAnswer = null;
     this.bindKeyboardShortcuts();
   }
@@ -31,6 +33,28 @@ export class LearnVerifyController {
     window.addEventListener('keydown', (e) => {
       if (this.app?.router?.currentView !== 'learn') return;
       if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+      if (this.sessionMode === 'CAPSULE') {
+        const cFsm = this.clusterController.fsm;
+        if (!cFsm) return;
+        const cState = cFsm.getCurrentState();
+        if (cState === 'CAPSULE_ENCODING' && e.key === 'Enter') {
+          e.preventDefault();
+          this.startInterleavedQuiz();
+        } else if (cState === 'INTERLEAVED_VERIFYING') {
+          if (['1', '2', '3', '4'].includes(e.key)) {
+            e.preventDefault();
+            this.selectInterleavedOption(parseInt(e.key, 10) - 1);
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            this.submitInterleavedOption();
+          }
+        } else if (cState === 'CAPSULE_REMEDIATION' && e.key === 'Enter') {
+          e.preventDefault();
+          this.resolveRemediationStep();
+        }
+        return;
+      }
 
       const fsm = this.stateMachine;
       if (!fsm) return;
@@ -60,6 +84,15 @@ export class LearnVerifyController {
       }
     });
   }
+
+  startCapsuleSession(l = 1) { this.sessionMode = 'CAPSULE'; this.clusterController.startCapsuleSession(l); }
+  startInterleavedQuiz() { this.clusterController.startInterleavedQuiz(); }
+  selectInterleavedOption(idx) { this.clusterController.selectInterleavedOption(idx); }
+  submitInterleavedOption() { this.clusterController.submitInterleavedOption(); }
+  startRemediation() { this.clusterController.startRemediation(); }
+  resolveRemediationStep() { this.clusterController.resolveRemediationStep(); }
+  advanceToCheckpoint() { this.clusterController.advanceToCheckpoint(); }
+  nextCapsule() { this.clusterController.nextCapsule(); }
 
   startHierarchicalSession(layerNum = 1) {
     this.currentTier = layerNum;
@@ -222,6 +255,10 @@ export class LearnVerifyController {
   }
 
   exitSession() {
+    if (this.sessionMode === 'CAPSULE') {
+      this.clusterController.exitSession();
+      return;
+    }
     if (this.stateMachine && this.stateMachine.getRemainingCount() > 0) {
       if (!confirm('当前学练会话尚未结束，确定要退出吗？')) return;
     }

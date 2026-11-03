@@ -1199,7 +1199,7 @@ export class KnowledgeMasterApp {
   startMode(modeName) {
     const norm = (modeName || '').toUpperCase();
     if (norm === 'LEARN' || norm === 'LEARN_VERIFY') {
-      this.startLearnVerify(1, 'HIERARCHICAL');
+      this.startLearnVerify(1, 'CAPSULE');
       return;
     }
     if (norm === 'FREE_LAB' || norm === 'FREE' || norm === 'CUSTOM') {
@@ -1213,8 +1213,10 @@ export class KnowledgeMasterApp {
     this.quizRunner.startSession(modeName);
   }
 
-  startLearnVerify(layerOrCatId = 1, mode = 'HIERARCHICAL') {
-    if (mode === 'CATEGORY') {
+  startLearnVerify(layerOrCatId = 1, mode = 'CAPSULE') {
+    if (mode === 'CAPSULE') {
+      this.learnVerifyController.startCapsuleSession(Number(layerOrCatId) || 1);
+    } else if (mode === 'CATEGORY') {
       this.learnVerifyController.startCategorySession(layerOrCatId);
     } else {
       this.learnVerifyController.startHierarchicalSession(Number(layerOrCatId) || 1);
@@ -1222,8 +1224,8 @@ export class KnowledgeMasterApp {
   }
 
   renderLearnVerify() {
-    if (!this.learnVerifyController.stateMachine) {
-      this.learnVerifyController.startHierarchicalSession(1);
+    if (!this.learnVerifyController.clusterController?.fsm && !this.learnVerifyController.stateMachine) {
+      this.learnVerifyController.startCapsuleSession(1);
     }
   }
 

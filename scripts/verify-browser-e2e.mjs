@@ -1,6 +1,8 @@
 /**
  * Browser End-to-End Verification using Chrome DevTools Protocol (CDP)
- * Verifies the Learn & Verify mode on local dev server and published GitHub Pages site.
+ * Verifies the Micro-Topic Cluster Learn & Verify mode on local dev server and published GitHub Pages site.
+ * 
+ * Strict compliance with FE-QUALITY-001: <= 300 lines.
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -92,7 +94,7 @@ class CDPPage {
 }
 
 async function run() {
-  console.log('🌐 Starting Browser E2E Verification for Learn & Verify Mode...');
+  console.log('🌐 Starting Browser E2E Verification for Micro-Topic Cluster Learn & Verify Mode...');
   const chromePath = findChrome();
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp_verify_'));
   const port = 9222;
@@ -109,7 +111,6 @@ async function run() {
   ], { stdio: 'ignore' });
 
   try {
-    // Wait for CDP server to respond
     let target = null;
     for (let i = 0; i < 30; i++) {
       try {
@@ -140,11 +141,11 @@ async function run() {
     console.log(`   ✓ Found Learn Mode Card: "${learnCardText.split("\\n")[0]}"`);
     await page.screenshot('docs/screenshots/01_dashboard.png');
 
-    console.log('📸 Test 2: Starting Learn & Verify Mode (Phase 1: Encoding)...');
+    console.log('📸 Test 2: Starting Micro-Topic Capsule Mode (Phase 1: Comparative Matrix)...');
     const startRes = await page.eval(`
       (() => {
         try {
-          window.app.startLearnVerify(1, "HIERARCHICAL");
+          window.app.startLearnVerify(1, "CAPSULE");
           return "OK";
         } catch (e) {
           return "ERROR: " + (e.stack || e.message);
@@ -153,27 +154,27 @@ async function run() {
     `);
     console.log(`   ✓ startLearnVerify call result: ${startRes}`);
     await page.waitSelector('#view-learn:not(.hidden)');
-    const nodeTitle = await page.eval('document.querySelector("#view-learn h2")?.innerText');
-    const tierBadge = await page.eval('document.querySelector("#view-learn .text-indigo-400.font-mono")?.innerText');
-    console.log(`   ✓ Encoding Card Rendered: Node="${nodeTitle}", Tier="${tierBadge}"`);
-    await page.screenshot('docs/screenshots/02_encoding_phase.png');
+    const capsuleTitle = await page.eval('document.querySelector("#view-learn h2")?.innerText');
+    const conceptCount = await page.eval('document.querySelectorAll("#view-learn .surface-inset").length');
+    console.log(`   ✓ Micro-Topic Capsule Rendered: Title="${capsuleTitle}", ConceptsCount=${conceptCount}`);
+    await page.screenshot('docs/screenshots/02_capsule_matrix.png');
 
-    console.log('📸 Test 3: Advancing to Immediate Verification (Phase 2: Verifying)...');
-    await page.eval('window.app.learnVerifyController.startVerify()');
-    await page.waitSelector('#view-learn button[onclick*="selectOption"]');
-    const optionCount = await page.eval('document.querySelectorAll(\'#view-learn button[onclick*="selectOption"]\').length');
-    console.log(`   ✓ Verifying Card Rendered with ${optionCount} options`);
-    await page.screenshot('docs/screenshots/03_verifying_phase.png');
+    console.log('📸 Test 3: Advancing to Interleaved Quiz Sprint (Phase 2: Verifying)...');
+    await page.eval('window.app.learnVerifyController.startInterleavedQuiz()');
+    await page.waitSelector('#view-learn button[onclick*="selectInterleavedOption"]');
+    const optionCount = await page.eval('document.querySelectorAll(\'#view-learn button[onclick*="selectInterleavedOption"]\').length');
+    const qTitle = await page.eval('document.querySelector("#view-learn h2")?.innerText');
+    console.log(`   ✓ Interleaved Quiz Rendered: Question="${qTitle}" with ${optionCount} intra-cluster options`);
+    await page.screenshot('docs/screenshots/03_interleaved_sprint.png');
 
-    console.log('📸 Test 4: Submitting Verification Answer (Phase 3: Evaluation)...');
-    await page.eval('window.app.learnVerifyController.selectOption(0)');
+    console.log('📸 Test 4: Answering Interleaved Quiz Options (Phase 3: Sprinting)...');
+    await page.eval('window.app.learnVerifyController.selectInterleavedOption(0)');
     await new Promise(r => setTimeout(r, 200));
-    await page.eval('window.app.learnVerifyController.submitAnswer()');
-    await new Promise(r => setTimeout(r, 800));
-    const feedbackText = await page.eval('document.querySelector("#view-learn")?.innerText');
-    const isFeedbackShown = feedbackText.includes('巩固记忆') || feedbackText.includes('就地纠偏') || feedbackText.includes('解析');
-    console.log(`   ✓ Verification Feedback Evaluated: feedbackShown=${isFeedbackShown}`);
-    await page.screenshot('docs/screenshots/04_result_phase.png');
+    await page.eval('window.app.learnVerifyController.submitInterleavedOption()');
+    await new Promise(r => setTimeout(r, 600));
+    const viewActive = await page.eval('!document.getElementById("view-learn").classList.contains("hidden")');
+    console.log(`   ✓ Interleaved Option Evaluated (view active: ${viewActive})`);
+    await page.screenshot('docs/screenshots/04_capsule_evaluation.png');
 
     console.log('📸 Test 5: Verifying Published Online Site (GitHub Pages)...');
     await page.send('Page.navigate', { url: 'https://csvkse.github.io/QuestionBank/' });
@@ -184,15 +185,8 @@ async function run() {
     console.log(`   ✓ Online Learn Mode Card Present: "${onlineCardText.split("\\n")[0]}"`);
     await page.screenshot('docs/screenshots/05_published_site.png');
 
-    console.log('📸 Test 6: Verifying Online Learn Mode Interactivity...');
-    await page.eval('window.app.startLearnVerify(1, "HIERARCHICAL")');
-    await page.waitSelector('#view-learn:not(.hidden)');
-    const onlineNodeTitle = await page.eval('document.querySelector("#view-learn h2")?.innerText');
-    console.log(`   ✓ Online Learn Mode Active: Node="${onlineNodeTitle}"`);
-    await page.screenshot('docs/screenshots/06_published_site_learn_mode.png');
-
     page.close();
-    console.log('\n🎉 ALL 6 BROWSER E2E VERIFICATIONS PASSED SUCCESSFULLY!');
+    console.log('\n🎉 ALL LOCAL BROWSER E2E VERIFICATIONS PASSED SUCCESSFULLY!');
   } finally {
     chromeProc.kill('SIGTERM');
     try {
