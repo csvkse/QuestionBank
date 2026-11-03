@@ -59,6 +59,7 @@
 | **48** | [48_SHANNON_ENTROPY_AND_DESENSITIZATION_RULE_VALIDATION_SPEC.md](./48_SHANNON_ENTROPY_AND_DESENSITIZATION_RULE_VALIDATION_SPEC.md) | **香农信息熵检测与脱敏规则合规校验架构规格书 (Shannon Entropy & Desensitization Rule Validation Spec)**<br>• **香农信息熵量化模型构建** (纯原生 ESM 字符分布概率与对数计算，识别无前缀随机高熵密钥)<br>• **字符集自适应双阈值体系** (Hex 字符集与 Base64/混合字符集动态适配，语境漏斗消除误报)<br>• **严格脱敏合规校验器** (探测不充分伪脱敏、标准占位符格式契约强校验与掩码暴露比判定)<br>• **双门禁联动防御** (FE-SEC-001 门禁扩展与 Pre-commit 增量拦截协同升级) |
 | **49** | [49_LEARN_AND_VERIFY_HIERARCHICAL_MASTERY_SPEC.md](./49_LEARN_AND_VERIFY_HIERARCHICAL_MASTERY_SPEC.md) | **题库层级化“学练一体”新知学习与即时验证引擎规约 (Learn & Verify Hierarchical Mastery Spec)**<br>• **新知初建与题库测验孤岛弥合** (破除单向被动浏览与盲猜焦虑，构建输入-提取-干预-门禁闭环)<br>• **四大经典设计模式深度协同** (有限状态机 FSM、推进与出题双策略 Strategy、多学科统一适配器 Adapter、中介者 Mediator)<br>• **认知科学与业界主流方案对标** (掌握学习 Bloom Mastery、提取练习 Testing Effect、多邻国 Learn-Test-Crown 与可汗学院阶梯)<br>• **纯前端单文件零依赖高性能保障** (零外部重型依赖、100% 离线、DOM 高性能微重排、WriteScheduler 批量写合并) |
 | **50** | [50_MICRO_TOPIC_CLUSTER_LEARNING_SPEC.md](./50_MICRO_TOPIC_CLUSTER_LEARNING_SPEC.md) | **微考点胶囊化·知识群对比学练与交错微测模式调研与架构设计规范 (Micro-Topic Cluster Learning Spec)**<br>• **单题孤立翻卡痛点与认知本质剖析** (破除图式孤岛效应、假性熟练度陷阱与同胞辨析盲区)<br>• **微考点胶囊化重构** (按分类与层级聚合 3~5 个同胞实体，构建全景对比矩阵与易错对偶全览)<br>• **交错微测题组冲关** (Fisher-Yates 伪随机交错出题，同胞实体全互斥干扰，消除单题死记硬背)<br>• **分层状态机与经典设计模式协同** (HFSM 胶囊生命周期、TopicCapsuleAdapter 适配器、交错出题策略 Strategy)<br>• **精准靶向对偶就地纠偏与全员通关** (错因对偶差异高亮卡、防死循环熔断、SM-2 批量记忆跃迁) |
+| **51** | [51_MULTIMODAL_KNOWLEDGE_GRAPH_AND_AGENT_CONTEXT_SPEC.md](./51_MULTIMODAL_KNOWLEDGE_GRAPH_AND_AGENT_CONTEXT_SPEC.md) | **多模态语义知识图谱、智能体模式感知与学练进度选单架构规约 (Multimodal EduKG & Agent Context Spec)**<br>• **多模态发音管线重塑** (PronunciationSanitizer 清洗粗括号与符号标签、自适应探测多语种、全题库发音开放)<br>• **Agent 与 MCP 态势感知总线** (`tool_get_runtime_context` 与模式契约工具，打通模式感知与薄弱点遥测)<br>• **双轨制学练进度选单 (Capsule Navigator)** (支持自主翻阅微考点目录、点播指定章节、定向复习与进退自主)<br>• **底层知识表示升阶 (EduKG 3.0)** (ConceptNode 多模态增强、一等公民 CapsuleNode、显式图关系边 CONTRASTS_WITH 与前置依赖) |
 
 ---
 
@@ -74,6 +75,7 @@ MCP 桥接看门狗保活、指数退避重试与垄断逻辑规约见 [46_MCP_B
 香农信息熵检测与脱敏规则合规校验架构规约见 [48_SHANNON_ENTROPY_AND_DESENSITIZATION_RULE_VALIDATION_SPEC.md](./48_SHANNON_ENTROPY_AND_DESENSITIZATION_RULE_VALIDATION_SPEC.md)。
 题库层级化“学练一体”新知学习与即时验证引擎规约见 [49_LEARN_AND_VERIFY_HIERARCHICAL_MASTERY_SPEC.md](./49_LEARN_AND_VERIFY_HIERARCHICAL_MASTERY_SPEC.md)。
 微考点胶囊化·知识群对比学练与交错微测模式调研与架构设计规范见 [50_MICRO_TOPIC_CLUSTER_LEARNING_SPEC.md](./50_MICRO_TOPIC_CLUSTER_LEARNING_SPEC.md)。
+多模态语义知识图谱、智能体模式感知与学练进度选单架构规约见 [51_MULTIMODAL_KNOWLEDGE_GRAPH_AND_AGENT_CONTEXT_SPEC.md](./51_MULTIMODAL_KNOWLEDGE_GRAPH_AND_AGENT_CONTEXT_SPEC.md)。
 
 ## 🗄️ 历史版本归档
 
