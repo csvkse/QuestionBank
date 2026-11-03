@@ -14,7 +14,7 @@ export class AppRouter {
       clearInterval(this.app.timerInterval);
     }
     this.currentView = viewName;
-    const views = ['dashboard', 'arena', 'summary', 'codex', 'study', 'agent'];
+    const views = ['dashboard', 'arena', 'summary', 'codex', 'study', 'agent', 'learn'];
     views.forEach(v => {
       const el = document.getElementById(`view-${v}`);
       if (el) {
@@ -37,6 +37,8 @@ export class AppRouter {
       this.app.renderStudyHub();
     } else if (viewName === 'agent') {
       this.app.renderAiAgent();
+    } else if (viewName === 'learn') {
+      this.app.renderLearnVerify();
     }
 
     this.updateNavTabs(viewName);

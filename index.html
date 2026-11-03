@@ -527,7 +527,7 @@
             <span>模式选择</span>
             <span class="text-xs text-slate-400 font-normal">基于当前知识图谱全自动派生</span>
           </h2>
-          <span class="text-xs text-slate-500 font-mono">5 大通用实战模式</span>
+          <span class="text-xs text-slate-500 font-mono">6 大通用实战模式</span>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -654,6 +654,32 @@
             <div class="mt-4 flex items-center justify-between text-xs text-slate-400 group-hover:text-slate-200 transition font-medium">
               <span>立即自由定制</span>
               <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-850 group-hover:bg-cyan-600 group-hover:text-white transition transform group-hover:translate-x-1">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+              </span>
+            </div>
+          </div>
+
+          <!-- 模式 6: 新知学练一体 (Learn & Verify) -->
+          <div id="mode-card-learn" onclick="app.startLearnVerify(1, 'HIERARCHICAL')" class="group surface-card rounded-2xl p-5 cursor-pointer transition-all hover:bg-slate-850/60 hover:border-slate-700 shadow-sm hover:shadow-md flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start">
+                <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 group-hover:text-indigo-400 group-hover:border-indigo-500/30 transition">
+                  <svg class="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 3v2m0 14v2m-9-9h2m14 0h2"/>
+                  </svg>
+                </div>
+                <div class="mode-badge-wrap flex items-center gap-1.5">
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-medium">先学后测 · 闭环</span>
+                </div>
+              </div>
+              <h3 class="text-base font-bold text-white mt-3 group-hover:text-indigo-400 transition">新知学练一体</h3>
+              <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">打破盲猜痛点！按层级研读新知识核心概念与同胞辨析，即刻触发同胞微测与错因就地干预。</p>
+            </div>
+            <div class="mt-4 flex items-center justify-between text-xs text-slate-400 group-hover:text-slate-200 transition font-medium">
+              <span>进入阶梯学练</span>
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-850 group-hover:bg-indigo-600 group-hover:text-white transition transform group-hover:translate-x-1">
                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M14 5l7 7m0 0l-7 7m7-7H3"/>
                 </svg>
@@ -1270,6 +1296,8 @@
         </div>
       </section>
     </div>
+    <!-- 7. 题库层级化学练一体视图 (LEARN & VERIFY VIEW) -->
+    <div id="view-learn" class="hidden space-y-6 max-w-2xl mx-auto" hidden></div>
   </main>
 
   <!-- 5. 可视化 / MD 双视图联动知识工坊 (DUAL-VIEW DECK STUDIO MODAL) (Surface 4 浮层) -->
@@ -6205,6 +6233,10 @@ class FocusReaderController {
               ${statusBadge}
               <button id="focus-btn-favorite" onclick="app.favoritesManager.toggleFavorite('${entity.id}')" class="p-1.5 rounded-lg border border-slate-750 hover:bg-slate-800 transition ${this.app.favoritesManager?.isFavorite(entity.id) ? 'text-amber-400 border-amber-500/40 bg-amber-500/10' : 'text-slate-400 hover:text-amber-400'}" title="${this.app.favoritesManager?.isFavorite(entity.id) ? '已收藏 (点击取消)' : '收藏本题 (点击收藏)'}">
                 ${renderIcon(this.app.favoritesManager?.isFavorite(entity.id) ? 'starFilled' : 'star', `w-3.5 h-3.5 ${this.app.favoritesManager?.isFavorite(entity.id) ? 'text-amber-400' : 'text-slate-400'}`)}
+              </button>
+              <button onclick="app.startLearnVerify('${entity.categoryId}', 'CATEGORY')" class="btn-primary-cta px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition" title="以此知识点所在分类开启学练一体模式">
+                ${renderIcon('sparkles', 'w-3 h-3 text-white')}
+                <span>学练一体</span>
               </button>
               <button onclick="app.drillSingleEntity('${entity.id}')" class="btn-secondary px-2.5 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1 transition" title="立即针对此考点发起单题测验">
                 ${renderIcon('target', 'w-3 h-3 text-indigo-400')}
@@ -12208,7 +12240,7 @@ class AppRouter {
       clearInterval(this.app.timerInterval);
     }
     this.currentView = viewName;
-    const views = ['dashboard', 'arena', 'summary', 'codex', 'study', 'agent'];
+    const views = ['dashboard', 'arena', 'summary', 'codex', 'study', 'agent', 'learn'];
     views.forEach(v => {
       const el = document.getElementById(`view-${v}`);
       if (el) {
@@ -12231,6 +12263,8 @@ class AppRouter {
       this.app.renderStudyHub();
     } else if (viewName === 'agent') {
       this.app.renderAiAgent();
+    } else if (viewName === 'learn') {
+      this.app.renderLearnVerify();
     }
 
     this.updateNavTabs(viewName);
@@ -12350,6 +12384,7 @@ class KnowledgeMasterApp {
     this.jevUi = new JevUi(this);
     this.favoritesManager = new FavoritesManagerController(this);
     this.deckVersioning = new DeckVersionController(this);
+    this.learnVerifyController = new LearnVerifyController(this);
     this.mcpBridge = new McpBridgeController(this.aiAgent.executor);
     this.agentWorkspace = new AgentWorkspaceNavigation({ onActivate: tab => {
       if (this.router.currentView !== 'agent') this.router.navigate('agent');
@@ -12952,11 +12987,11 @@ class KnowledgeMasterApp {
       targetMode = 'weakness';
       colorClass = 'bg-slate-900/90 border-rose-500/40 text-slate-200';
     } else if (coverageRate < 70) {
-      iconSvg = `<svg class="w-5 h-5 text-indigo-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z"/></svg>`;
-      title = `阶梯认知推荐：当前题库覆盖率为 ${coverageRate}%，建议继续开拓`;
-      desc = `推荐进入【分层阶梯战役模式】，依照布鲁姆认知模型由浅入深逐层挑战进阶要点。`;
-      actionBtnText = '继续闯关战役';
-      targetMode = 'ladder';
+      iconSvg = `<svg class="w-5 h-5 text-indigo-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 3v2m0 14v2m-9-9h2m14 0h2"/></svg>`;
+      title = `新知学练推荐：当前题库覆盖率为 ${coverageRate}%，建议循序渐进研读新知`;
+      desc = `推荐进入【新知学练一体模式】，依照布鲁姆认知阶梯由浅入深研读考点核心图式，并就地触发微测与错因干预！`;
+      actionBtnText = '开启新知学练一体';
+      targetMode = 'learn';
       colorClass = 'bg-slate-900/90 border-indigo-500/40 text-slate-200';
     } else {
       iconSvg = `<svg class="w-5 h-5 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`;
@@ -12989,6 +13024,7 @@ class KnowledgeMasterApp {
       'daily': 'mode-card-review',
       'weakness': 'mode-card-weakness',
       'ladder': 'mode-card-campaign',
+      'learn': 'mode-card-learn',
       'speed': 'mode-card-speed'
     };
     Object.values(cardIdMap).forEach(id => {
@@ -13456,6 +13492,10 @@ class KnowledgeMasterApp {
 
   startMode(modeName) {
     const norm = (modeName || '').toUpperCase();
+    if (norm === 'LEARN' || norm === 'LEARN_VERIFY') {
+      this.startLearnVerify(1, 'HIERARCHICAL');
+      return;
+    }
     if (norm === 'FREE_LAB' || norm === 'FREE' || norm === 'CUSTOM') {
       this.sandboxConfig.openModal();
       return;
@@ -13465,6 +13505,20 @@ class KnowledgeMasterApp {
       return;
     }
     this.quizRunner.startSession(modeName);
+  }
+
+  startLearnVerify(layerOrCatId = 1, mode = 'HIERARCHICAL') {
+    if (mode === 'CATEGORY') {
+      this.learnVerifyController.startCategorySession(layerOrCatId);
+    } else {
+      this.learnVerifyController.startHierarchicalSession(Number(layerOrCatId) || 1);
+    }
+  }
+
+  renderLearnVerify() {
+    if (!this.learnVerifyController.stateMachine) {
+      this.learnVerifyController.startHierarchicalSession(1);
+    }
   }
 
   openSandboxConfigModal() { this.sandboxConfig.openModal(); }

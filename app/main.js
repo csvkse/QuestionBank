@@ -31,6 +31,7 @@ import { AiAgentUIController, AgentWorkspaceNavigation, REFERENCE_PRESET_PROVIDE
 import { JevClient, JevUi } from '../features/jev/index.js';
 import { AppRouter } from './router.js';
 import { McpBridgeController } from '../features/mcp-bridge/index.js';
+import { LearnVerifyController } from '../features/learn-verify/index.js';
 
 export class KnowledgeMasterApp {
   constructor() {
@@ -89,6 +90,7 @@ export class KnowledgeMasterApp {
     this.jevUi = new JevUi(this);
     this.favoritesManager = new FavoritesManagerController(this);
     this.deckVersioning = new DeckVersionController(this);
+    this.learnVerifyController = new LearnVerifyController(this);
     this.mcpBridge = new McpBridgeController(this.aiAgent.executor);
     this.agentWorkspace = new AgentWorkspaceNavigation({ onActivate: tab => {
       if (this.router.currentView !== 'agent') this.router.navigate('agent');
@@ -691,11 +693,11 @@ export class KnowledgeMasterApp {
       targetMode = 'weakness';
       colorClass = 'bg-slate-900/90 border-rose-500/40 text-slate-200';
     } else if (coverageRate < 70) {
-      iconSvg = `<svg class="w-5 h-5 text-indigo-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z"/></svg>`;
-      title = `阶梯认知推荐：当前题库覆盖率为 ${coverageRate}%，建议继续开拓`;
-      desc = `推荐进入【分层阶梯战役模式】，依照布鲁姆认知模型由浅入深逐层挑战进阶要点。`;
-      actionBtnText = '继续闯关战役';
-      targetMode = 'ladder';
+      iconSvg = `<svg class="w-5 h-5 text-indigo-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 3v2m0 14v2m-9-9h2m14 0h2"/></svg>`;
+      title = `新知学练推荐：当前题库覆盖率为 ${coverageRate}%，建议循序渐进研读新知`;
+      desc = `推荐进入【新知学练一体模式】，依照布鲁姆认知阶梯由浅入深研读考点核心图式，并就地触发微测与错因干预！`;
+      actionBtnText = '开启新知学练一体';
+      targetMode = 'learn';
       colorClass = 'bg-slate-900/90 border-indigo-500/40 text-slate-200';
     } else {
       iconSvg = `<svg class="w-5 h-5 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`;
@@ -728,6 +730,7 @@ export class KnowledgeMasterApp {
       'daily': 'mode-card-review',
       'weakness': 'mode-card-weakness',
       'ladder': 'mode-card-campaign',
+      'learn': 'mode-card-learn',
       'speed': 'mode-card-speed'
     };
     Object.values(cardIdMap).forEach(id => {
@@ -1195,6 +1198,10 @@ export class KnowledgeMasterApp {
 
   startMode(modeName) {
     const norm = (modeName || '').toUpperCase();
+    if (norm === 'LEARN' || norm === 'LEARN_VERIFY') {
+      this.startLearnVerify(1, 'HIERARCHICAL');
+      return;
+    }
     if (norm === 'FREE_LAB' || norm === 'FREE' || norm === 'CUSTOM') {
       this.sandboxConfig.openModal();
       return;
@@ -1204,6 +1211,20 @@ export class KnowledgeMasterApp {
       return;
     }
     this.quizRunner.startSession(modeName);
+  }
+
+  startLearnVerify(layerOrCatId = 1, mode = 'HIERARCHICAL') {
+    if (mode === 'CATEGORY') {
+      this.learnVerifyController.startCategorySession(layerOrCatId);
+    } else {
+      this.learnVerifyController.startHierarchicalSession(Number(layerOrCatId) || 1);
+    }
+  }
+
+  renderLearnVerify() {
+    if (!this.learnVerifyController.stateMachine) {
+      this.learnVerifyController.startHierarchicalSession(1);
+    }
   }
 
   openSandboxConfigModal() { this.sandboxConfig.openModal(); }
