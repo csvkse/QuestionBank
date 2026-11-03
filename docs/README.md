@@ -61,6 +61,7 @@
 | **50** | [50_MICRO_TOPIC_CLUSTER_LEARNING_SPEC.md](./50_MICRO_TOPIC_CLUSTER_LEARNING_SPEC.md) | **微考点胶囊化·知识群对比学练与交错微测模式调研与架构设计规范 (Micro-Topic Cluster Learning Spec)**<br>• **单题孤立翻卡痛点与认知本质剖析** (破除图式孤岛效应、假性熟练度陷阱与同胞辨析盲区)<br>• **微考点胶囊化重构** (按分类与层级聚合 3~5 个同胞实体，构建全景对比矩阵与易错对偶全览)<br>• **交错微测题组冲关** (Fisher-Yates 伪随机交错出题，同胞实体全互斥干扰，消除单题死记硬背)<br>• **分层状态机与经典设计模式协同** (HFSM 胶囊生命周期、TopicCapsuleAdapter 适配器、交错出题策略 Strategy)<br>• **精准靶向对偶就地纠偏与全员通关** (错因对偶差异高亮卡、防死循环熔断、SM-2 批量记忆跃迁) |
 | **51** | [51_MULTIMODAL_KNOWLEDGE_GRAPH_AND_AGENT_CONTEXT_SPEC.md](./51_MULTIMODAL_KNOWLEDGE_GRAPH_AND_AGENT_CONTEXT_SPEC.md) | **多模态语义知识图谱、智能体模式感知与学练进度选单架构规约 (Multimodal EduKG & Agent Context Spec)**<br>• **多模态发音管线重塑** (PronunciationSanitizer 清洗粗括号与符号标签、自适应探测多语种、全题库发音开放)<br>• **Agent 与 MCP 态势感知总线** (`tool_get_runtime_context` 与模式契约工具，打通模式感知与薄弱点遥测)<br>• **双轨制学练进度选单 (Capsule Navigator)** (支持自主翻阅微考点目录、点播指定章节、定向复习与进退自主)<br>• **底层知识表示升阶 (EduKG 3.0)** (ConceptNode 多模态增强、一等公民 CapsuleNode、显式图关系边 CONTRASTS_WITH 与前置依赖) |
 | **52** | [52_FIRST_PRINCIPLES_EDUGRAPH_STORAGE_SPEC.md](./52_FIRST_PRINCIPLES_EDUGRAPH_STORAGE_SPEC.md) | **摒弃历史包袱：第一性原理教育知识图谱 (EduGraph-Native) 本质存储与架构重构设计规约 (Zero-Legacy EduKG Spec)**<br>• **摆脱 Markdown 文本排版桎梏** (从文档中心跃迁至属性图中心，根除脆弱正则与文本猜测)<br>• **EduGraph 3.0 原生超图模型** (多模态原子概念节点、一等公民胶囊超节点、强类型属性边 CONTRASTS_WITH / PREREQUISITE_OF)<br>• **题目本质论** (题目不是固化的死记硬背文本，而是图谱关系在认知空间上的动态探针 Probes)<br>• **双图正交解耦与全知 Agent 协议** (只读不可变领域知识图谱与动态认知遥测图谱分离，智能体直接执行图遍历与对偶拓扑修复) |
+| **53** | [53_EDUGRAPH_FEASIBILITY_CRITIQUE_AND_DESIGN_PATTERNS_SPEC.md](./53_EDUGRAPH_FEASIBILITY_CRITIQUE_AND_DESIGN_PATTERNS_SPEC.md) | **第一性原理教育知识图谱 (EduGraph) 可行性缺欠头脑风暴、设计模式优化与业界对比调研规约 (Feasibility Critique Spec)**<br>• **可行性极端缺陷头脑风暴** (有向依赖环路死锁、悬垂引用一致性破坏、5MB配额墙、遍历耗时抖动、Web Speech碎片化)<br>• **五大设计模式工程赋能** (访问者模式题目探针编译、策略模式图遍历、分层状态机双轨选单与微测、中介者与观察者遥测总线)<br>• **开源库与业界产品横向对标** (对标 Graphology、ts-fsrs、JGF、Dexie.js 与多邻国知识追踪、可汗学院技能树)<br>• **现有基础设施 100% 盘活** (复用 write-scheduler、speech-synth、distractor-sampler 与 Agent 工具沙箱体系) |
 
 ---
 
@@ -78,6 +79,7 @@ MCP 桥接看门狗保活、指数退避重试与垄断逻辑规约见 [46_MCP_B
 微考点胶囊化·知识群对比学练与交错微测模式调研与架构设计规范见 [50_MICRO_TOPIC_CLUSTER_LEARNING_SPEC.md](./50_MICRO_TOPIC_CLUSTER_LEARNING_SPEC.md)。
 多模态语义知识图谱、智能体模式感知与学练进度选单架构规约见 [51_MULTIMODAL_KNOWLEDGE_GRAPH_AND_AGENT_CONTEXT_SPEC.md](./51_MULTIMODAL_KNOWLEDGE_GRAPH_AND_AGENT_CONTEXT_SPEC.md)。
 摒弃历史包袱：第一性原理教育知识图谱 (EduGraph-Native) 本质存储与架构重构设计规约见 [52_FIRST_PRINCIPLES_EDUGRAPH_STORAGE_SPEC.md](./52_FIRST_PRINCIPLES_EDUGRAPH_STORAGE_SPEC.md)。
+第一性原理教育知识图谱 (EduGraph) 可行性缺欠头脑风暴、设计模式优化与业界对比调研规约见 [53_EDUGRAPH_FEASIBILITY_CRITIQUE_AND_DESIGN_PATTERNS_SPEC.md](./53_EDUGRAPH_FEASIBILITY_CRITIQUE_AND_DESIGN_PATTERNS_SPEC.md)。
 
 ## 🗄️ 历史版本归档
 
