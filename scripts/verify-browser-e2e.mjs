@@ -184,8 +184,15 @@ async function run() {
     console.log(`   ✓ Online Learn Mode Card Present: "${onlineCardText.split("\\n")[0]}"`);
     await page.screenshot('docs/screenshots/05_published_site.png');
 
+    console.log('📸 Test 6: Verifying Online Learn Mode Interactivity...');
+    await page.eval('window.app.startLearnVerify(1, "HIERARCHICAL")');
+    await page.waitSelector('#view-learn:not(.hidden)');
+    const onlineNodeTitle = await page.eval('document.querySelector("#view-learn h2")?.innerText');
+    console.log(`   ✓ Online Learn Mode Active: Node="${onlineNodeTitle}"`);
+    await page.screenshot('docs/screenshots/06_published_site_learn_mode.png');
+
     page.close();
-    console.log('\n🎉 ALL 5 BROWSER E2E VERIFICATIONS PASSED SUCCESSFULLY!');
+    console.log('\n🎉 ALL 6 BROWSER E2E VERIFICATIONS PASSED SUCCESSFULLY!');
   } finally {
     chromeProc.kill('SIGTERM');
     try {
