@@ -185,8 +185,15 @@ async function run() {
     console.log(`   ✓ Online Learn Mode Card Present: "${onlineCardText.split("\\n")[0]}"`);
     await page.screenshot('docs/screenshots/05_published_site.png');
 
+    console.log('📸 Test 6: Verifying Online Micro-Topic Capsule Interactivity...');
+    await page.eval('window.app.startLearnVerify(1, "CAPSULE")');
+    await page.waitSelector('#view-learn:not(.hidden)');
+    const onlineCapsuleTitle = await page.eval('document.querySelector("#view-learn h2")?.innerText');
+    console.log(`   ✓ Online Micro-Topic Capsule Active: Title="${onlineCapsuleTitle}"`);
+    await page.screenshot('docs/screenshots/06_published_capsule.png');
+
     page.close();
-    console.log('\n🎉 ALL LOCAL BROWSER E2E VERIFICATIONS PASSED SUCCESSFULLY!');
+    console.log('\n🎉 ALL LOCAL & ONLINE BROWSER E2E VERIFICATIONS PASSED SUCCESSFULLY!');
   } finally {
     chromeProc.kill('SIGTERM');
     try {
